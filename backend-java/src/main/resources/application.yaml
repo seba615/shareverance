@@ -1,0 +1,22 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: shareverance-java
+  flyway:
+    locations: classpath:db/migration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+python:
+  service:
+    url: ${PYTHON_SERVICE_URL:http://python-service:8000}

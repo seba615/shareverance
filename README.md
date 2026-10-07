@@ -5,7 +5,7 @@ Sistema multi-tenant para la centralización, gestión y análisis predictivo de
 
 Actualización: 3 de octubre de 2026. Para el MVP, cada participante es un usuario miembro de la organización. Se contemplan repartos, aportes al fondo común, pagos directos y reintegros.
 
-Las reglas, decisiones pendientes y observaciones post-MVP se documentan en [Reglas de negocio](REGLAS_DE_NEGOCIO.md). 
+Las reglas, decisiones pendientes y observaciones post-MVP se documentan en [Reglas de negocio](DOCS/REGLAS_DE_NEGOCIO.md). 
 
 ---
 
@@ -19,6 +19,60 @@ Las reglas, decisiones pendientes y observaciones post-MVP se documentan en [Reg
 
 ---
 
+
+## Inicio rápido
+
+Requisitos: Git y Docker Desktop iniciado, con contenedores Linux y Docker Compose 2.20 o posterior. En Windows se usa WSL 2. No es necesario instalar Java, Python, Node.js o PostgreSQL por separado. La primera ejecución necesita Internet para descargar imágenes y dependencias.
+
+Los comandos siguientes se ejecutan en PowerShell.
+
+### 1. Clonar el repositorio
+
+```powershell
+git clone https://github.com/seba615/shareverance shareverance
+Set-Location shareverance
+```
+Si el entorno todavía está en una rama pendiente de integración, seleccionar esa rama antes de continuar: `git switch --track origin/NOMBRE_RAMA`. 
+
+### 2. Crear la configuración local
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. Para el acceso directo a los servicios, si tienen algun puerto ocupado agregar a .env:
+
+```dotenv
+POSTGRES_HOST_PORT=5433
+JAVA_HOST_PORT=8080
+PYTHON_HOST_PORT=8000
+```
+Los puertos son de referencia, verificar cuales están libres en entorno local. 
+
+### 3. Construir e iniciar
+
+Desde la raíz del repositorio:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+docker compose -f compose.yaml -f compose.tools.yaml ps
+```
+
+Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demostración se cargan automáticamente; no crear tablas manualmente.
+
+### 4. Comprobar el entorno
+
+Abrir [http://localhost:5173](http://localhost:5173) y pulsar **Verificar conexiones**. Se espera `java: UP`, `database: UP`, `python: UP` y `demoRows: 2`.
+
+Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs). 
+
+## Documentación
+
+- [Guía de desarrollo y mantenimiento](docs/GUIA_DESARROLLO.md): actualización, ramas, servicios y agregado de bibliotecas.
+- [Como se creó el entorno](docs/ENTORNO_INICIAL.md): cómo se creó la configuración y para qué sirve cada archivo.
+- [Reglas de negocio](docs/REGLAS_DE_NEGOCIO.md): decisiones y temas pendientes.
+
+---
 
 ## 📐 Modelo de Datos (DER)
 ```mermaid
