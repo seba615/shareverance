@@ -1,0 +1,11 @@
+# Uso opcional: docker compose -f compose.yaml -f compose.tools.yaml up --build -d
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+  java-service:
+    ports:
+      - "127.0.0.1:${JAVA_HOST_PORT:-8080}:8080"
+  python-service:
+    ports:
+      - "127.0.0.1:${PYTHON_HOST_PORT:-8000}:8000"
