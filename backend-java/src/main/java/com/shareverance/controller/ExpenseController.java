@@ -46,5 +46,13 @@ public class ExpenseController {
     public ResponseEntity<Expense> deactivateExpense(@PathVariable Long id) {
         return ResponseEntity.ok(expenseService.deactivateExpense(id));
     }
+
+    @GetMapping("/organization/{organizationId}/history")
+    public ResponseEntity<com.shareverance.dto.contract.HistoryContractResponse> getOrganizationHistoryContract(
+            @PathVariable Long organizationId,
+            @RequestParam(required = false) String targetMonth
+    ) {
+        return ResponseEntity.ok(expenseService.getMonthlyHistoryContract(organizationId, targetMonth));
+    }
 }
 
