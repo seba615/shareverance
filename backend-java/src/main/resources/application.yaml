@@ -3,6 +3,11 @@ server:
 spring:
   application:
     name: shareverance-java
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
   flyway:
     locations: classpath:db/migration
 management:
@@ -12,11 +17,12 @@ management:
         include: health
   endpoint:
     health:
+      validate-group-membership: false
       probes:
         enabled: true
       group:
         readiness:
-          include: readinessState,db
+          include: readinessState
 python:
   service:
     url: ${PYTHON_SERVICE_URL:http://python-service:8000}
