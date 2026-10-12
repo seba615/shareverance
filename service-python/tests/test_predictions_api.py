@@ -2,8 +2,9 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from app.api.predictions import get_prediction_service
+from app.api.predictions import get_java_service_client, get_prediction_service
 from app.main import app
+from app.services.java_client import JavaServiceError
 
 
 @pytest.fixture
@@ -89,6 +90,54 @@ def test_prediction_returns_contract_response(client, payload):
             "model_version": "1",
         }
     ]
+
+
+def test_organization_prediction_fetches_history_from_java(client, payload):
+    payload["target_month"] = "2026-07"
+
+    class FakeJavaServiceClient:
+        def get_prediction_request(self, organization_id, target_month):
+            assert organization_id == 1
+            assert target_month == "2026-07"
+            from app.schemas.requests import PredictionRequest
+
+            return PredictionRequest.model_validate(payload)
+
+    app.dependency_overrides[get_java_service_client] = (
+        lambda: FakeJavaServiceClient()
+    )
+
+    try:
+        response = client.get(
+            "/api/v1/predictions/organization/1/monthly?target_month=2026-07"
+        )
+    finally:
+        app.dependency_overrides.pop(get_java_service_client, None)
+
+    assert response.status_code == 200
+    assert response.json()["target_month"] == "2026-07"
+    assert response.json()["organization"]["estimated_amount_minor"] == 60000
+
+
+def test_java_service_failure_uses_contract_error_response(client):
+    class FailingJavaServiceClient:
+        def get_prediction_request(self, organization_id, target_month):
+            raise JavaServiceError("Internal details must not be exposed")
+
+    app.dependency_overrides[get_java_service_client] = (
+        lambda: FailingJavaServiceClient()
+    )
+
+    try:
+        response = client.get(
+            "/api/v1/predictions/organization/1/monthly?target_month=2026-10"
+        )
+    finally:
+        app.dependency_overrides.pop(get_java_service_client, None)
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "SERVICE_UNAVAILABLE"
+    assert "Internal details" not in response.text
 
 
 def test_insufficient_history_is_not_http_error(client, payload):

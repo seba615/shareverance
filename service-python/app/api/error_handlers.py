@@ -11,6 +11,7 @@ from app.schemas.errors import (
     ErrorDetail,
     ErrorResponse,
 )
+from app.services.java_client import JavaServiceError
 from app.validation.history import HistoryValidationError
 
 
@@ -126,6 +127,26 @@ async def history_validation_handler(
             ErrorDetail(field=issue.field, code=issue.code)
             for issue in exc.issues
         ],
+    )
+
+
+async def java_service_error_handler(
+    request: Request,
+    _exc: JavaServiceError,
+) -> JSONResponse:
+    response = ErrorResponse(
+        contract_version="1",
+        request_id=getattr(request.state, "contract_request_id", None),
+        error=ErrorBody(
+            code="SERVICE_UNAVAILABLE",
+            message="No se pudo obtener información desde Java.",
+            details=[],
+        ),
+    )
+
+    return JSONResponse(
+        status_code=503,
+        content=response.model_dump(mode="json"),
     )
 
 logger = logging.getLogger(__name__)

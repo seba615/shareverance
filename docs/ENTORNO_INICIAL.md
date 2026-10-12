@@ -140,7 +140,7 @@ POSTGRES_PASSWORD=shareverance_local_only
 
 ## 5. Frontend
 
-**Qué se hizo.** Se creó una pantalla React que solicita `/api/dev/status`. Vite recibe esa ruta y la dirige a Java.
+**Qué se hizo.** Se creó una pantalla React que solicita `/api/v1/dev/status`. Vite recibe esa ruta y la dirige a Java.
 
 **Por qué.** El navegador solo necesita la dirección del frontend. El nombre `java-service` se resuelve dentro de Docker; el navegador de Windows no lo resuelve directamente. El proxy evita configurar una dirección de API diferente en cada componente de React.
 
@@ -243,7 +243,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><
 
 ### Archivo `frontend/src/App.tsx`
 
-**Qué hace este archivo.** `Status` describe la forma esperada de la respuesta; no valida por sí solo un JSON recibido en ejecución. `useState` guarda resultado, error y estado de espera. `check` limpia el resultado anterior, hace `fetch`, controla el código HTTP y muestra el JSON. `finally` vuelve a habilitar el botón incluso si hay error. El render muestra cada campo; `/api/dev/status` pasa por el proxy de Vite. Todavía no se cargan gastos ni se autentican usuarios.
+**Qué hace este archivo.** `Status` describe la forma esperada de la respuesta; no valida por sí solo un JSON recibido en ejecución. `useState` guarda resultado, error y estado de espera. `check` limpia el resultado anterior, hace `fetch`, controla el código HTTP y muestra el JSON. `finally` vuelve a habilitar el botón incluso si hay error. El render muestra cada campo; `/api/v1/dev/status` pasa por el proxy de Vite. Todavía no se cargan gastos ni se autentican usuarios.
 
 ```tsx
 import { useState } from 'react';
@@ -255,7 +255,7 @@ export default function App() {
   async function check() {
     setBusy(true); setError(''); setResult(null);
     try {
-      const response = await fetch('/api/dev/status');
+      const response = await fetch('/api/v1/dev/status');
       if (!response.ok) throw new Error(`Java respondió HTTP ${response.status}`);
       setResult(await response.json());
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo conectar'); }
@@ -495,7 +495,7 @@ public class DevelopmentController {
         this.client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     }
     public record Status(String java, String database, long demoRows, String python) {}
-    @GetMapping("/api/dev/status")
+    @GetMapping("/api/v1/dev/status")
     public Status status() {
         jdbc.queryForObject("SELECT 1", Integer.class);
         Long count = jdbc.queryForObject("SELECT count(*) FROM infra_demo", Long.class);
@@ -743,7 +743,7 @@ try {
         $line = Get-Content .env | Where-Object { $_ -match '^WEB_HOST_PORT=' } | Select-Object -Last 1
         if ($line) { $port = ($line -split '=', 2)[1].Trim() }
     }
-    $r = Invoke-RestMethod -Uri "http://localhost:$port/api/dev/status" -TimeoutSec 15
+    $r = Invoke-RestMethod -Uri "http://localhost:$port/api/v1/dev/status" -TimeoutSec 15
     $r | Format-List
     if ($r.java -ne 'UP' -or $r.database -ne 'UP' -or $r.python -ne 'UP' -or $r.demoRows -ne 2) {
         throw "La comprobación no pasó. Revisar logs y estado de los servicios."
@@ -865,7 +865,7 @@ La documentación queda en [http://localhost:8001/docs](http://localhost:8001/do
 ### Recorrido completo que debe poder explicarse
 
 1. El navegador carga React desde Vite.
-2. React solicita `/api/dev/status`.
+2. React solicita `/api/v1/dev/status`.
 3. Vite reenvía esa solicitud a Java.
 4. Java consulta PostgreSQL y el endpoint de Python.
 5. Java devuelve los campos del diagnóstico como JSON.

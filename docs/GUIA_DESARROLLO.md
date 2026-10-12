@@ -16,7 +16,7 @@ Con ambos archivos Compose y las variables del ejemplo anterior:
 | Servicio | Dirección o conexión | Uso |
 | --- | --- | --- |
 | Frontend | http://localhost:5173 | Pantalla de comprobación del entorno |
-| Java | http://localhost:8080/api/dev/status | Diagnóstico de comunicación, habilitado en desarrollo |
+| Java | http://localhost:8080/api/v1/dev/status | Diagnóstico de comunicación, habilitado en desarrollo |
 | Java | http://localhost:8080/actuator/health | Estado de salud de la API |
 | Python | http://localhost:8000/health | Estado de salud de Python |
 | Python | http://localhost:8000/docs | Documentación interactiva de FastAPI |

@@ -41,7 +41,9 @@ Si el entorno todavía está en una rama pendiente de integración, seleccionar 
 Copy-Item .env.example .env
 ```
 
-Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. Para el acceso directo a los servicios, si tienen algun puerto ocupado agregar a .env:
+Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. La copia de `.env.example` incluye credenciales OAuth locales para que Python consulte el historial a través de Java; son solo para desarrollo y deben reemplazarse antes de cualquier despliegue. Si `.env` ya existía, agregarle `PYTHON_CLIENT_ID` y `PYTHON_CLIENT_SECRET` desde `.env.example`.
+
+Para el acceso directo a los servicios, si tienen algun puerto ocupado agregar a `.env`:
 
 ```dotenv
 POSTGRES_HOST_PORT=5433
