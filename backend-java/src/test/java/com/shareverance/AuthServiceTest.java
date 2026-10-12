@@ -1,22 +1,24 @@
 package com.shareverance;
 
-import com.shareverance.dto.ClientCredentialsRequest;
-import com.shareverance.controller.AuthController;
-import com.shareverance.exception.OAuthTokenException;
-import com.shareverance.repository.UserRepository;
-import com.shareverance.service.impl.AuthServiceImpl;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.mock;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
+import com.shareverance.controller.AuthController;
+import com.shareverance.dto.ClientCredentialsRequest;
+import com.shareverance.exception.OAuthTokenException;
+import com.shareverance.repository.UserRepository;
+import com.shareverance.service.impl.AuthServiceImpl;
 
 class AuthServiceTest {
 

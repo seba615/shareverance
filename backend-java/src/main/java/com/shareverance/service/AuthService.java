@@ -1,8 +1,8 @@
 package com.shareverance.service;
 
+import com.shareverance.dto.ClientCredentialsRequest;
 import com.shareverance.dto.LoginRequest;
 import com.shareverance.dto.LoginResponse;
-import com.shareverance.dto.ClientCredentialsRequest;
 import com.shareverance.dto.ServiceTokenResponse;
 
 public interface AuthService {

@@ -1,16 +1,17 @@
 package com.shareverance;
 
-import com.shareverance.security.BearerTokenAuthFilter;
-import com.shareverance.service.AuthService;
-import jakarta.servlet.FilterChain;
-import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+
+import com.shareverance.security.BearerTokenAuthFilter;
+import com.shareverance.service.AuthService;
+
+import jakarta.servlet.FilterChain;
 
 class BearerTokenAuthFilterTest {
 
