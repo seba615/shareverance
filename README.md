@@ -214,7 +214,6 @@ Representa el grupo global o **tenant** del sistema (por ejemplo: consorcio, uni
 | `name` | VARCHAR(100) | Nombre de la entidad. Ej.: `"Edificio Av. Libertador 1234"`, `"Sede Central"`. |
 | `type` | VARCHAR(50) | Clasificación del dominio: `HOUSEHOLD`, `CONDO`, `UNIVERSITY`. |
 | `currency` | CHAR(3) | Moneda única de la organización; inicial ARS. Cambiable solo sin gastos ni movimientos. |
-| `timezone` | VARCHAR(100) | Zona para determinar el día actual; inicial America/Argentina/Buenos_Aires. |
 | `created_at` | TIMESTAMP | Fecha de alta de la organización. |
 | `is_active` | BOOLEAN | Estado de la organización. `true` = activa, `false` = deshabilitada o dada de baja. Default: `true`. |
 
@@ -277,6 +276,7 @@ Entidad transaccional central. Representa los **egresos registrados en el sistem
 | `id` | BIGINT | **PK**, Auto-increment. Identificador del gasto. |
 | `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Tenant al que pertenece el gasto. La categoría y los participantes deben pertenecer al mismo tenant. El acceso de Python queda pendiente de contrato. |
 | `created_by_user_id` | BIGINT | **FK → USER.id**. Usuario que registró el gasto. No identifica necesariamente al pagador; los pagos se registran por separado. |
+| `paid_by_membership_id` |	BIGINT	| **FK → USER_ORGANIZATION.id**. Miembro a cuyo nombre se imputa el desembolso inicial (un ADMIN puede cargar en nombre de otro usuario). |
 | `category_id` | BIGINT | **FK → CATEGORY.id**. Categoría vinculada al gasto. |
 | `amount` | DECIMAL(12,2) | Monto monetario positivo, hasta 9.999.999.999,99; máximo dos decimales. |
 | `expense_date` | DATE | Fecha del gasto, no futura. Admite antecedentes anteriores al alta de la organización. |
@@ -296,6 +296,7 @@ Participación económica de cada miembro. Reemplaza la imputación única en EX
 | `id` | BIGINT | PK, auto-increment. |
 | `expense_id` | BIGINT | FK → EXPENSE.id. |
 | `user_organization_id` | BIGINT | FK → USER_ORGANIZATION.id; participante de la misma organización. |
+| `organization_id` | BIGINT | NOT NULL, y describí las claves foráneas compuestas que validan la organización.
 | `amount` | DECIMAL(12,2) | Parte positiva asignada. Suma de partes = total del gasto. |
 
 ---
