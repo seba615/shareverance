@@ -26,3 +26,8 @@ management:
 python:
   service:
     url: ${PYTHON_SERVICE_URL:http://python-service:8000}
+security:
+  clients:
+    python-service:
+      client-id: ${PYTHON_CLIENT_ID:python-prediction-service}
+      client-secret: ${PYTHON_CLIENT_SECRET:}

@@ -23,7 +23,7 @@ public class DevelopmentController {
         this.client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     }
     public record Status(String java, String database, long demoRows, String python) {}
-    @GetMapping("/api/dev/status")
+    @GetMapping("/api/v1/dev/status")
     public Status status() {
         Long count = 0L;
         String dbStatus = "MOCK";

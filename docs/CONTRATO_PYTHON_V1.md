@@ -3,7 +3,7 @@
 **Versión del contrato:** 1  
 **Alcance:** analítica mensual y predicción del próximo mes por organización y categoría.  
 **Formato:** HTTP con JSON UTF-8.  
-**Estado:** especificación para implementación; no implica funcionalidad ya desarrollada.
+**Estado:** contrato en implementación; la integración OAuth Python-Java usa actualmente el predictor simulado.
 
 ## 1. Objetivo y responsabilidades
 
@@ -12,8 +12,8 @@ Este contrato permite desarrollar Java, Python y la base de datos de forma indep
 | Componente | Responsabilidad |
 | --- | --- |
 | Base de datos | Persistencia, restricciones, migraciones y carga reproducible de datos de prueba. |
-| Java | Autorización, aislamiento por organización, consulta de gastos activos, agregación mensual, envío del JSON y manejo de la respuesta. |
-| Python | Validación del contrato, analítica, predicción y respuestas de error consistentes. |
+| Java | Autorización, aislamiento por organización, API de datos, emisión de tokens OAuth para el cliente Python y consulta/agrupación de gastos activos. |
+| Python | Obtención del historial desde Java con OAuth, validación del contrato, analítica, predicción y respuestas de error consistentes. |
 | Frontend, mediante Java | Presentación de resultados, estados y avisos de simulación. |
 
 El nombre de una tabla o un cambio de implementación SQL no modifica este contrato si Java conserva la estructura y el significado de los datos enviados.
@@ -23,12 +23,15 @@ El nombre de una tabla o un cambio de implementación SQL no modifica este contr
 | Método y ruta | Función |
 | --- | --- |
 | `GET /health` | Comprobar disponibilidad del servicio; no mide precisión predictiva. |
-| `POST /api/v1/analytics/monthly` | Comparar los últimos dos meses completos, globalmente y por categoría. |
-| `POST /api/v1/predictions/monthly` | Predecir el próximo mes, globalmente y por categoría. |
+| `POST /api/v1/analytics/monthly` | Comparar los últimos dos meses completos, globalmente y por categoría, usando el contrato enviado. |
+| `POST /api/v1/predictions/monthly` | Predecir el próximo mes con el contrato enviado. |
+| `GET /api/v1/predictions/organization/{organization_id}/monthly?target_month=YYYY-MM` | Obtener el historial desde Java y generar una predicción sin modificar datos. |
 
-URL interna de Docker: `http://python-service:8000`.
+URL interna de Docker para Python: `http://python-service:8000`. Python obtiene los datos mediante `GET /api/v1/expenses/organization/{organization_id}/history?targetMonth=YYYY-MM` en Java.
 
-Todas las solicitudes POST usan `Content-Type: application/json`. No se envían datos personales, comprobantes ni conexiones a la base. La autenticación del usuario y sus permisos corresponden a Java. La exposición externa del servicio Python y su autenticación entre servicios requieren una definición de infraestructura separada.
+Las solicitudes que envían un contrato usan `Content-Type: application/json`. Python solicita un token en `POST /api/v1/auth/token` mediante `application/x-www-form-urlencoded`, con `grant_type=client_credentials`, `client_id`, `client_secret` y `scope=analytics:read`. El token Bearer dura una hora y solo autoriza GET del historial de una organización. Las credenciales se configuran con `PYTHON_CLIENT_ID` y `PYTHON_CLIENT_SECRET` en el entorno de ambos servicios; no usar las credenciales de ejemplo fuera del desarrollo local.
+
+Los tokens OAuth se guardan en memoria en Java: se invalidan al reiniciar y requieren una sola instancia Java. Para escalar horizontalmente se necesita almacenamiento compartido de tokens o una estrategia de tokens firmados. El scope identifica al servicio Python, no a un usuario ni a su membresía. El endpoint de historial todavía no aplica permisos por organización; no publicar Python o ese endpoint fuera de una red confiable hasta implementar esa autorización en Java.
 
 ## 3. Entrada compartida
 

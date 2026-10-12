@@ -16,6 +16,10 @@ services:
       start_period: 15s
   python-service:
     build: ./service-python
+    environment:
+      JAVA_SERVICE_URL: http://java-service:8080
+      JAVA_CLIENT_ID: ${PYTHON_CLIENT_ID:-python-prediction-service}
+      JAVA_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
     healthcheck:
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
@@ -30,6 +34,8 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shareverance_dev}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
       PYTHON_SERVICE_URL: http://python-service:8000
+      PYTHON_CLIENT_ID: ${PYTHON_CLIENT_ID:-python-prediction-service}
+      PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
     depends_on:
       postgres:
         condition: service_healthy

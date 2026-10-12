@@ -7,7 +7,7 @@ export default function App() {
   async function check() {
     setBusy(true); setError(''); setResult(null);
     try {
-      const response = await fetch('/api/dev/status');
+      const response = await fetch('/api/v1/dev/status');
       if (!response.ok) throw new Error(`Java respondió HTTP ${response.status}`);
       setResult(await response.json());
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo conectar'); }
