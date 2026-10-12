@@ -1,0 +1,1375 @@
+{
+  "contract_version": "1",
+  "request_id": "e8610dae-591a-413b-8d41-23cf2333ba69",
+  "organization_id": 1,
+  "currency": "ARS",
+  "target_month": "2026-01",
+  "categories": [
+    {
+      "category_id": 1,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 2,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 3,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 4,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 5,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 6,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 7,
+      "available_from_month": "2023-01"
+    },
+    {
+      "category_id": 8,
+      "available_from_month": "2023-01"
+    }
+  ],
+  "history": [
+    {
+      "month": "2023-01",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 23259281
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 4939576
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 4950724
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 4816827
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 7104161
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 10666954
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2176633
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 15796829
+        }
+      ]
+    },
+    {
+      "month": "2023-02",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 25436937
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 5794493
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 3701001
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 5432734
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 7751839
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 10660609
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2316856
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 17025902
+        }
+      ]
+    },
+    {
+      "month": "2023-03",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 26555171
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 7062441
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 5004084
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 5201959
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 6986535
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 11234762
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2534063
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 16936269
+        }
+      ]
+    },
+    {
+      "month": "2023-04",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 31155963
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 5215268
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 4529087
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 7121842
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 6643634
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 10604550
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 1803483
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 16526370
+        }
+      ]
+    },
+    {
+      "month": "2023-05",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 32072461
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 6720043
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 4976820
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 6572640
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 7779861
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 11923380
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 1938828
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 19171687
+        }
+      ]
+    },
+    {
+      "month": "2023-06",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 38428141
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 5706066
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 4429667
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 6879542
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 7806388
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 13595431
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2147237
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 19402559
+        }
+      ]
+    },
+    {
+      "month": "2023-07",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 30243434
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 6923173
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 5361041
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 7458485
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 7953379
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 13220650
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3624807
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 19704583
+        }
+      ]
+    },
+    {
+      "month": "2023-08",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 32895947
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 7418169
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6804735
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 6939652
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 8943118
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 13421534
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 1841753
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 20922134
+        }
+      ]
+    },
+    {
+      "month": "2023-09",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 41339820
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 8334773
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6171648
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 8497690
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 9514309
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 16879036
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3184549
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 21407990
+        }
+      ]
+    },
+    {
+      "month": "2023-10",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 39568520
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 9013974
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 7631168
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 7775760
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 10032245
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 14375240
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2293167
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 21661098
+        }
+      ]
+    },
+    {
+      "month": "2023-11",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 48601665
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 8384206
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 8147698
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 8571386
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 9995309
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 15509151
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2968939
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 23782297
+        }
+      ]
+    },
+    {
+      "month": "2023-12",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 43633565
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 9252204
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6068767
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 8120931
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 10790275
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 19399022
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2499187
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 23663924
+        }
+      ]
+    },
+    {
+      "month": "2024-01",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 44713599
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 8768619
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 8845014
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 9117568
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 9928562
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 16759077
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4562918
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 27044791
+        }
+      ]
+    },
+    {
+      "month": "2024-02",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 37108870
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 10420490
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 7814600
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 8174545
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 8917168
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 22276065
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3287395
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 27483651
+        }
+      ]
+    },
+    {
+      "month": "2024-03",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 53746780
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 11114482
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6312397
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 10821080
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 13363142
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 13006462
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4061460
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 28379162
+        }
+      ]
+    },
+    {
+      "month": "2024-04",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 43291360
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 10324328
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 7905541
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 11441272
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 13415591
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 16336209
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 2868760
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 29401260
+        }
+      ]
+    },
+    {
+      "month": "2024-05",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 40575561
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 9071642
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 7321544
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 11097686
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 12686914
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 22508111
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5027355
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 32044732
+        }
+      ]
+    },
+    {
+      "month": "2024-06",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 52744771
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 10319648
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6886611
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 12690689
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 12966157
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 19594023
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3913245
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 32662133
+        }
+      ]
+    },
+    {
+      "month": "2024-07",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 54978482
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 10563573
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 6760978
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 11926573
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 14953849
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 22637378
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3043197
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 35145522
+        }
+      ]
+    },
+    {
+      "month": "2024-08",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 53292749
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 11848095
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 11549553
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 11057493
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 13035238
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 22352214
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 3381378
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 33950494
+        }
+      ]
+    },
+    {
+      "month": "2024-09",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 76508998
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 11150020
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 8690709
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 12832881
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 14228212
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 24011302
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4210408
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 39331332
+        }
+      ]
+    },
+    {
+      "month": "2024-10",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 78992048
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 15015479
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 11428603
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 12622254
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 17957409
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 27757519
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5042961
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 38393856
+        }
+      ]
+    },
+    {
+      "month": "2024-11",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 59609753
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 13555976
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 11781550
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 14582071
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 15288142
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 27990180
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 6601292
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 41208151
+        }
+      ]
+    },
+    {
+      "month": "2024-12",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 75154224
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 12602401
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 12664543
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 13838788
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 17430463
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 33006922
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4614058
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 42175286
+        }
+      ]
+    },
+    {
+      "month": "2025-01",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 81891327
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 15292012
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 13322725
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 17093157
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 20483448
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 25992450
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 8342782
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 46863758
+        }
+      ]
+    },
+    {
+      "month": "2025-02",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 78062566
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 17917145
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 14785251
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 15913841
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 21960036
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 28994842
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4318110
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 47649506
+        }
+      ]
+    },
+    {
+      "month": "2025-03",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 92025345
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 20968655
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 11786636
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 13550500
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 19459027
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 35874450
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 4929405
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 48630798
+        }
+      ]
+    },
+    {
+      "month": "2025-04",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 83883308
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 14774755
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 14878892
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 16930126
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 21442977
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 35558818
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5833398
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 52470177
+        }
+      ]
+    },
+    {
+      "month": "2025-05",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 94305580
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 15886853
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 12430987
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 15296571
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 24212660
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 37275436
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5323053
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 52183568
+        }
+      ]
+    },
+    {
+      "month": "2025-06",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 77812232
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 17956342
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 17422195
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 18808312
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 25089513
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 30557160
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5357116
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 57256443
+        }
+      ]
+    },
+    {
+      "month": "2025-07",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 102499196
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 18745848
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 12018645
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 21980711
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 27330800
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 40197689
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 5793407
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 54838806
+        }
+      ]
+    },
+    {
+      "month": "2025-08",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 105348620
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 18973376
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 15871266
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 22023303
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 25130360
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 30672016
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 6510109
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 64433432
+        }
+      ]
+    },
+    {
+      "month": "2025-09",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 100667573
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 21636478
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 16846226
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 22686269
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 27657610
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 38605109
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 7821209
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 65034054
+        }
+      ]
+    },
+    {
+      "month": "2025-10",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 90492048
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 20041841
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 21243229
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 23169607
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 25967406
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 44105606
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 11267000
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 62066045
+        }
+      ]
+    },
+    {
+      "month": "2025-11",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 97974319
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 22030882
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 21207377
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 25051769
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 26556107
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 39874331
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 11213180
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 70612418
+        }
+      ]
+    },
+    {
+      "month": "2025-12",
+      "category_totals": [
+        {
+          "category_id": 1,
+          "amount_minor": 126577816
+        },
+        {
+          "category_id": 2,
+          "amount_minor": 22697707
+        },
+        {
+          "category_id": 3,
+          "amount_minor": 21945925
+        },
+        {
+          "category_id": 4,
+          "amount_minor": 26556487
+        },
+        {
+          "category_id": 5,
+          "amount_minor": 27928540
+        },
+        {
+          "category_id": 6,
+          "amount_minor": 46987161
+        },
+        {
+          "category_id": 7,
+          "amount_minor": 8791392
+        },
+        {
+          "category_id": 8,
+          "amount_minor": 72815137
+        }
+      ]
+    }
+  ]
+}

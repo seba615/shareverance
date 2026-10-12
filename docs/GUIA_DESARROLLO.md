@@ -45,6 +45,8 @@ docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait
 
 La reconstrucción incorpora código y dependencias de la rama actual. `docker compose restart` solo reinicia los contenedores existentes: no construye una imagen nueva.
 
+**Si la rama actual ya fue integrada en `main`, comenzar la siguiente tarea desde `main` actualizado**, siguiendo los pasos de la sección 3. Actualizar la rama anterior no incorpora automáticamente los cambios de `main`.
+
 ## 3. Ejecutar otra rama o crear una propia
 
 Conservar primero el trabajo local. Luego detener los servicios y consultar las ramas:
@@ -54,6 +56,8 @@ docker compose -f compose.yaml -f compose.tools.yaml down
 git fetch origin --prune
 git branch -r
 ```
+
+### Ejecutar una rama existente
 
 Para una rama que ya existe localmente:
 
@@ -68,13 +72,34 @@ Para empezar a seguir una rama remota que no existe localmente:
 git switch --track origin/NOMBRE_RAMA
 ```
 
-Para crear una rama propia desde la rama en la que se está trabajando:
+### Crear una rama propia desde `main`
+
+Para comenzar una nueva tarea, especialmente cuando la rama anterior ya fue integrada, cambiar a `main` y actualizarla:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+```
+
+Después crear la rama de trabajo:
 
 ```powershell
 git switch -c feat/nombre-del-cambio
 ```
 
-Después de seleccionar la rama, revisar su README y `.env.example`, y levantar su código:
+Por ejemplo:
+
+```powershell
+git switch -c feat/python-predictor
+```
+
+La nueva rama parte del estado actualizado de `main`. No es necesario borrar la rama anterior para comenzar.
+
+Crear una rama directamente desde otra rama de trabajo también es posible, pero incorpora sus cambios pendientes de integración. Utilizarlo solamente cuando la nueva tarea dependa de esos cambios y esté acordado con el equipo.
+
+### Levantar el entorno de la rama seleccionada
+
+Después de seleccionar o crear la rama, revisar su README y `.env.example`, y levantar su código:
 
 ```powershell
 docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
@@ -88,7 +113,13 @@ Si una rama requiere una base independiente para una prueba, detener primero el 
 docker compose -p shareverance-prueba -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
 ```
 
-Ese proyecto crea su propio volumen. Usar el mismo `-p shareverance-prueba` en todos sus comandos, incluida la detención. Los puertos de la PC deben estar libres; por eso se detiene antes el entorno habitual.
+Con la configuración actual, ese proyecto crea su propio volumen. Usar el mismo `-p shareverance-prueba` en todos sus comandos, incluida la detención:
+
+```powershell
+docker compose -p shareverance-prueba -f compose.yaml -f compose.tools.yaml down
+```
+
+Los puertos de la PC deben estar libres; por eso se detiene antes el entorno habitual.
 
 ## 4. Trabajar con cambios locales
 
@@ -421,3 +452,92 @@ Tener en cuenta:
 Los archivos `V...` se usan para cambios versionados. Los archivos `R__...` son repetibles: Flyway los vuelve a ejecutar cuando cambia su contenido. La carga `R__datos_demostracion.sql` utiliza este segundo mecanismo y está preparada para no duplicar registros.
 
 Referencia técnica externa: [Migraciones versionadas de Flyway](https://documentation.red-gate.com/flyway/flyway-concepts/migrations/versioned-migrations).
+
+## 12. Guardar cambios y subirlos para revisión
+
+Trabajar en una rama propia, por ejemplo `contrato-python`. La sección 3 explica cómo crearla desde `main` actualizado.
+
+### 12.1. Revisar los cambios
+
+```powershell
+git branch --show-current
+git status
+git diff
+```
+
+Confirmar que estamos en la rama correcta y que los cambios corresponden a la tarea. Antes de compartir cambios de código, ejecutar las comprobaciones pertinentes y reconstruir los servicios afectados.
+
+Si se modificó un archivo en `main` pero todavía no se creó el commit, se puede crear la rama sin perder ese cambio:
+
+```powershell
+git switch -c contrato-python
+```
+
+Los cambios sin commit se conservan en la nueva rama. Si el commit ya se hizo en `main`, revisar esa situación antes de continuar; crear una rama no elimina el commit de `main`.
+
+### 12.2. Preparar los archivos para el commit
+
+Para incluir todos los archivos nuevos, modificados y eliminados:
+
+```powershell
+git add -A
+```
+
+Revisar lo que se va a guardar:
+
+```powershell
+git diff --cached --stat
+git diff --cached
+```
+
+`git add -A` prepara los cambios, pero todavía no crea el commit. No incluir credenciales, archivos `.env` ni archivos generados que deban estar ignorados.
+
+Si un archivo se preparó por error, retirarlo de la selección sin borrar sus cambios locales:
+
+```powershell
+git restore --staged -- RUTA_DEL_ARCHIVO
+```
+
+### 12.3. Crear el commit
+
+```powershell
+git commit -m "docs: agregar contrato Python y datos de prueba"
+```
+
+El commit guarda una versión de los cambios preparados en la rama local. El mensaje debe describir brevemente lo realizado. Los cambios que no fueron preparados no se incluyen.
+
+Comprobar el estado después del commit:
+
+```powershell
+git status
+```
+
+### 12.4. Subir la rama a GitHub
+
+La primera vez:
+
+```powershell
+git push -u origin contrato-python
+```
+
+Reemplazar `contrato-python` por el nombre de la rama utilizada. `-u` vincula la rama local con la remota. El push sube los commits; no incorpora los cambios automáticamente a `main`.
+
+Para subir nuevos commits de esa misma rama:
+
+```powershell
+git push
+```
+
+Si el push es rechazado porque existen cambios remotos, revisar y coordinar la actualización con el equipo. No utilizar `--force` como solución rutinaria.
+
+### 12.5. Solicitar revisión del equipo
+
+En GitHub, crear un Pull Request:
+
+- **Base:** `main`.
+- **Compare:** la rama de trabajo, por ejemplo `contrato-python`.
+- Describir los cambios y las comprobaciones realizadas.
+
+Los nuevos commits que se suban a esa rama se incorporan automáticamente al mismo Pull Request mientras siga abierto.
+
+Después de integrar el Pull Request, comenzar la siguiente tarea desde `main` actualizado, siguiendo la sección 3.
