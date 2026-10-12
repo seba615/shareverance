@@ -9,14 +9,14 @@ Sistema multi-tenant para la centralización, división, gestión y análisis pr
 - Un `ADMIN` puede cargar gastos en nombre de otro usuario de su organización.
 - Análisis y proyecciones mensuales de gastos mediante el servicio predictivo.
 
-Las reglas de negocio detalladas se documentan en [Reglas de negocio](REGLAS_DE_NEGOCIO.md).
+Las reglas de negocio detalladas se documentan en [Reglas de negocio](docs/REGLAS_DE_NEGOCIO.md).
 
 ---
 
 ## 🛠️ Stack Tecnológico
 * **Frontend:** React / TypeScript
 * **Backend Transaccional:** Java (Spring Boot)
-* **Microservicio Predictivo:** Python (FastAPI/Flask)
+* **Microservicio Predictivo:** Python (FastAPI)
 * **Base de Datos:** PostgreSQL
 
 ---
@@ -66,6 +66,24 @@ Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demo
 Abrir [http://localhost:5173](http://localhost:5173) y pulsar **Verificar conexiones**. Se espera `java: UP`, `database: UP`, `python: UP` y `demoRows: 2`.
 
 Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs). 
+
+### 5. Detener el entorno
+
+Desde la raíz del repositorio:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml down
+```
+
+Este comando detiene y elimina los contenedores y la red del entorno. **Los datos de PostgreSQL se conservan en el volumen**, por lo que estarán disponibles cuando se vuelva a iniciar.
+
+Para volver a levantar el entorno:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+```
+
+No agregar `-v` al comando `down` durante el uso habitual: esa opción también elimina el volumen y los datos de la base.
 
 ## Documentación
 
