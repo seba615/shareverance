@@ -2,7 +2,6 @@ package com.shareverance.repository.mock;
 
 import com.shareverance.model.Category;
 import com.shareverance.repository.CategoryRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
 public class MockCategoryRepository implements CategoryRepository {
 
     private final Map<Long, Category> store = new ConcurrentHashMap<>();
@@ -60,4 +58,3 @@ public class MockCategoryRepository implements CategoryRepository {
         return store.containsKey(id);
     }
 }
-

@@ -2,7 +2,6 @@ package com.shareverance.repository.mock;
 
 import com.shareverance.model.ExpenseSplit;
 import com.shareverance.repository.ExpenseSplitRepository;
-import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
 public class MockExpenseSplitRepository implements ExpenseSplitRepository {
 
     private final Map<Long, ExpenseSplit> store = new ConcurrentHashMap<>();
@@ -53,4 +51,3 @@ public class MockExpenseSplitRepository implements ExpenseSplitRepository {
         store.entrySet().removeIf(entry -> entry.getValue().getExpenseId().equals(expenseId));
     }
 }
-

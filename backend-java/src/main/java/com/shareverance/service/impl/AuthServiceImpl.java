@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.shareverance.dto.ClientCredentialsRequest;
@@ -28,14 +29,17 @@ public class AuthServiceImpl implements AuthService {
     private static final String HISTORY_PATH_PATTERN = "/api/v1/expenses/organization/\\d+/history";
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final String pythonClientId;
     private final String pythonClientSecret;
     private final Map<String, AccessGrant> activeTokens = new ConcurrentHashMap<>();
 
     public AuthServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
                            @Value("${security.clients.python-service.client-id:}") String pythonClientId,
                            @Value("${security.clients.python-service.client-secret:}") String pythonClientSecret) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
         this.pythonClientId = pythonClientId;
         this.pythonClientSecret = pythonClientSecret;
     }
@@ -54,6 +58,9 @@ public class AuthServiceImpl implements AuthService {
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new BusinessRuleException("La cuenta de usuario está desactivada");
+        }
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new BusinessRuleException("Credenciales inválidas");
         }
 
         // Generar un token aleatorio seguro
@@ -135,4 +142,3 @@ public class AuthServiceImpl implements AuthService {
 
     private record AccessGrant(long expiresAtEpochMs, boolean serviceClient, String scope) {}
 }
-

@@ -6,6 +6,7 @@ import com.shareverance.exception.ResourceNotFoundException;
 import com.shareverance.model.User;
 import com.shareverance.repository.UserRepository;
 import com.shareverance.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,9 +16,11 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -28,11 +31,14 @@ public class UserServiceImpl implements UserService {
         if (request.email() == null || request.email().isBlank()) {
             throw new BusinessRuleException("El correo electrónico es obligatorio");
         }
+        if (request.password() == null || request.password().isBlank()) {
+            throw new BusinessRuleException("La contraseña es obligatoria");
+        }
         if (userRepository.existsByEmail(request.email())) {
             throw new BusinessRuleException("Ya existe un usuario con el correo: " + request.email());
         }
 
-        String passwordHash = "mock_hash_" + (request.password() != null ? request.password().hashCode() : "123456");
+        String passwordHash = passwordEncoder.encode(request.password());
 
         User user = new User(
                 null,
@@ -77,7 +83,7 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.email());
         }
         if (request.password() != null && !request.password().isBlank()) {
-            user.setPasswordHash("mock_hash_" + request.password().hashCode());
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
         }
 
         return userRepository.save(user);
@@ -90,4 +96,3 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 }
-

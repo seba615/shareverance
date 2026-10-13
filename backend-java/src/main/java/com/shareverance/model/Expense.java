@@ -14,6 +14,7 @@ public class Expense {
     private LocalDate expenseDate;
     private String description;
     private String receiptUrl;
+    private String splitType = "EQUAL";
     private LocalDateTime createdAt;
     private Boolean isActive;
 
@@ -62,10 +63,12 @@ public class Expense {
     public String getReceiptUrl() { return receiptUrl; }
     public void setReceiptUrl(String receiptUrl) { this.receiptUrl = receiptUrl; }
 
+    public String getSplitType() { return splitType; }
+    public void setSplitType(String splitType) { this.splitType = splitType; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
 }
-
