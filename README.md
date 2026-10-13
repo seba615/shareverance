@@ -238,22 +238,58 @@ Entidad transaccional central. Representa los egresos registrados.
 
 | Atributo | Tipo | Restricciones / Descripción |
 |---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. |
-| `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Tenant al que pertenece el gasto. |
-| `created_by_user_id` | BIGINT | **FK → USER.id**. Usuario que cargó el registro en la plataforma. |
-| `paid_by_membership_id` | BIGINT | **FK → USER_ORGANIZATION.id**. Miembro a cuyo nombre se imputa el desembolso inicial (un `ADMIN` puede cargar en nombre de otro usuario). |
-| `category_id` | BIGINT | **FK → CATEGORY.id**. Categoría del gasto. |
-| `amount` | DECIMAL(12,2) | Importe total positivo. |
-| `expense_date` | DATE | Fecha a la que corresponde el gasto (no futura). |
-| `description` | TEXT | Concepto o detalle del gasto. |
-| `receipt_url` | VARCHAR(255) | Enlace o comprobante (opcional). **Nullable**. |
-| `created_at` | TIMESTAMP | Fecha y hora de creación del registro. |
-| `is_active` | BOOLEAN | Estado del gasto (`true` = vigente, `false` = anulado). Default: `true`. |
+| `id` | BIGINT | **PK**, Auto-increment. Identificador del gasto. |
+| `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Tenant al que pertenece el gasto. La categoría y los participantes deben pertenecer al mismo tenant. El acceso de Python queda pendiente de contrato. |
+| `created_by_user_id` | BIGINT | **FK → USER.id**. Usuario que registró el gasto. No identifica necesariamente al pagador; los pagos se registran por separado. |
+| `paid_by_membership_id` |	BIGINT	| **FK → USER_ORGANIZATION.id**. Miembro a cuyo nombre se imputa el desembolso inicial (un ADMIN puede cargar en nombre de otro usuario). |
+| `category_id` | BIGINT | **FK → CATEGORY.id**. Categoría vinculada al gasto. |
+| `amount` | DECIMAL(12,2) | Monto monetario positivo, hasta 9.999.999.999,99; máximo dos decimales. |
+| `expense_date` | DATE | Fecha del gasto, no futura. Admite antecedentes anteriores al alta de la organización. |
+| `description` | TEXT | Detalle o concepto del gasto. **Nullable**. |
+| `receipt_url` | VARCHAR(255) | URL o path del comprobante. **Nullable**. |
+| `created_at` | TIMESTAMP | Timestamp de creación del registro. |
+| `is_active` | BOOLEAN | Indica si el gasto está vigente. `true` = vigente, `false` = anulado/deshabilitado. Default: `true`. |
 
 ---
 
 ## 6. EXPENSE_SPLIT
 
+Participación económica de cada miembro. Reemplaza la imputación única en EXPENSE. UNIQUE(expense_id, user_organization_id). No incluye un booleano paid: la liquidación requiere considerar movimientos. Modalidades de reparto y vinculación de liquidaciones por gasto pendientes de cierre.
+
+| Atributo | Tipo | Restricciones / Descripción |
+|---|---|---|
+| `id` | BIGINT | PK, auto-increment. |
+| `expense_id` | BIGINT | FK → EXPENSE.id. |
+| `user_organization_id` | BIGINT | FK → USER_ORGANIZATION.id; participante de la misma organización. |
+| `organization_id` | BIGINT | NOT NULL, y describí las claves foráneas compuestas que validan la organización.
+| `amount` | DECIMAL(12,2) | Parte positiva asignada. Suma de partes = total del gasto. |
+
+---
+
+## 7. FUND_CONTRIBUTION
+
+Dinero entregado al fondo. Solo la confirmación por ADMIN aumenta caja y crédito individual.
+
+| Atributo | Tipo | Restricciones / Descripción |
+|---|---|---|
+| `id` | BIGINT | PK, auto-increment. |
+| `organization_id` | BIGINT | FK → ORGANIZATION.id. |
+| `contributor_membership_id` | BIGINT | FK → USER_ORGANIZATION.id; titular del crédito. |
+| `amount` | DECIMAL(12,2) | Aporte positivo, puede exceder la deuda. |
+| `movement_date` | DATE | Desde el alta de la organización, no futura. |
+| `status` | VARCHAR(20) | PENDING, CONFIRMED, REJECTED o CANCELLED. |
+| `created_by_user_id` | BIGINT | FK → USER.id; autor del registro. |
+| `created_at` | TIMESTAMP | Generado por servidor. |
+| `confirmed_by_membership_id` | BIGINT | FK → USER_ORGANIZATION.id; ADMIN que confirma. Nullable. |
+| `confirmed_at` | TIMESTAMP | Fecha de confirmación. Nullable. |
+
+---
+
+## 8. EXPENSE_PAYMENT
+
+Dinero pagado al proveedor por un miembro o por el fondo. No crea otro gasto. Cada pago identifica obligatoriamente el origen del dinero. Un pago personal no exige aporte previo ni disponibilidad de caja y, al confirmarse, genera crédito al pagador sin modificar el fondo. Solo un pago desde el fondo requiere caja disponible y la reduce al confirmarse. La política de confirmación de pagos directos aún no fue acordada.
+
+Un mismo gasto puede pagarse con ambos orígenes mediante registros separados. Los pagos confirmados más pendientes vigentes no pueden superar el total del gasto. No registrar además un aporte al fondo por el mismo dinero utilizado en un pago personal: duplicaría el crédito.
 Representa la porción del gasto asignada a cada participante según la modalidad elegida (con nadie, con otro usuario, con varios o con todos).
 
 | Atributo | Tipo | Restricciones / Descripción |
