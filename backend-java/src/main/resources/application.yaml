@@ -3,11 +3,6 @@ server:
 spring:
   application:
     name: shareverance-java
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
-      - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
   flyway:
     locations: classpath:db/migration
 management:
