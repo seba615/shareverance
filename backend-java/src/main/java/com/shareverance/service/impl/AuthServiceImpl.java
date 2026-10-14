@@ -2,22 +2,32 @@ package com.shareverance.service.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.shareverance.dto.ClientCredentialsRequest;
 import com.shareverance.dto.LoginRequest;
-import com.shareverance.dto.LoginResponse;
 import com.shareverance.dto.ServiceTokenResponse;
 import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.exception.OAuthTokenException;
+import com.shareverance.model.Category;
+import com.shareverance.model.Expense;
+import com.shareverance.model.MembershipRole;
 import com.shareverance.model.User;
+import com.shareverance.model.UserOrganization;
+import com.shareverance.repository.CategoryRepository;
+import com.shareverance.repository.ExpenseRepository;
+import com.shareverance.repository.UserOrganizationRepository;
+import com.shareverance.repository.SessionRepository;
 import com.shareverance.repository.UserRepository;
 import com.shareverance.service.AuthService;
 
@@ -30,22 +40,45 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserOrganizationRepository membershipRepository;
+    private final ExpenseRepository expenseRepository;
+    private final CategoryRepository categoryRepository;
+    private final SessionRepository sessionRepository;
     private final String pythonClientId;
     private final String pythonClientSecret;
     private final Map<String, AccessGrant> activeTokens = new ConcurrentHashMap<>();
 
+    @Autowired
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
+                           UserOrganizationRepository membershipRepository,
+                           ExpenseRepository expenseRepository,
+                           CategoryRepository categoryRepository,
+                           SessionRepository sessionRepository,
                            @Value("${security.clients.python-service.client-id:}") String pythonClientId,
                            @Value("${security.clients.python-service.client-secret:}") String pythonClientSecret) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.membershipRepository = membershipRepository;
+        this.expenseRepository = expenseRepository;
+        this.categoryRepository = categoryRepository;
+        this.sessionRepository = sessionRepository;
         this.pythonClientId = pythonClientId;
         this.pythonClientSecret = pythonClientSecret;
     }
 
+    public AuthServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           String pythonClientId,
+                           String pythonClientSecret) {
+        this(userRepository, passwordEncoder, null, null, null, null, pythonClientId, pythonClientSecret);
+    }
+
     @Override
-    public LoginResponse login(LoginRequest request) {
+    public LoginResult login(LoginRequest request) {
+        if (request == null) {
+            throw new BusinessRuleException("El correo electrónico y la contraseña son requeridos");
+        }
         if (request.email() == null || request.email().isBlank()) {
             throw new BusinessRuleException("El correo electrónico es requerido");
         }
@@ -53,8 +86,8 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessRuleException("La contraseña es requerida");
         }
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new BusinessRuleException("Credenciales inválidas: correo no encontrado"));
+        User user = userRepository.findByEmail(request.email().trim())
+                .orElseThrow(() -> new BusinessRuleException("Credenciales inválidas"));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new BusinessRuleException("La cuenta de usuario está desactivada");
@@ -68,14 +101,59 @@ public class AuthServiceImpl implements AuthService {
         long expirationSeconds = 86400; // 24 horas
         long expiresAtEpochMs = Instant.now().toEpochMilli() + (expirationSeconds * 1000);
 
-        activeTokens.put(generatedToken, new AccessGrant(expiresAtEpochMs, false, ""));
+        if (sessionRepository != null) {
+            Instant expiresAt = Instant.ofEpochMilli(expiresAtEpochMs);
+            sessionRepository.deleteExpired(Instant.now());
+            sessionRepository.save(hashToken(generatedToken), user.getId(), expiresAt);
+        }
+        activeTokens.put(generatedToken, new AccessGrant(expiresAtEpochMs, false, "", user.getId()));
 
-        return new LoginResponse(
+        return new LoginResult(
                 generatedToken,
-                "Bearer",
                 expirationSeconds,
                 user
         );
+    }
+
+    @Override
+    public User getAuthenticatedUser(String token) {
+        Long userId = getAuthenticatedUserId(token);
+        if (userId == null) {
+            throw new BusinessRuleException("La sesión no es válida");
+        }
+        return userRepository.findById(userId)
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .orElseThrow(() -> new BusinessRuleException("La cuenta de usuario está desactivada"));
+    }
+
+    @Override
+    public Long getAuthenticatedUserId(String token) {
+        AccessGrant grant = activeTokens.get(token);
+        Long userId;
+        if (grant != null) {
+            userId = grant.serviceClient() || !validateToken(token) ? null : grant.userId();
+        } else if (sessionRepository == null || token == null || token.isBlank()) {
+            return null;
+        } else {
+            userId = sessionRepository.findActiveUserId(hashToken(token), Instant.now()).orElse(null);
+        }
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findById(userId)
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .map(User::getId)
+                .orElse(null);
+    }
+
+    @Override
+    public void logout(String token) {
+        if (token != null) {
+            activeTokens.remove(token);
+            if (sessionRepository != null) {
+                sessionRepository.delete(hashToken(token));
+            }
+        }
     }
 
     @Override
@@ -106,7 +184,7 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = "svc_" + UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");
         long expiresAtEpochMs = now + TOKEN_LIFETIME_SECONDS * 1000;
-        activeTokens.put(accessToken, new AccessGrant(expiresAtEpochMs, true, scope));
+        activeTokens.put(accessToken, new AccessGrant(expiresAtEpochMs, true, scope, null));
 
         return new ServiceTokenResponse(accessToken, "Bearer", TOKEN_LIFETIME_SECONDS, scope);
     }
@@ -123,22 +201,174 @@ public class AuthServiceImpl implements AuthService {
             return false;
         }
 
-        return grant != null;
+        if (grant != null) {
+            return grant.serviceClient() || sessionRepository == null
+                    || sessionRepository.findActiveUserId(hashToken(token), Instant.now()).isPresent();
+        }
+        return sessionRepository != null && token != null
+                && sessionRepository.findActiveUserId(hashToken(token), Instant.now()).isPresent();
     }
 
     @Override
     public boolean isAuthorizedForRequest(String token, String method, String path) {
         AccessGrant grant = activeTokens.get(token);
-        if (grant == null || !validateToken(token)) {
+        if (grant == null) {
+            Long userId = getAuthenticatedUserId(token);
+            return userId != null && authorizeUserRequest(userId, method, path);
+        }
+        if (!validateToken(token)) {
             return false;
         }
-        if (!grant.serviceClient()) {
-            return true;
+        if (grant.serviceClient()) {
+            return ANALYTICS_READ_SCOPE.equals(grant.scope())
+                    && "GET".equalsIgnoreCase(method)
+                    && path.matches(HISTORY_PATH_PATTERN);
         }
-        return ANALYTICS_READ_SCOPE.equals(grant.scope())
-                && "GET".equalsIgnoreCase(method)
-                && path.matches(HISTORY_PATH_PATTERN);
+        return authorizeUserRequest(grant.userId(), method, path);
     }
 
-    private record AccessGrant(long expiresAtEpochMs, boolean serviceClient, String scope) {}
+    @Override
+    public boolean isOrganizationMember(Long userId, Long organizationId) {
+        if (membershipRepository == null || userId == null || organizationId == null) {
+            return false;
+        }
+        return membershipRepository.findByUserIdAndOrganizationId(userId, organizationId)
+                .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()))
+                .isPresent();
+    }
+
+    @Override
+    public boolean isOrganizationAdmin(Long userId, Long organizationId) {
+        if (membershipRepository == null || userId == null || organizationId == null) {
+            return false;
+        }
+        return membershipRepository.findByUserIdAndOrganizationId(userId, organizationId)
+                .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()))
+                .map(UserOrganization::getRole)
+                .filter(MembershipRole.ADMIN::equals)
+                .isPresent();
+    }
+
+    @Override
+    public boolean canModifyExpense(Long userId, Long expenseId) {
+        if (expenseRepository == null || userId == null || expenseId == null) {
+            return false;
+        }
+        return expenseRepository.findById(expenseId)
+                .filter(expense -> Boolean.TRUE.equals(expense.getIsActive()))
+                .filter(expense -> isOrganizationMember(userId, expense.getOrganizationId()))
+                .filter(expense -> expense.getCreatedByUserId().equals(userId)
+                        || isOrganizationAdmin(userId, expense.getOrganizationId()))
+                .isPresent();
+    }
+
+    private boolean authorizeUserRequest(Long userId, String method, String path) {
+        if (path.equals("/api/v1/auth/me") || path.equals("/api/v1/auth/logout")) {
+            return true;
+        }
+        if (path.equals("/api/v1/users") || path.startsWith("/api/v1/users/")) {
+            return "GET".equalsIgnoreCase(method) && path.matches("/api/v1/users/\\d+")
+                    && path.endsWith("/" + userId);
+        }
+        if (path.equals("/api/v1/organizations")) {
+            return "GET".equalsIgnoreCase(method) || "POST".equalsIgnoreCase(method);
+        }
+        if (path.matches("/api/v1/organizations/\\d+")) {
+            Long organizationId = lastId(path);
+            return "GET".equalsIgnoreCase(method)
+                    ? isOrganizationMember(userId, organizationId)
+                    : isOrganizationAdmin(userId, organizationId);
+        }
+        if (path.startsWith("/api/v1/categories/")) {
+            if (path.matches("/api/v1/categories/organization/\\d+")) {
+                Long organizationId = lastId(path);
+                return "GET".equalsIgnoreCase(method)
+                        ? isOrganizationMember(userId, organizationId)
+                        : isOrganizationAdmin(userId, organizationId);
+            }
+            if (path.matches("/api/v1/categories/\\d+")) {
+                Long categoryId = lastId(path);
+                if (categoryRepository == null) {
+                    return false;
+                }
+                return categoryRepository.findById(categoryId)
+                        .map(Category::getOrganizationId)
+                        .map(organizationId -> "GET".equalsIgnoreCase(method)
+                                ? isOrganizationMember(userId, organizationId)
+                                : isOrganizationAdmin(userId, organizationId))
+                        .orElse(false);
+            }
+        }
+        if (path.equals("/api/v1/expenses")) {
+            return "POST".equalsIgnoreCase(method);
+        }
+        if (path.matches("/api/v1/expenses/organization/\\d+")) {
+            return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, lastId(path));
+        }
+        if (path.matches("/api/v1/expenses/\\d+")) {
+            Long expenseId = lastId(path);
+            if ("GET".equalsIgnoreCase(method)) {
+                return expenseRepository != null && expenseRepository.findById(expenseId)
+                        .map(Expense::getOrganizationId)
+                        .map(organizationId -> isOrganizationMember(userId, organizationId))
+                        .orElse(false);
+            }
+            return canModifyExpense(userId, expenseId);
+        }
+        if (path.startsWith("/api/v1/memberships/")) {
+            if (path.matches("/api/v1/memberships/organization/\\d+")) {
+                return "GET".equalsIgnoreCase(method)
+                        && isOrganizationMember(userId, lastId(path));
+            }
+            if (path.matches("/api/v1/memberships/user/\\d+")) {
+                return "GET".equalsIgnoreCase(method) && lastId(path).equals(userId);
+            }
+            if (path.matches("/api/v1/memberships/\\d+")) {
+                if (membershipRepository == null) {
+                    return false;
+                }
+                return membershipRepository.findById(lastId(path))
+                        .map(membership -> "GET".equalsIgnoreCase(method)
+                                ? membership.getUserId().equals(userId)
+                                    || isOrganizationAdmin(userId, membership.getOrganizationId())
+                                : isOrganizationAdmin(userId, membership.getOrganizationId()))
+                        .orElse(false);
+            }
+            if (path.matches("/api/v1/memberships/\\d+/role")) {
+                Long membershipId = Long.parseLong(path.replaceAll(".*/(\\d+)/role", "$1"));
+                return membershipRepository != null && membershipRepository.findById(membershipId)
+                        .map(membership -> isOrganizationAdmin(userId, membership.getOrganizationId()))
+                        .orElse(false);
+            }
+            if (path.equals("/api/v1/memberships")) {
+                return false;
+            }
+        }
+        if (path.equals("/api/v1/memberships")) {
+            return "POST".equalsIgnoreCase(method) && hasAdminMembership(userId);
+        }
+        return false;
+    }
+
+    private boolean hasAdminMembership(Long userId) {
+        return membershipRepository != null && membershipRepository.findByUserId(userId).stream()
+                .anyMatch(membership -> Boolean.TRUE.equals(membership.getIsActive())
+                        && MembershipRole.ADMIN.equals(membership.getRole()));
+    }
+
+    private static Long lastId(String path) {
+        String[] parts = path.split("/");
+        return Long.parseLong(parts[parts.length - 1]);
+    }
+
+    private static String hashToken(String token) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available", exception);
+        }
+    }
+
+    private record AccessGrant(long expiresAtEpochMs, boolean serviceClient, String scope, Long userId) {}
 }

@@ -63,9 +63,9 @@ docker compose -f compose.yaml -f compose.tools.yaml ps
 
 Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demostración se cargan automáticamente; no crear tablas manualmente.
 
-### 4. Comprobar el entorno
+### 4. Usar la aplicación
 
-Abrir [http://localhost:5173](http://localhost:5173) y pulsar **Verificar conexiones**. Se espera `java: UP`, `database: UP`, `python: UP` y `demoRows: 2`.
+Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Las operaciones de gastos, calendario y análisis se irán habilitando en las siguientes entregas.
 
 Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs). 
 

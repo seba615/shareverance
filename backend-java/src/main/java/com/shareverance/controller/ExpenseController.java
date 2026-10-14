@@ -18,21 +18,35 @@ import com.shareverance.dto.ExpenseCreateRequest;
 import com.shareverance.dto.ExpenseDetailResponse;
 import com.shareverance.dto.ExpenseUpdateRequest;
 import com.shareverance.model.Expense;
+import com.shareverance.service.AuthService;
 import com.shareverance.service.ExpenseService;
+import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/v1/expenses")
 public class ExpenseController {
 
     private final ExpenseService expenseService;
+    private final AuthService authService;
 
-    public ExpenseController(ExpenseService expenseService) {
+    public ExpenseController(ExpenseService expenseService, AuthService authService) {
         this.expenseService = expenseService;
+        this.authService = authService;
     }
 
     @PostMapping
-    public ResponseEntity<ExpenseDetailResponse> createExpense(@RequestBody ExpenseCreateRequest request) {
-        ExpenseDetailResponse created = expenseService.createExpense(request);
+    public ResponseEntity<ExpenseDetailResponse> createExpense(@RequestBody ExpenseCreateRequest request,
+                                                               HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        if (!authService.isOrganizationMember(userId, request.organizationId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No pertenecés a esta organización");
+        }
+        ExpenseCreateRequest authenticatedRequest = new ExpenseCreateRequest(
+                request.organizationId(), userId, request.paidByMembershipId(), request.categoryId(),
+                request.amount(), request.expenseDate(), request.description(), request.receiptUrl(),
+                request.splitMode(), request.splitMemberIds(), request.customSplits());
+        ExpenseDetailResponse created = expenseService.createExpense(authenticatedRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -64,4 +78,3 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.getMonthlyHistoryContract(organizationId, targetMonth));
     }
 }
-

@@ -10,11 +10,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class UserServiceImpl implements UserService {
 
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -28,14 +31,16 @@ public class UserServiceImpl implements UserService {
         if (request.fullName() == null || request.fullName().isBlank()) {
             throw new BusinessRuleException("El nombre del usuario no puede estar vacío");
         }
-        if (request.email() == null || request.email().isBlank()) {
-            throw new BusinessRuleException("El correo electrónico es obligatorio");
+        String email = request.email() == null ? "" : request.email().trim();
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new BusinessRuleException("El correo electrónico no es válido");
         }
-        if (request.password() == null || request.password().isBlank()) {
-            throw new BusinessRuleException("La contraseña es obligatoria");
+        if (request.password() == null || request.password().length() < 8
+                || request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BusinessRuleException("La contraseña debe tener entre 8 y 72 bytes UTF-8");
         }
-        if (userRepository.existsByEmail(request.email())) {
-            throw new BusinessRuleException("Ya existe un usuario con el correo: " + request.email());
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessRuleException("Ya existe un usuario con el correo: " + email);
         }
 
         String passwordHash = passwordEncoder.encode(request.password());
@@ -43,7 +48,7 @@ public class UserServiceImpl implements UserService {
         User user = new User(
                 null,
                 request.fullName(),
-                request.email(),
+                email.toLowerCase(java.util.Locale.ROOT),
                 passwordHash,
                 LocalDateTime.now(),
                 true

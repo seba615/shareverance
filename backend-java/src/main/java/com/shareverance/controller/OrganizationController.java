@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.shareverance.dto.OrganizationRequest;
 import com.shareverance.model.Organization;
 import com.shareverance.service.OrganizationService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/v1/organizations")
@@ -28,14 +29,16 @@ public class OrganizationController {
     }
 
     @PostMapping
-    public ResponseEntity<Organization> createOrganization(@RequestBody OrganizationRequest request) {
-        Organization created = organizationService.createOrganization(request);
+    public ResponseEntity<Organization> createOrganization(@RequestBody OrganizationRequest request,
+                                                           HttpServletRequest httpRequest) {
+        Organization created = organizationService.createOrganization(request, (Long) httpRequest.getAttribute("authenticatedUserId"));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
-    public ResponseEntity<List<Organization>> getAllOrganizations() {
-        return ResponseEntity.ok(organizationService.getAllOrganizations());
+    public ResponseEntity<List<Organization>> getAllOrganizations(HttpServletRequest request) {
+        return ResponseEntity.ok(organizationService.getOrganizationsForUser(
+                (Long) request.getAttribute("authenticatedUserId")));
     }
 
     @GetMapping("/{id}")
@@ -53,4 +56,3 @@ public class OrganizationController {
         return ResponseEntity.ok(organizationService.deactivateOrganization(id));
     }
 }
-
