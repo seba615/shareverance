@@ -1,19 +1,42 @@
 package com.shareverance.service.impl;
 
-import com.shareverance.dto.*;
-import com.shareverance.exception.BusinessRuleException;
-import com.shareverance.exception.ResourceNotFoundException;
-import com.shareverance.model.*;
-import com.shareverance.repository.*;
-import com.shareverance.service.ExpenseService;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shareverance.dto.ExpenseCreateRequest;
+import com.shareverance.dto.ExpenseDetailResponse;
+import com.shareverance.dto.ExpenseSplitRequest;
+import com.shareverance.dto.ExpenseUpdateRequest;
+import com.shareverance.dto.SplitMode;
+import com.shareverance.exception.BusinessRuleException;
+import com.shareverance.exception.ResourceNotFoundException;
+import com.shareverance.model.Category;
+import com.shareverance.model.Expense;
+import com.shareverance.model.ExpenseSplit;
+import com.shareverance.model.MembershipRole;
+import com.shareverance.model.Organization;
+import com.shareverance.model.UserOrganization;
+import com.shareverance.repository.CategoryRepository;
+import com.shareverance.repository.ExpenseRepository;
+import com.shareverance.repository.ExpenseSplitRepository;
+import com.shareverance.repository.OrganizationRepository;
+import com.shareverance.repository.UserOrganizationRepository;
+import com.shareverance.repository.UserRepository;
+import com.shareverance.service.ExpenseService;
 
 @Service
 public class ExpenseServiceImpl implements ExpenseService {
@@ -40,6 +63,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Transactional
     public ExpenseDetailResponse createExpense(ExpenseCreateRequest request) {
         // Validar campos obligatorios
         if (request.organizationId() == null) {
@@ -121,6 +145,9 @@ public class ExpenseServiceImpl implements ExpenseService {
                 LocalDateTime.now(),
                 true
         );
+        expense.setSplitType(request.splitMode() == null || request.splitMode() == SplitMode.INDIVIDUAL
+                ? "INDIVIDUAL"
+                : "EQUAL");
 
         Expense savedExpense = expenseRepository.save(expense);
 
@@ -256,6 +283,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Transactional
     public ExpenseDetailResponse updateExpense(Long id, ExpenseUpdateRequest request) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));

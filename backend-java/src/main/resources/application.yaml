@@ -3,11 +3,11 @@ server:
 spring:
   application:
     name: shareverance-java
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
-      - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shareverance}
+    username: ${SPRING_DATASOURCE_USERNAME:shareverance_dev}
+    password: ${SPRING_DATASOURCE_PASSWORD:shareverance_local_only}
+    driver-class-name: org.postgresql.Driver
   flyway:
     locations: classpath:db/migration
 management:

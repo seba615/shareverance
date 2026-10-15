@@ -2,7 +2,6 @@ package com.shareverance.repository.mock;
 
 import com.shareverance.model.Expense;
 import com.shareverance.repository.ExpenseRepository;
-import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +13,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
 public class MockExpenseRepository implements ExpenseRepository {
 
     private final Map<Long, Expense> store = new ConcurrentHashMap<>();
@@ -103,4 +101,3 @@ public class MockExpenseRepository implements ExpenseRepository {
         return store.containsKey(id);
     }
 }
-

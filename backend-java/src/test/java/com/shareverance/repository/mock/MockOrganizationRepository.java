@@ -3,7 +3,6 @@ package com.shareverance.repository.mock;
 import com.shareverance.model.Organization;
 import com.shareverance.model.OrganizationType;
 import com.shareverance.repository.OrganizationRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,7 +12,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
 public class MockOrganizationRepository implements OrganizationRepository {
 
     private final Map<Long, Organization> store = new ConcurrentHashMap<>();
@@ -58,4 +56,3 @@ public class MockOrganizationRepository implements OrganizationRepository {
         return store.containsKey(id);
     }
 }
-

@@ -7,7 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -16,17 +19,67 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.shareverance.controller.AuthController;
 import com.shareverance.dto.ClientCredentialsRequest;
+import com.shareverance.dto.LoginRequest;
 import com.shareverance.exception.OAuthTokenException;
+import com.shareverance.exception.BusinessRuleException;
+import com.shareverance.model.User;
 import com.shareverance.repository.UserRepository;
 import com.shareverance.service.impl.AuthServiceImpl;
+
+import java.util.Optional;
 
 class AuthServiceTest {
 
     private AuthServiceImpl authService;
+    private UserRepository userRepository;
+    private BCryptPasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(mock(UserRepository.class), "python-client", "test-secret");
+        userRepository = mock(UserRepository.class);
+        passwordEncoder = new BCryptPasswordEncoder();
+        authService = new AuthServiceImpl(userRepository, passwordEncoder, "python-client", "test-secret");
+    }
+
+    @Test
+    void acceptsLoginWithMatchingPassword() {
+        when(userRepository.findByEmail("admin@shareverance.com")).thenReturn(Optional.of(
+                new User(1L, "Admin", "admin@shareverance.com",
+                        passwordEncoder.encode("password123"), null, true)));
+
+        var response = authService.login(new LoginRequest("admin@shareverance.com", "password123"));
+
+        assertEquals("Bearer", response.tokenType());
+        assertTrue(authService.validateToken(response.token()));
+    }
+
+    @Test
+    void devAdminSeedHashMatchesPassword123() {
+        assertTrue(passwordEncoder.matches(
+                "password123",
+                "$2a$10$xPEyIRY8G7tNH9viFwPnuuwLmdzdAX/5xpDhQGqvmHplpMA4XD2.m"));
+    }
+
+    @Test
+    void userSerializationDoesNotExposePasswordHash() throws Exception {
+        var user = new User(1L, "Admin", "admin@shareverance.com", "secret-hash", null, true);
+
+        String json = new ObjectMapper().writeValueAsString(user);
+
+        assertFalse(json.contains("passwordHash"));
+        assertFalse(json.contains("secret-hash"));
+    }
+
+    @Test
+    void rejectsLoginWithIncorrectPassword() {
+        when(userRepository.findByEmail("admin@shareverance.com")).thenReturn(Optional.of(
+                new User(1L, "Admin", "admin@shareverance.com",
+                        passwordEncoder.encode("password123"), null, true)));
+
+        var exception = assertThrows(BusinessRuleException.class,
+                () -> authService.login(new LoginRequest("admin@shareverance.com", "incorrect")));
+
+        assertEquals("Credenciales inválidas", exception.getMessage());
     }
 
     @Test

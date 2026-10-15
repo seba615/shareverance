@@ -2,7 +2,6 @@ package com.shareverance.repository.mock;
 
 import com.shareverance.model.User;
 import com.shareverance.repository.UserRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
 public class MockUserRepository implements UserRepository {
 
     private final Map<Long, User> store = new ConcurrentHashMap<>();
@@ -68,4 +66,3 @@ public class MockUserRepository implements UserRepository {
         return findByEmail(email).isPresent();
     }
 }
-
