@@ -27,6 +27,8 @@ python:
   service:
     url: ${PYTHON_SERVICE_URL:http://python-service:8000}
 security:
+  cookies:
+    secure: ${SECURE_COOKIES:false}
   clients:
     python-service:
       client-id: ${PYTHON_CLIENT_ID:python-prediction-service}

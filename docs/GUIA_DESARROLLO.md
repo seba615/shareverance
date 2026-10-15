@@ -15,8 +15,9 @@ Con ambos archivos Compose y las variables del ejemplo anterior:
 
 | Servicio | Dirección o conexión | Uso |
 | --- | --- | --- |
-| Frontend | http://localhost:5173 | Pantalla de comprobación del entorno |
-| Java | http://localhost:8080/api/v1/dev/status | Diagnóstico de comunicación, habilitado en desarrollo |
+| Frontend | http://localhost:5173 | Registro/login y selección de organizaciones |
+| Java | http://localhost:8080/api/v1/auth/csrf | Inicialización del token CSRF para la sesión web |
+| Java | http://localhost:8080/api/v1/auth/me | Perfil de la sesión actual (requiere cookie) |
 | Java | http://localhost:8080/actuator/health | Estado de salud de la API |
 | Python | http://localhost:8000/health | Estado de salud de Python |
 | Python | http://localhost:8000/docs | Documentación interactiva de FastAPI |

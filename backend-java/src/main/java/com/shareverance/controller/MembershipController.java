@@ -18,19 +18,29 @@ import com.shareverance.dto.MembershipRequest;
 import com.shareverance.model.MembershipRole;
 import com.shareverance.model.UserOrganization;
 import com.shareverance.service.MembershipService;
+import com.shareverance.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/memberships")
 public class MembershipController {
 
     private final MembershipService membershipService;
+    private final AuthService authService;
 
-    public MembershipController(MembershipService membershipService) {
+    public MembershipController(MembershipService membershipService, AuthService authService) {
         this.membershipService = membershipService;
+        this.authService = authService;
     }
 
     @PostMapping
-    public ResponseEntity<UserOrganization> addMember(@RequestBody MembershipRequest request) {
+    public ResponseEntity<UserOrganization> addMember(@RequestBody MembershipRequest request,
+                                                      HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        if (!authService.isOrganizationAdmin(userId, request.organizationId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Se requiere rol ADMIN");
+        }
         UserOrganization created = membershipService.addMemberToOrganization(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -60,4 +70,3 @@ public class MembershipController {
         return ResponseEntity.ok(membershipService.deactivateMembership(id));
     }
 }
-
