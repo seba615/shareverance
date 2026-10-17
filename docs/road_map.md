@@ -1,0 +1,99 @@
+# Roadmap del MVP 1
+
+Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+
+Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+
+
+## Estado y dependencias
+
+Estados: IMPLEMENTADO significa código observado; PENDIENTE requiere trabajo; VERIFICADO exige ejecución y evidencia vinculada a commit. Este relevamiento no ejecutó pruebas. No asignar PASS por contratos, mocks o inspección estática.
+
+Registro/login/sesión/organizaciones frontend y JDBC Java: IMPLEMENTADO, sin certificación integral. Predictor Python: SIMULADO. OCR, vistas SQL para Python, calendario y panel: PENDIENTES.
+
+## Etapas
+
+| Etapa / ID | Entrega | Dependencia | Estado | Responsable por función |
+| --- | --- | --- | --- | --- |
+| E0.1 | Documentos por componente, contratos y reglas | Ninguna | Redactado; revisión técnica pendiente | Mantenimiento |
+| E0.2 | Fijar parámetros abiertos listados abajo | E0.1 | PENDIENTE | Producto/arquitectura |
+| E1.1 | ARS, estados activos y permisos uniformes | E0 | PENDIENTE | Java |
+| E1.2 | Reparto determinista y transacción gasto/partes | E1.1 | PENDIENTE | Java/datos |
+| E1.3 | Versión optimista, 409 y último ADMIN concurrente | E1.1 | PENDIENTE | Java/datos |
+| E2.1 | Completar miembros/categorías y carga manual | E1 | PENDIENTE | Front/Java |
+| E2.2 | Filtros, paginación, detalle, edición y anulación | E2.1 | PENDIENTE | Front/Java |
+| E2.3 | Calendario con detalle por fecha | E2.2, parámetros calendario | PENDIENTE | Front/Java |
+| E3.1 | Roles SQL, vistas y cobertura confiable | E1, aislamiento definido | PENDIENTE | Datos/Python |
+| E3.2 | Java→Python autenticado; Python→vistas; retirar callback | E3.1 | PENDIENTE | Java/Python |
+| E4.1 | Volumen privado, carga y descarga autorizada | E1 | PENDIENTE | Java/infraestructura |
+| E4.2 | Motor OCR, normalización y resultado editable | E4.1, motor/contrato | PENDIENTE | Python/front |
+| E5.1 | Comparación y agregaciones conciliadas | E3.2 | PENDIENTE | Python |
+| E5.2 | Panel, gráficos y tablas equivalentes | E5.1 | PENDIENTE | Front |
+| E6.1 | Modelo real y evaluación temporal | E3.2, umbral/dataset | PENDIENTE | Python |
+| E6.2 | Vista predictiva y estados de insuficiencia | E6.1 | PENDIENTE | Front/Java |
+| E7.1 | Ejecutar aceptación completa, respaldo y restauración | E2–E6 | PENDIENTE | QA/todos los componentes |
+
+E3 y E4 pueden progresar independientemente una vez estabilizado E1 y sus contratos. Cada tarea incorpora pruebas de su componente, actualización documental y evidencia. Personas y fechas se asignan al iniciar; no se inventan compromisos.
+
+## Parámetros que faltan precisar
+
+| Tema | Propuesta / condición de cierre |
+| --- | --- |
+| Calendario | Mes, total por día y detalle; confirmar interacciones, sin recurrencias |
+| OCR | Elegir motor con boletas representativas; fijar límite de píxeles y tiempos |
+| Descripción OCR | Precisar texto no utilizable y tratamiento de varias líneas; fallback Varios |
+| Temporales | Definir vencimiento de archivos sin gasto; sin purga de base de negocio |
+| Vistas SQL | Fijar fuente de cobertura y mecanismo de aislamiento de organización |
+| Servicio interno | Fijar esquema de autenticación Java→Python y rotación de secreto |
+| Gráficos | Seleccionar biblioteca compatible con stack y tablas accesibles |
+| Evaluación | Fijar dataset temporal, métrica y umbral antes de medir modelo |
+| Operación | Tiempos/reintentos definitivos, retención de logs y procedimiento de respaldo |
+| Cuenta | Explicitar inclusión/exclusión de recuperación de contraseña y verificación de email |
+
+## Criterios integrales de aceptación
+
+| ID | Comprobación | Resultado requerido |
+| --- | --- | --- |
+| A01 | Registro, login, recarga y logout | Sesión consistente; contraseña no expuesta; sesión revocada tras logout. |
+| A02 | Usuario miembro de A cambia IDs para acceder a B | Lectura y escritura rechazadas en gastos, miembros, categorías, comprobantes y analítica; también mediante el circuito Python. |
+| A03 | USER carga a su nombre / intenta otro titular | Primera aceptada; segunda rechazada. ADMIN puede elegir miembro válido del mismo tenant. |
+| A04 | Crear gasto con reparto | Suma exacta de partes = total; sin miembros duplicados o ajenos; regla de centavos reproducible. |
+| A05 | Error durante guardado de partes | Rollback completo: no queda gasto incompleto. Verificar con PostgreSQL. |
+| A06 | Importes límite, cero, negativos y más de dos decimales | Reglas uniformes en alta y edición, sin redondeo silencioso . |
+| A07 | Editar y anular | Permisos correctos; no cambia composición histórica sin acción autorizada; anulado excluido de métricas. |
+| A08 | Historial filtrado y paginado | Sin omisiones/duplicados al navegar; detalle y totales coherentes con mismos filtros. |
+| A09 | Mes sin gasto, categoría nueva, sin datos y más de 60 meses | Distinguir ausencia de cobertura de cero; contrato válido después del recorte. |
+| A10 | Comparación conocida y base anterior cero | Fórmulas del contrato; porcentaje null cuando corresponde. |
+| A11 | Predictor con menos de seis meses | Insuficiencia; estimación null; UI explica la limitación. |
+| A12 | Modelo real | Evaluación temporal reproducible y comparación con referencia; no presentar mock como resultado real. |
+| A13 | Python caído o lento | Error controlado y tiempo acotado; se puede seguir cargando/consultando gastos. |
+| A14 | Comprobante válido y archivo inválido | Carga válida autorizada; rechazos por formato/tamaño/contenido/ruta; otro tenant no puede descargar. |
+| A15 | OCR acertado, parcial y fallido | Usuario revisa antes de guardar; carga manual siempre disponible; no se duplica gasto. |
+| A16 | Reinicio de contenedores | PostgreSQL y comprobantes conservados; sesiones humanas según política; renovación de tokens técnicos. |
+| A17 | Dos ediciones simultáneas | Versión optimista: conflicto 409 visible; nunca gasto/partes incoherentes. |
+| A18 | Demo en móvil y escritorio | Todas las vistas incluidas utilizables, con estados de vacío/error/carga y valores visibles sin depender solo del gráfico. |
+| A19 | Copia y restauración | Recuperar base y archivos coherentes mediante procedimiento probado. |
+
+
+
+A20 adicional: calendario concilia totales diarios/mensuales con historial, respeta organización/estado y abre el gasto correcto. Los 19 criterios anteriores se conservan y se complementan para cubrir calendario.
+
+## Evidencia y cierre
+
+Por tarea registrar commit/PR, archivos modificados, comprobación ejecutada, resultado, fecha y límites. Pendiente no cambia a verificado si la prueba no se ejecutó. El MVP termina al completar criterios y parámetros necesarios, no por existir endpoints.
+
+## Trazabilidad de definiciones
+
+D01 documentación → README/alcance; D02–D04 funciones/vistas/ARS → alcance/front; D05–D10 miembros/categorías/reparto/edición/historial → alcance/java; D11–D14 OCR/archivos → python_ocr/java; D15–D17 cobertura/panel/modelo → predictor/front; D18 participación → alcance/postgre; D19 vistas → postgre/predictor; D20–D21 contratos/tiempos → contratos_api; D22–D27 seguridad/estados/operación/logs → java/postgre/alcance; D28 aceptación → este documento; D29 concurrencia → java/postgre. Las definiciones concretas se mantienen en su archivo principal.
+
+## Consolidación documental
+
+REGLAS_DE_NEGOCIO.md se sustituye por alcance_mvp.md. ROAD_MAP_PYTHON.md se sustituye por este roadmap y python_predictor.md. CONTRATO_PYTHON_V1.md se conserva como referencia compatible dentro de contratos_api.md. GUIA_DESARROLLO.md se integra en README. ENTORNO_INICIAL.md se sustituye por instrucciones operativas y especificaciones vigentes; sus copias históricas de código no son instrucciones de configuración actual. El historial Git conserva versiones anteriores.
+
+## Seguimiento de tareas e integración
+
+Registrar cada tarea concreta en el [proyecto GitHub](https://github.com/users/seba615/projects/3), con título y descripción en español, reutilizando issues equivalentes y asignando a la cuenta autenticada. El agente solo crea/vincula y asigna; estados, finalización y cierre se administran manualmente. La publicación automatizada se limita a commit, push de rama de trabajo y creación de PR; todos los merges son manuales. Evitar referencias que cierren issues automáticamente. Procedimiento y límites en [AGENTS.md](../AGENTS.md).
+
+Actualización documental 17/10/2026: incorporadas reglas de registro en tablero, idioma, identidad autenticada, cierre manual y prohibición de merges automáticos. Verificación: lectura de reglas y git diff --check; sin prueba de escritura en el proyecto ni publicación de rama.
+
+Publicación documental 17/10/2026: preparación en rama docs/mvp1-especificaciones; enlaces locales y bloques Markdown verificados, git diff --check correcto. No se ejecutaron pruebas de aplicación porque no se modifica código. La creación del issue asignado fue rechazada por GitHub con HTTP 403; no se creó tarea ni vínculo al proyecto. La integración y el cierre quedan a cargo de una persona.

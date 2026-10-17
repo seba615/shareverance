@@ -1,8 +1,92 @@
+# Contratos de integración
+
+Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+
+Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+
+
+## Principios
+
+React consume exclusivamente Java. Java autoriza usuario/organización y llama a Python internamente. Python consulta vistas PostgreSQL o lee la imagen del volumen según operación. Nuevos contratos descritos abajo son diseño pendiente de implementación. No reutilizar silenciosamente contract_version=1 para un cuerpo incompatible.
+
+## Superficie existente
+
+| Servicio | Rutas observadas |
+| --- | --- |
+| Java, sesión | GET /api/v1/auth/csrf; POST /login, /register, /logout y GET /me bajo /api/v1/auth |
+| Java, técnico | POST /api/v1/auth/token, formulario de credenciales de servicio |
+| Java, negocio | /api/v1/users, /organizations, /memberships, /categories, /expenses; métodos según controladores |
+| Java, historial | GET /api/v1/expenses/organization/{organizationId}/history |
+| Python | POST /api/v1/predictions/monthly; GET /api/v1/predictions/organization/{organization_id}/monthly?target_month=YYYY-MM |
+| Salud | Python /health; Java /actuator/health y readiness |
+
+Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. El GET Python actual llama a Java; deberá migrar al repositorio de vistas.
+
+## Contrato interno objetivo
+
+Propuesta de rutas distintas para no romper v1:
+
+| Operación | Ruta de diseño | Cuerpo |
+| --- | --- | --- |
+| Predicción con datos desde vistas | POST /internal/v2/predictions/monthly | contract_version, request_id, organization_id, target_month |
+| Analítica desde vistas | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
+| OCR | POST /internal/v1/ocr | contract_version, request_id, organization_id, receipt_id, storage_key |
+
+Ejemplo predictivo:
+
+```json
+{"contract_version":"2","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":1,"target_month":"2026-11"}
+```
+
+La autenticación técnica Java→Python es obligatoria; esquema concreto pendiente de selección, sin transmitir credenciales de usuario o de PostgreSQL en cuerpos. organization_id es el autorizado por Java. Python rechaza contexto ausente/inválido. storage_key se resuelve bajo raíz permitida y debe corresponder al comprobante y organización; no es una URL.
+
+## API pública a completar
+
+Rutas de diseño: POST /api/v1/organizations/{id}/receipts para multipart y GET de comprobante privado; GET /api/v1/organizations/{id}/analytics/monthly y /predictions/monthly. Fijar nombres y ejemplos antes de construir clientes. El alta de gasto mantiene su ruta existente; vinculación de receipt_id y version de edición requieren nuevos campos documentados en DTO.
+
+Upload: campo file y organización de ruta; respuesta incluye receipt_id y resultado OCR o su estado de fallo controlado. La subida válida puede conservarse si OCR falla, permitiendo completar manualmente. No repetir la subida automáticamente por un timeout ambiguo sin estrategia de deduplicación.
+
+Ejemplo de resultado OCR de diseño:
+
+```json
+{"contract_version":"1","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":1,"receipt_id":"generated-id","status":"PARTIAL","fields":{"expense_date":"2026-10-17","amount_minor":125050,"description":"Varios"},"warnings":["DESCRIPTION_FALLBACK"]}
+```
+
+Fecha ISO o null; amount_minor entero positivo o null; description hasta 500 o Varios. Status OK/PARTIAL/FAILED según extracción; FAILED no crea un gasto. Limitar bytes/píxeles según especificación OCR.
+
+## Resultados analíticos y predictivos
+
+Preservar semántica existente: request_id, organization_id, currency=ARS, status OK/PARTIAL/INSUFFICIENT_HISTORY y simulated. Predicción identifica target_month, months_used, required_months, method, model_version y estimated_amount_minor nullable; organización y categorías. Analítica devuelve importes anterior/actual, diferencia, porcentaje nullable y dirección. Versionar cambios incompatibles de respuesta.
+
+## Errores y tiempos
+
+| HTTP | Uso requerido |
+| --- | --- |
+| 400/422 | Solicitud inválida según contrato de cada API; normalizar en Java |
+| 401/403 | Sesión/servicio no autenticado o permiso rechazado |
+| 404 | Recurso no disponible para contexto autorizado |
+| 409 | Versión desactualizada o conflicto de negocio |
+| 413/415 | Tamaño o formato rechazado |
+| 500 | Fallo inesperado con mensaje genérico |
+| 503/504 | Dependencia indisponible o tiempo agotado |
+
+Java traduce errores internos a respuesta pública estable con request_id. No reenviar SQL o trazas. No cambiar de golpe los errores 422 v1 existentes. Conexión y lectura deben tener límites por operación; propuesta mensual 2 s conexión/10 s lectura, pendientes de medición. OCR tendrá límite independiente. No reintentar automáticamente mutaciones sin idempotencia.
+
+## Transición y pruebas de compatibilidad
+
+Añadir rutas internas autenticadas y acceso de vistas; adaptar Java; verificar extremos; retirar callback Python→Java y credenciales asociadas cuando no tengan consumidores. El POST con historial puede mantenerse como interfaz de pruebas interna durante transición. No eliminar validaciones de historial porque ahora lo produce SQL.
+
+Pruebas: ejemplos contra esquemas, versiones desconocidas, IDs/tipos, campos extra, importes, errores y correlación; dos organizaciones; tiempo agotado; cero datos; OCR parcial; cambios de versión y consumidores. Contrato v1 histórico detallado a continuación: conserva el formato con historial para código existente, no describe el acceso definitivo a datos.
+
+## Referencia de transición: contrato mensual v1 con historial
+
+Todo el contenido siguiente describe exclusivamente el circuito v1 existente. Las responsabilidades de obtención del historial se sustituyen por el acceso a vistas al migrar; no prevalecen sobre la arquitectura requerida de los apartados anteriores. Las rutas analíticas enumeradas en esta referencia son contrato, no prueba de router implementado.
+
 # Shareverance — Contrato del microservicio Python
 
-**Versión del contrato:** 1  
-**Alcance:** analítica mensual y predicción del próximo mes por organización y categoría.  
-**Formato:** HTTP con JSON UTF-8.  
+**Versión del contrato:** 1
+**Alcance:** analítica mensual y predicción del próximo mes por organización y categoría.
+**Formato:** HTTP con JSON UTF-8.
 **Estado:** contrato en implementación; la integración OAuth Python-Java usa actualmente el predictor simulado.
 
 ## 1. Objetivo y responsabilidades
@@ -321,7 +405,7 @@ El mes objetivo será el posterior al último mes del conjunto. No se desplazan 
 | Python detenido o demora excesiva | Java informa indisponibilidad o tiempo agotado, sin ceros sustitutivos. |
 | Respuesta con correlación o estructura inválida | Java detecta fallo de integración. |
 
-Los equipos deben compartir archivos JSON de entrada y respuesta esperada. Las pruebas de contrato verifican estructura y reglas; las pruebas del algoritmo verifican cálculos; la evaluación predictiva mide calidad. Son comprobaciones distintas.
+Mantener archivos JSON de entrada y respuesta esperada compartidos por los servicios. Las pruebas de contrato verifican estructura y reglas; las pruebas del algoritmo verifican cálculos; la evaluación predictiva mide calidad. Son comprobaciones distintas.
 
 La evaluación del modelo con el historial de dos años respeta el orden temporal: cada mes se predice usando únicamente meses anteriores. Se compara con una referencia sencilla, como el promedio de los últimos tres meses. Un conjunto sintético permite validar comportamiento, pero no demuestra precisión sobre gastos reales.
 
@@ -331,13 +415,13 @@ La versión 1 incluye comparación mensual y predicción a un mes. No incluye OC
 
 Cambiar tipos, eliminar campos, redefinir su significado o modificar incompatiblemente las reglas requiere una nueva versión principal y rutas `/api/v2/...`. Agregar campos opcionales a una respuesta puede ser compatible; los consumidores deben ignorarlos. El modelo puede evolucionar mediante `model_version` conservando el contrato.
 
-Ubicación recomendada de este documento: `docs/CONTRATO_JAVA_PYTHON_V1.md`. Entregables complementarios para implementar:
+Referencia mantenida dentro de `docs/contratos_api.md`. Entregables complementarios para implementar:
 
 - `docs/contracts/openapi.yaml`, como definición formal coherente con este documento.
 - `docs/contracts/examples/`, con solicitudes y respuestas válidas e inválidas.
 - Validaciones y simulador en Python.
 - Cliente HTTP y proveedor de historial de prueba en Java.
 - Consulta JDBC y seed de desarrollo a cargo de Java y datos.
-- Pruebas de contrato ejecutables por ambos equipos.
+- Pruebas de contrato ejecutables por ambos servicios.
 
-El contrato se considera integrado cuando ambos servicios procesan los mismos ejemplos, reproducen los estados acordados y manejan errores de comunicación sin alterar su significado.
+El contrato se considera integrado cuando ambos servicios procesan los mismos ejemplos, reproducen los estados especificados y manejan errores de comunicación sin alterar su significado.
