@@ -4,6 +4,7 @@ import com.shareverance.dto.CategoryRequest;
 import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.exception.ResourceNotFoundException;
 import com.shareverance.model.Category;
+import com.shareverance.model.Organization;
 import com.shareverance.repository.CategoryRepository;
 import com.shareverance.repository.OrganizationRepository;
 import com.shareverance.service.CategoryService;
@@ -25,9 +26,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public Category createCategory(Long organizationId, CategoryRequest request) {
-        if (!organizationRepository.existsById(organizationId)) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + organizationId);
-        }
+        requireActiveArsOrganization(organizationId);
         if (request.name() == null || request.name().isBlank()) {
             throw new BusinessRuleException("El nombre de la categoría no puede estar vacío");
         }
@@ -47,15 +46,15 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public Category getCategoryById(Long id) {
-        return categoryRepository.findById(id)
+        Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
+        requireActiveArsOrganization(category.getOrganizationId());
+        return category;
     }
 
     @Override
     public List<Category> getCategoriesByOrganization(Long organizationId) {
-        if (!organizationRepository.existsById(organizationId)) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + organizationId);
-        }
+        requireActiveArsOrganization(organizationId);
         return categoryRepository.findByOrganizationId(organizationId);
     }
 
@@ -82,5 +81,17 @@ public class CategoryServiceImpl implements CategoryService {
         category.setIsActive(false);
         return categoryRepository.save(category);
     }
-}
 
+    private Organization requireActiveArsOrganization(Long organizationId) {
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Organización no encontrada con id: " + organizationId));
+        if (!Boolean.TRUE.equals(organization.getIsActive())) {
+            throw new BusinessRuleException("La organización está inactiva");
+        }
+        if (!"ARS".equalsIgnoreCase(organization.getCurrency())) {
+            throw new BusinessRuleException("La única moneda admitida es ARS");
+        }
+        return organization;
+    }
+}

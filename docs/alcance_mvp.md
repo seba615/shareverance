@@ -14,7 +14,7 @@ Shareverance registra y distribuye gastos de hogares, consorcios y universidades
 | Función | Vista | Estado de implementación |
 | --- | --- | --- |
 | Registro, login, restauración y cierre de sesión | Acceso | Código existente |
-| Crear, listar y seleccionar organizaciones | Mis organizaciones | Código existente; restringir moneda a ARS |
+| Crear, listar y seleccionar organizaciones | Mis organizaciones | Java acepta solo ARS y lista organizaciones activas de membresías activas; aceptación integral pendiente |
 | Administrar miembros y categorías | Miembros / Categorías | API existente; completar reglas y vistas |
 | Cargar, editar y anular gastos | Formulario / Detalle | API existente; completar consistencia y frontend |
 | Consultar por período, categoría y estado | Historial paginado | Listado API existente; filtros y paginación pendientes |

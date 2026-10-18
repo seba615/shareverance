@@ -11,6 +11,8 @@ Spring Boot con JDBC, sin JPA. Código en `backend-java/src/main/java/com/sharev
 
 Sesión web mediante cookie; frontend obtiene CSRF antes de mutaciones. El código contiene además autenticación técnica para el circuito histórico Python→Java. Ese circuito debe migrarse al acceso Python→vistas, sin reutilizar sus credenciales automáticamente en sentido inverso.
 
+Implementación E1.1 en curso: la autorización de rutas exige cuenta, membresía y organización activas; las organizaciones con moneda distinta de ARS no son operables. Java también rechaza moneda no ARS y estados inactivos al crear organizaciones, miembros, categorías y gastos. Esto no certifica aislamiento integral ni aceptación con PostgreSQL.
+
 ## Reglas y permisos
 
 Aplicar [alcance_mvp.md](alcance_mvp.md) en servidor, sin confiar en IDs o roles enviados por React. Resolver usuario desde sesión y verificar organización activa, membresía activa y operación permitida.
@@ -51,4 +53,4 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Completar filtros/paginación, protección uniforme de estados, reparto determinista, versión optimista, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, reparto determinista, versión optimista, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.

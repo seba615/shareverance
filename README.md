@@ -59,6 +59,18 @@ PYTHON_HOST_PORT=8000
 ```
 Los puertos son de referencia, verificar cuales están libres en entorno local.
 
+### Limpieza única de la base anterior a ARS
+
+Antes del primer inicio de esta versión, si la base local contiene organizaciones creadas con otra moneda, se descarta una sola vez el volumen PostgreSQL y se crea una base nueva. No se convierten importes ni se conservan datos históricos. Esta operación elimina **todos** los datos de esa base (cuentas, organizaciones, gastos y demás registros), no solo las organizaciones con moneda distinta de ARS. Verificar que se está usando el entorno local descartable correcto y respaldar previamente cualquier dato que deba conservarse.
+
+Desde la raíz del repositorio, ejecutar esta limpieza solo para esa actualización:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml down -v
+```
+
+Después, iniciar con el comando habitual de la siguiente sección. Esta excepción no cambia la política normal: detener y volver a iniciar los contenedores sin `-v` conserva la base en su volumen.
+
 ### 3. Construir e iniciar
 
 Desde la raíz del repositorio:

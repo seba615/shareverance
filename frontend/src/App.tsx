@@ -104,7 +104,7 @@ export default function App() {
       const organization = await organizationApi.create({
         name: String(form.get('name') ?? '').trim(),
         type: String(form.get('type') ?? 'HOUSEHOLD') as OrganizationType,
-        currency: String(form.get('currency') ?? 'ARS').trim().toUpperCase(),
+        currency: 'ARS',
       });
       setOrganizations((current) => [...current, organization]);
       setSelectedOrganizationId(organization.id);
@@ -261,14 +261,6 @@ export default function App() {
                   <option value="HOUSEHOLD">Hogar</option>
                   <option value="CONDO">Consorcio</option>
                   <option value="UNIVERSITY">Universidad</option>
-                </select>
-              </label>
-              <label>
-                Moneda
-                <select name="currency" defaultValue="ARS">
-                  <option value="ARS">ARS — Peso argentino</option>
-                  <option value="USD">USD — Dólar estadounidense</option>
-                  <option value="EUR">EUR — Euro</option>
                 </select>
               </label>
             </div>

@@ -4,6 +4,8 @@ import com.shareverance.dto.MembershipRequest;
 import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.exception.ResourceNotFoundException;
 import com.shareverance.model.MembershipRole;
+import com.shareverance.model.Organization;
+import com.shareverance.model.User;
 import com.shareverance.model.UserOrganization;
 import com.shareverance.repository.OrganizationRepository;
 import com.shareverance.repository.UserOrganizationRepository;
@@ -31,12 +33,19 @@ public class MembershipServiceImpl implements MembershipService {
 
     @Override
     public UserOrganization addMemberToOrganization(MembershipRequest request) {
-        if (request.userId() == null || !userRepository.existsById(request.userId())) {
-            throw new ResourceNotFoundException("Usuario no encontrado con id: " + request.userId());
+        if (request.userId() == null) {
+            throw new ResourceNotFoundException("Usuario no encontrado con id: null");
         }
-        if (request.organizationId() == null || !organizationRepository.existsById(request.organizationId())) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + request.organizationId());
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario no encontrado con id: " + request.userId()));
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BusinessRuleException("No se puede incorporar un usuario inactivo");
         }
+        if (request.organizationId() == null) {
+            throw new ResourceNotFoundException("Organización no encontrada con id: null");
+        }
+        requireActiveArsOrganization(request.organizationId());
         if (userOrganizationRepository.existsByUserIdAndOrganizationId(request.userId(), request.organizationId())) {
             throw new BusinessRuleException("El usuario ya pertenece a esta organización");
         }
@@ -57,22 +66,23 @@ public class MembershipServiceImpl implements MembershipService {
 
     @Override
     public UserOrganization getMembershipById(Long id) {
-        return userOrganizationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Membresía no encontrada con id: " + id));
+        UserOrganization membership = findMembership(id);
+        requireActiveArsOrganization(membership.getOrganizationId());
+        return membership;
     }
 
     @Override
     public List<UserOrganization> getMembershipsByOrganization(Long organizationId) {
-        if (!organizationRepository.existsById(organizationId)) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + organizationId);
-        }
+        requireActiveArsOrganization(organizationId);
         return userOrganizationRepository.findByOrganizationId(organizationId);
     }
 
     @Override
     public List<UserOrganization> getMembershipsByUser(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("Usuario no encontrado con id: " + userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + userId));
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BusinessRuleException("El usuario está inactivo");
         }
         return userOrganizationRepository.findByUserId(userId);
     }
@@ -82,16 +92,42 @@ public class MembershipServiceImpl implements MembershipService {
         if (newRole == null) {
             throw new BusinessRuleException("El nuevo rol no puede ser nulo");
         }
-        UserOrganization uo = getMembershipById(id);
+        UserOrganization uo = requireActiveMembership(id);
         uo.setRole(newRole);
         return userOrganizationRepository.save(uo);
     }
 
     @Override
     public UserOrganization deactivateMembership(Long id) {
-        UserOrganization uo = getMembershipById(id);
+        UserOrganization uo = requireActiveMembership(id);
         uo.setIsActive(false);
         return userOrganizationRepository.save(uo);
     }
-}
 
+    private UserOrganization requireActiveMembership(Long id) {
+        UserOrganization membership = findMembership(id);
+        requireActiveArsOrganization(membership.getOrganizationId());
+        if (!Boolean.TRUE.equals(membership.getIsActive())) {
+            throw new BusinessRuleException("La membresía está inactiva");
+        }
+        return membership;
+    }
+
+    private UserOrganization findMembership(Long id) {
+        return userOrganizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membresía no encontrada con id: " + id));
+    }
+
+    private Organization requireActiveArsOrganization(Long organizationId) {
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Organización no encontrada con id: " + organizationId));
+        if (!Boolean.TRUE.equals(organization.getIsActive())) {
+            throw new BusinessRuleException("La organización está inactiva");
+        }
+        if (!"ARS".equalsIgnoreCase(organization.getCurrency())) {
+            throw new BusinessRuleException("La única moneda admitida es ARS");
+        }
+        return organization;
+    }
+}

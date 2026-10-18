@@ -7,7 +7,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Inventario actual
 
-React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. El selector de moneda actual ofrece alternativas que deben restringirse a ARS.
+React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. ARS es la única moneda: no se ofrece un campo de selección y el cliente envía `ARS` al crear una organización.
 
 No hay pantallas completas de gastos, miembros, categorías, calendario o analítica en esa base. El diagnóstico de infraestructura sigue disponible por script/API; no atribuirle una pantalla vigente que el código actual no muestra.
 

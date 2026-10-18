@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentCaptor.forClass;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
@@ -32,9 +33,12 @@ import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.model.User;
 import com.shareverance.model.Expense;
 import com.shareverance.model.MembershipRole;
+import com.shareverance.model.Organization;
+import com.shareverance.model.OrganizationType;
 import com.shareverance.model.UserOrganization;
 import com.shareverance.repository.UserRepository;
 import com.shareverance.repository.UserOrganizationRepository;
+import com.shareverance.repository.OrganizationRepository;
 import com.shareverance.repository.ExpenseRepository;
 import com.shareverance.repository.CategoryRepository;
 import com.shareverance.repository.SessionRepository;
@@ -52,6 +56,7 @@ class AuthServiceTest {
     private AuthServiceImpl authService;
     private UserRepository userRepository;
     private UserOrganizationRepository membershipRepository;
+    private OrganizationRepository organizationRepository;
     private ExpenseRepository expenseRepository;
     private CategoryRepository categoryRepository;
     private BCryptPasswordEncoder passwordEncoder;
@@ -60,11 +65,17 @@ class AuthServiceTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         membershipRepository = mock(UserOrganizationRepository.class);
+        organizationRepository = mock(OrganizationRepository.class);
         expenseRepository = mock(ExpenseRepository.class);
         categoryRepository = mock(CategoryRepository.class);
         passwordEncoder = new BCryptPasswordEncoder();
+        when(organizationRepository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return Optional.of(new Organization(id, "Org", OrganizationType.HOUSEHOLD,
+                    "ARS", LocalDateTime.now(), true));
+        });
         authService = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, expenseRepository, categoryRepository, null,
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, null,
                 "python-client", "test-secret");
     }
 
@@ -141,6 +152,58 @@ class AuthServiceTest {
     }
 
     @Test
+    void inactiveOrganizationsAndMembershipsCannotAuthorizeOperations() {
+        User user = new User(1L, "User", "user@shareverance.com",
+                passwordEncoder.encode("password123"), null, true);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(
+                new UserOrganization(1L, 1L, 10L, MembershipRole.ADMIN, LocalDateTime.now(), true)));
+        when(organizationRepository.findById(10L)).thenReturn(Optional.of(
+                new Organization(10L, "Org", OrganizationType.HOUSEHOLD, "ARS", LocalDateTime.now(), false)));
+        var session = authService.login(new LoginRequest(user.getEmail(), "password123"));
+
+        assertFalse(authService.isOrganizationMember(1L, 10L));
+        assertFalse(authService.isOrganizationAdmin(1L, 10L));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/10"));
+
+        when(organizationRepository.findById(10L)).thenReturn(Optional.of(
+                new Organization(10L, "Org", OrganizationType.HOUSEHOLD, "ARS", LocalDateTime.now(), true)));
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(
+                new UserOrganization(1L, 1L, 10L, MembershipRole.ADMIN, LocalDateTime.now(), false)));
+        assertFalse(authService.isOrganizationMember(1L, 10L));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/10"));
+
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(
+                new UserOrganization(1L, 1L, 10L, MembershipRole.ADMIN, LocalDateTime.now(), true)));
+        when(organizationRepository.findById(10L)).thenReturn(Optional.of(
+                new Organization(10L, "Org", OrganizationType.HOUSEHOLD, "USD", LocalDateTime.now(), true)));
+        assertFalse(authService.isOrganizationMember(1L, 10L));
+    }
+
+    @Test
+    void allowsHistoryContractOnlyForMembersOfActiveArsOrganizations() {
+        User user = new User(1L, "User", "user@shareverance.com",
+                passwordEncoder.encode("password123"), null, true);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(
+                new UserOrganization(1L, 1L, 10L, MembershipRole.USER, LocalDateTime.now(), true)));
+        var session = authService.login(new LoginRequest(user.getEmail(), "password123"));
+
+        assertTrue(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/expenses/organization/10/history"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "POST", "/api/v1/expenses/organization/10/history"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/users"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "POST", "/api/v1/categories/organization/10"));
+    }
+
+    @Test
     void regularUsersMayModifyOnlyTheirOwnExpenses() {
         User user = new User(1L, "User", "user@shareverance.com",
                 passwordEncoder.encode("password123"), null, true);
@@ -176,7 +239,7 @@ class AuthServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(sessions.findActiveUserId(anyString(), any(Instant.class))).thenReturn(Optional.of(1L));
         AuthServiceImpl service = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, expenseRepository, categoryRepository, sessions,
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions,
                 "python-client", "test-secret");
         var session = service.login(new LoginRequest(user.getEmail(), "password123"));
 
@@ -186,7 +249,7 @@ class AuthServiceTest {
         assertFalse(hashCaptor.getValue().equals(session.token()));
 
         AuthServiceImpl restartedService = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, expenseRepository, categoryRepository, sessions,
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions,
                 "python-client", "test-secret");
         assertTrue(restartedService.validateToken(session.token()));
         assertEquals(1L, restartedService.getAuthenticatedUserId(session.token()));

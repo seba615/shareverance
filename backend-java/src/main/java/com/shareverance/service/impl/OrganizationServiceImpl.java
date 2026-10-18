@@ -40,15 +40,13 @@ public class OrganizationServiceImpl implements OrganizationService {
             throw new BusinessRuleException("El tipo de organización es obligatorio");
         }
 
-        String currency = (request.currency() != null && !request.currency().isBlank())
-                ? request.currency().toUpperCase()
-                : "ARS";
+        validateArsCurrency(request.currency());
 
         Organization organization = new Organization(
                 null,
                 request.name(),
                 request.type(),
-                currency,
+                "ARS",
                 LocalDateTime.now(),
                 true
         );
@@ -75,13 +73,17 @@ public class OrganizationServiceImpl implements OrganizationService {
         return membershipRepository.findByUserId(userId).stream()
                 .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()))
                 .flatMap(membership -> organizationRepository.findById(membership.getOrganizationId()).stream())
-                .filter(organization -> Boolean.TRUE.equals(organization.getIsActive()))
+                .filter(OrganizationServiceImpl::isActiveArsOrganization)
                 .toList();
     }
 
     @Override
     public Organization updateOrganization(Long id, OrganizationRequest request) {
         Organization organization = getOrganizationById(id);
+        if (!isActiveArsOrganization(organization)) {
+            throw new BusinessRuleException("La organización está inactiva o tiene una moneda no admitida");
+        }
+        validateArsCurrency(request.currency());
 
         if (request.name() != null && !request.name().isBlank()) {
             organization.setName(request.name());
@@ -89,9 +91,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         if (request.type() != null) {
             organization.setType(request.type());
         }
-        if (request.currency() != null && !request.currency().isBlank()) {
-            organization.setCurrency(request.currency().toUpperCase());
-        }
+        organization.setCurrency("ARS");
 
         return organizationRepository.save(organization);
     }
@@ -101,5 +101,16 @@ public class OrganizationServiceImpl implements OrganizationService {
         Organization organization = getOrganizationById(id);
         organization.setIsActive(false);
         return organizationRepository.save(organization);
+    }
+
+    private static void validateArsCurrency(String currency) {
+        if (currency != null && !currency.isBlank() && !"ARS".equalsIgnoreCase(currency.trim())) {
+            throw new BusinessRuleException("La única moneda admitida es ARS");
+        }
+    }
+
+    private static boolean isActiveArsOrganization(Organization organization) {
+        return Boolean.TRUE.equals(organization.getIsActive())
+                && "ARS".equalsIgnoreCase(organization.getCurrency());
     }
 }
