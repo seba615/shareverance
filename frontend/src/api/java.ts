@@ -12,7 +12,7 @@ export interface Organization {
   id: number;
   name: string;
   type: OrganizationType;
-  currency: string;
+  currency: 'ARS';
   createdAt: string;
   isActive: boolean;
 }
@@ -29,7 +29,7 @@ interface RegisterRequest extends LoginRequest {
 interface OrganizationRequest {
   name: string;
   type: OrganizationType;
-  currency: string;
+  currency: 'ARS';
 }
 
 interface SessionResponse {

@@ -3,6 +3,7 @@ package com.shareverance;
 import com.shareverance.dto.ExpenseCreateRequest;
 import com.shareverance.dto.ExpenseDetailResponse;
 import com.shareverance.dto.SplitMode;
+import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.repository.mock.*;
 import com.shareverance.service.ExpenseService;
 import com.shareverance.service.impl.ExpenseServiceImpl;
@@ -17,15 +18,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExpenseServiceTest {
 
     private ExpenseService expenseService;
+    private MockExpenseRepository expenseRepo;
+    private MockExpenseSplitRepository expenseSplitRepo;
+    private MockOrganizationRepository orgRepo;
+    private MockUserRepository userRepo;
+    private MockUserOrganizationRepository userOrgRepo;
+    private MockCategoryRepository categoryRepo;
 
     @BeforeEach
     void setUp() {
-        var expenseRepo = new MockExpenseRepository();
-        var expenseSplitRepo = new MockExpenseSplitRepository();
-        var orgRepo = new MockOrganizationRepository();
-        var userRepo = new MockUserRepository();
-        var userOrgRepo = new MockUserOrganizationRepository();
-        var categoryRepo = new MockCategoryRepository();
+        expenseRepo = new MockExpenseRepository();
+        expenseSplitRepo = new MockExpenseSplitRepository();
+        orgRepo = new MockOrganizationRepository();
+        userRepo = new MockUserRepository();
+        userOrgRepo = new MockUserOrganizationRepository();
+        categoryRepo = new MockCategoryRepository();
 
         expenseService = new ExpenseServiceImpl(
                 expenseRepo,
@@ -110,6 +117,30 @@ class ExpenseServiceTest {
     }
 
     @Test
+    void refusesCreatingExpensesWhenOrganizationIsInactiveOrNotArs() {
+        orgRepo.findById(1L).orElseThrow().setIsActive(false);
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
+
+        orgRepo.findById(1L).orElseThrow().setIsActive(true);
+        orgRepo.findById(1L).orElseThrow().setCurrency("USD");
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
+    }
+
+    @Test
+    void refusesCreatingExpensesForInactiveUsersMembershipsOrCategories() {
+        userRepo.findById(1L).orElseThrow().setIsActive(false);
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
+
+        userRepo.findById(1L).orElseThrow().setIsActive(true);
+        userOrgRepo.findById(1L).orElseThrow().setIsActive(false);
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
+
+        userOrgRepo.findById(1L).orElseThrow().setIsActive(true);
+        categoryRepo.findById(1L).orElseThrow().setIsActive(false);
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
+    }
+
+    @Test
     void testGetMonthlyHistoryContract() {
         var contract = expenseService.getMonthlyHistoryContract(1L, "2026-10");
 
@@ -132,5 +163,21 @@ class ExpenseServiceTest {
         assertEquals(2, aprilTotals.size());
         assertEquals(10000000L, aprilTotals.get(0).amountMinor()); // 100000 * 100
         assertEquals(5000000L, aprilTotals.get(1).amountMinor());  // 50000 * 100
+    }
+
+    private static ExpenseCreateRequest individualRequest() {
+        return new ExpenseCreateRequest(
+                1L,
+                1L,
+                1L,
+                1L,
+                new BigDecimal("12.00"),
+                LocalDate.now(),
+                "Prueba",
+                null,
+                SplitMode.INDIVIDUAL,
+                null,
+                null
+        );
     }
 }

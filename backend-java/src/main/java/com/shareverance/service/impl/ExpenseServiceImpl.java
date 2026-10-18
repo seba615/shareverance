@@ -91,27 +91,25 @@ public class ExpenseServiceImpl implements ExpenseService {
             throw new BusinessRuleException("La fecha del gasto no puede ser futura");
         }
 
-        // Validar existencia de organización
-        if (!organizationRepository.existsById(request.organizationId())) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + request.organizationId());
-        }
+        requireActiveArsOrganization(request.organizationId());
 
-        // Validar existencia de usuario creador
-        if (!userRepository.existsById(request.createdByUserId())) {
-            throw new ResourceNotFoundException("Usuario creador no encontrado con id: " + request.createdByUserId());
+        // Validar existencia y estado del usuario creador
+        var creator = userRepository.findById(request.createdByUserId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario creador no encontrado con id: " + request.createdByUserId()));
+        if (!Boolean.TRUE.equals(creator.getIsActive())) {
+            throw new BusinessRuleException("El usuario creador está inactivo");
         }
 
         // Validar miembro pagador
         UserOrganization payerMembership = userOrganizationRepository.findById(request.paidByMembershipId())
                 .orElseThrow(() -> new ResourceNotFoundException("Membresía del pagador no encontrada con id: " + request.paidByMembershipId()));
-
-        if (!payerMembership.getOrganizationId().equals(request.organizationId())) {
-            throw new BusinessRuleException("El miembro pagador no pertenece a la organización especificada");
-        }
+        requireActiveMembership(payerMembership, request.organizationId(), "El miembro pagador");
 
         // Validar membresía del usuario creador en la organización
         UserOrganization creatorMembership = userOrganizationRepository.findByUserIdAndOrganizationId(request.createdByUserId(), request.organizationId())
                 .orElseThrow(() -> new BusinessRuleException("El usuario que registra no pertenece a la organización"));
+        requireActiveMembership(creatorMembership, request.organizationId(), "El usuario creador");
 
         // Regla: USER solo puede cargar gastos a su propio nombre. ADMIN puede cargar en su nombre o en nombre de otro usuario
         if (creatorMembership.getRole() == MembershipRole.USER) {
@@ -125,6 +123,9 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + request.categoryId()));
         if (!category.getOrganizationId().equals(request.organizationId())) {
             throw new BusinessRuleException("La categoría no pertenece a la organización del gasto");
+        }
+        if (!Boolean.TRUE.equals(category.getIsActive())) {
+            throw new BusinessRuleException("No se puede cargar un gasto en una categoría inactiva");
         }
 
         // Calcular los splits según SplitMode
@@ -183,7 +184,11 @@ public class ExpenseServiceImpl implements ExpenseService {
             }
             case ALL_MEMBERS -> {
                 List<UserOrganization> orgMembers = userOrganizationRepository.findByOrganizationId(request.organizationId())
-                        .stream().filter(m -> Boolean.TRUE.equals(m.getIsActive())).toList();
+                        .stream()
+                        .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                        .filter(m -> userRepository.findById(m.getUserId())
+                                .filter(user -> Boolean.TRUE.equals(user.getIsActive())).isPresent())
+                        .toList();
 
                 if (orgMembers.isEmpty()) {
                     throw new BusinessRuleException("No hay miembros activos en la organización para repartir el gasto");
@@ -209,10 +214,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
                     UserOrganization member = userOrganizationRepository.findById(splitReq.userOrganizationId())
                             .orElseThrow(() -> new ResourceNotFoundException("Miembro en reparto no encontrado: " + splitReq.userOrganizationId()));
-
-                    if (!member.getOrganizationId().equals(request.organizationId())) {
-                        throw new BusinessRuleException("El miembro " + splitReq.userOrganizationId() + " no pertenece a la organización del gasto");
-                    }
+                    requireActiveMembership(member, request.organizationId(),
+                            "El miembro " + splitReq.userOrganizationId());
 
                     if (splitReq.amount() == null || splitReq.amount().compareTo(BigDecimal.ZERO) <= 0) {
                         throw new BusinessRuleException("Cada parte asignada debe ser mayor a cero");
@@ -241,9 +244,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         for (Long memberId : uniqueMemberIds) {
             UserOrganization member = userOrganizationRepository.findById(memberId)
                     .orElseThrow(() -> new ResourceNotFoundException("Miembro no encontrado: " + memberId));
-            if (!member.getOrganizationId().equals(orgId)) {
-                throw new BusinessRuleException("El miembro con ID " + memberId + " no pertenece a la organización");
-            }
+            requireActiveMembership(member, orgId, "El miembro con ID " + memberId);
         }
 
         int count = uniqueMemberIds.size();
@@ -267,15 +268,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseDetailResponse getExpenseById(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));
+        requireActiveArsOrganization(expense.getOrganizationId());
         List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(id);
         return new ExpenseDetailResponse(expense, splits);
     }
 
     @Override
     public List<ExpenseDetailResponse> getExpensesByOrganization(Long organizationId) {
-        if (!organizationRepository.existsById(organizationId)) {
-            throw new ResourceNotFoundException("Organización no encontrada con id: " + organizationId);
-        }
+        requireActiveArsOrganization(organizationId);
         List<Expense> expenses = expenseRepository.findByOrganizationId(organizationId);
         return expenses.stream()
                 .map(e -> new ExpenseDetailResponse(e, expenseSplitRepository.findByExpenseId(e.getId())))
@@ -287,12 +287,20 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseDetailResponse updateExpense(Long id, ExpenseUpdateRequest request) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));
+        requireActiveArsOrganization(expense.getOrganizationId());
+        if (!Boolean.TRUE.equals(expense.getIsActive())) {
+            throw new BusinessRuleException("El gasto está anulado y no se puede modificar");
+        }
 
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + request.categoryId()));
             if (!category.getOrganizationId().equals(expense.getOrganizationId())) {
                 throw new BusinessRuleException("La categoría debe pertenecer a la organización del gasto");
+            }
+            if (!Boolean.TRUE.equals(category.getIsActive())
+                    && !category.getId().equals(expense.getCategoryId())) {
+                throw new BusinessRuleException("No se puede cambiar a una categoría inactiva");
             }
             expense.setCategoryId(request.categoryId());
         }
@@ -347,14 +355,17 @@ public class ExpenseServiceImpl implements ExpenseService {
     public Expense deactivateExpense(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));
+        requireActiveArsOrganization(expense.getOrganizationId());
+        if (!Boolean.TRUE.equals(expense.getIsActive())) {
+            throw new BusinessRuleException("El gasto ya está anulado");
+        }
         expense.setIsActive(false);
         return expenseRepository.save(expense);
     }
 
     @Override
     public com.shareverance.dto.contract.HistoryContractResponse getMonthlyHistoryContract(Long organizationId, String targetMonth) {
-        Organization organization = organizationRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada con id: " + organizationId));
+        Organization organization = requireActiveArsOrganization(organizationId);
 
         // 1. Obtener gastos activos de la organización
         List<Expense> activeExpenses = expenseRepository.findByOrganizationId(organizationId)
@@ -380,7 +391,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                     "1",
                     UUID.randomUUID().toString(),
                     organizationId,
-                    organization.getCurrency() != null ? organization.getCurrency() : "ARS",
+                    "ARS",
                     nextMonth,
                     List.of(),
                     List.of()
@@ -462,11 +473,38 @@ public class ExpenseServiceImpl implements ExpenseService {
                 "1",
                 UUID.randomUUID().toString(),
                 organizationId,
-                organization.getCurrency() != null ? organization.getCurrency() : "ARS",
+                "ARS",
                 resolvedTargetMonth,
                 categoriesCoverage,
                 historyList
         );
     }
-}
 
+    private Organization requireActiveArsOrganization(Long organizationId) {
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Organización no encontrada con id: " + organizationId));
+        if (!Boolean.TRUE.equals(organization.getIsActive())) {
+            throw new BusinessRuleException("La organización está inactiva");
+        }
+        if (!"ARS".equalsIgnoreCase(organization.getCurrency())) {
+            throw new BusinessRuleException("La única moneda admitida es ARS");
+        }
+        return organization;
+    }
+
+    private void requireActiveMembership(UserOrganization membership, Long organizationId, String subject) {
+        if (!organizationId.equals(membership.getOrganizationId())) {
+            throw new BusinessRuleException(subject + " no pertenece a la organización del gasto");
+        }
+        if (!Boolean.TRUE.equals(membership.getIsActive())) {
+            throw new BusinessRuleException(subject + " tiene una membresía inactiva");
+        }
+        boolean userIsActive = userRepository.findById(membership.getUserId())
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .isPresent();
+        if (!userIsActive) {
+            throw new BusinessRuleException(subject + " tiene una cuenta inactiva");
+        }
+    }
+}

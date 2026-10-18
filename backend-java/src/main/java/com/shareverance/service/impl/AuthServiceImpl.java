@@ -6,6 +6,8 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,10 +24,12 @@ import com.shareverance.exception.OAuthTokenException;
 import com.shareverance.model.Category;
 import com.shareverance.model.Expense;
 import com.shareverance.model.MembershipRole;
+import com.shareverance.model.Organization;
 import com.shareverance.model.User;
 import com.shareverance.model.UserOrganization;
 import com.shareverance.repository.CategoryRepository;
 import com.shareverance.repository.ExpenseRepository;
+import com.shareverance.repository.OrganizationRepository;
 import com.shareverance.repository.UserOrganizationRepository;
 import com.shareverance.repository.SessionRepository;
 import com.shareverance.repository.UserRepository;
@@ -41,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserOrganizationRepository membershipRepository;
+    private final OrganizationRepository organizationRepository;
     private final ExpenseRepository expenseRepository;
     private final CategoryRepository categoryRepository;
     private final SessionRepository sessionRepository;
@@ -52,6 +57,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
                            UserOrganizationRepository membershipRepository,
+                           OrganizationRepository organizationRepository,
                            ExpenseRepository expenseRepository,
                            CategoryRepository categoryRepository,
                            SessionRepository sessionRepository,
@@ -60,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.membershipRepository = membershipRepository;
+        this.organizationRepository = organizationRepository;
         this.expenseRepository = expenseRepository;
         this.categoryRepository = categoryRepository;
         this.sessionRepository = sessionRepository;
@@ -71,7 +78,8 @@ public class AuthServiceImpl implements AuthService {
                            PasswordEncoder passwordEncoder,
                            String pythonClientId,
                            String pythonClientSecret) {
-        this(userRepository, passwordEncoder, null, null, null, null, pythonClientId, pythonClientSecret);
+        this(userRepository, passwordEncoder, null, null, null, null, null,
+                pythonClientId, pythonClientSecret);
     }
 
     @Override
@@ -229,21 +237,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean isOrganizationMember(Long userId, Long organizationId) {
-        if (membershipRepository == null || userId == null || organizationId == null) {
-            return false;
-        }
-        return membershipRepository.findByUserIdAndOrganizationId(userId, organizationId)
-                .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()))
-                .isPresent();
+        return activeMembership(userId, organizationId).isPresent();
     }
 
     @Override
     public boolean isOrganizationAdmin(Long userId, Long organizationId) {
-        if (membershipRepository == null || userId == null || organizationId == null) {
-            return false;
-        }
-        return membershipRepository.findByUserIdAndOrganizationId(userId, organizationId)
-                .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()))
+        return activeMembership(userId, organizationId)
                 .map(UserOrganization::getRole)
                 .filter(MembershipRole.ADMIN::equals)
                 .isPresent();
@@ -257,8 +256,26 @@ public class AuthServiceImpl implements AuthService {
         return expenseRepository.findById(expenseId)
                 .filter(expense -> Boolean.TRUE.equals(expense.getIsActive()))
                 .filter(expense -> isOrganizationMember(userId, expense.getOrganizationId()))
-                .filter(expense -> expense.getCreatedByUserId().equals(userId)
+                .filter(expense -> Objects.equals(expense.getCreatedByUserId(), userId)
                         || isOrganizationAdmin(userId, expense.getOrganizationId()))
+                .isPresent();
+    }
+
+    private Optional<UserOrganization> activeMembership(Long userId, Long organizationId) {
+        if (membershipRepository == null || userId == null || organizationId == null
+                || userRepository.findById(userId).filter(user -> Boolean.TRUE.equals(user.getIsActive())).isEmpty()
+                || !hasActiveArsOrganization(organizationId)) {
+            return Optional.empty();
+        }
+        return membershipRepository.findByUserIdAndOrganizationId(userId, organizationId)
+                .filter(membership -> Boolean.TRUE.equals(membership.getIsActive()));
+    }
+
+    private boolean hasActiveArsOrganization(Long organizationId) {
+        return organizationRepository != null && organizationRepository.findById(organizationId)
+                .filter(organization -> Boolean.TRUE.equals(organization.getIsActive()))
+                .map(Organization::getCurrency)
+                .filter(currency -> "ARS".equalsIgnoreCase(currency))
                 .isPresent();
     }
 
@@ -275,16 +292,19 @@ public class AuthServiceImpl implements AuthService {
         }
         if (path.matches("/api/v1/organizations/\\d+")) {
             Long organizationId = lastId(path);
-            return "GET".equalsIgnoreCase(method)
-                    ? isOrganizationMember(userId, organizationId)
-                    : isOrganizationAdmin(userId, organizationId);
+            if ("GET".equalsIgnoreCase(method)) {
+                return isOrganizationMember(userId, organizationId);
+            }
+            return ("PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method))
+                    && isOrganizationAdmin(userId, organizationId);
         }
         if (path.startsWith("/api/v1/categories/")) {
             if (path.matches("/api/v1/categories/organization/\\d+")) {
                 Long organizationId = lastId(path);
-                return "GET".equalsIgnoreCase(method)
-                        ? isOrganizationMember(userId, organizationId)
-                        : isOrganizationAdmin(userId, organizationId);
+                if ("GET".equalsIgnoreCase(method)) {
+                    return isOrganizationMember(userId, organizationId);
+                }
+                return "POST".equalsIgnoreCase(method) && isOrganizationAdmin(userId, organizationId);
             }
             if (path.matches("/api/v1/categories/\\d+")) {
                 Long categoryId = lastId(path);
@@ -293,9 +313,13 @@ public class AuthServiceImpl implements AuthService {
                 }
                 return categoryRepository.findById(categoryId)
                         .map(Category::getOrganizationId)
-                        .map(organizationId -> "GET".equalsIgnoreCase(method)
-                                ? isOrganizationMember(userId, organizationId)
-                                : isOrganizationAdmin(userId, organizationId))
+                        .map(organizationId -> {
+                            if ("GET".equalsIgnoreCase(method)) {
+                                return isOrganizationMember(userId, organizationId);
+                            }
+                            return ("PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method))
+                                    && isOrganizationAdmin(userId, organizationId);
+                        })
                         .orElse(false);
             }
         }
@@ -305,6 +329,11 @@ public class AuthServiceImpl implements AuthService {
         if (path.matches("/api/v1/expenses/organization/\\d+")) {
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, lastId(path));
         }
+        if (path.matches("/api/v1/expenses/organization/\\d+/history")) {
+            String[] pathParts = path.split("/");
+            Long organizationId = Long.parseLong(pathParts[pathParts.length - 2]);
+            return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, organizationId);
+        }
         if (path.matches("/api/v1/expenses/\\d+")) {
             Long expenseId = lastId(path);
             if ("GET".equalsIgnoreCase(method)) {
@@ -313,7 +342,8 @@ public class AuthServiceImpl implements AuthService {
                         .map(organizationId -> isOrganizationMember(userId, organizationId))
                         .orElse(false);
             }
-            return canModifyExpense(userId, expenseId);
+            return ("PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method))
+                    && canModifyExpense(userId, expenseId);
         }
         if (path.startsWith("/api/v1/memberships/")) {
             if (path.matches("/api/v1/memberships/organization/\\d+")) {
@@ -328,15 +358,22 @@ public class AuthServiceImpl implements AuthService {
                     return false;
                 }
                 return membershipRepository.findById(lastId(path))
-                        .map(membership -> "GET".equalsIgnoreCase(method)
-                                ? membership.getUserId().equals(userId)
-                                    || isOrganizationAdmin(userId, membership.getOrganizationId())
-                                : isOrganizationAdmin(userId, membership.getOrganizationId()))
+                        .map(membership -> {
+                            if ("GET".equalsIgnoreCase(method)) {
+                                return isOrganizationAdmin(userId, membership.getOrganizationId())
+                                        || (Objects.equals(membership.getUserId(), userId)
+                                                && Boolean.TRUE.equals(membership.getIsActive())
+                                                && isOrganizationMember(userId, membership.getOrganizationId()));
+                            }
+                            return "DELETE".equalsIgnoreCase(method)
+                                    && isOrganizationAdmin(userId, membership.getOrganizationId());
+                        })
                         .orElse(false);
             }
             if (path.matches("/api/v1/memberships/\\d+/role")) {
                 Long membershipId = Long.parseLong(path.replaceAll(".*/(\\d+)/role", "$1"));
-                return membershipRepository != null && membershipRepository.findById(membershipId)
+                return "PATCH".equalsIgnoreCase(method) && membershipRepository != null
+                        && membershipRepository.findById(membershipId)
                         .map(membership -> isOrganizationAdmin(userId, membership.getOrganizationId()))
                         .orElse(false);
             }
@@ -353,7 +390,8 @@ public class AuthServiceImpl implements AuthService {
     private boolean hasAdminMembership(Long userId) {
         return membershipRepository != null && membershipRepository.findByUserId(userId).stream()
                 .anyMatch(membership -> Boolean.TRUE.equals(membership.getIsActive())
-                        && MembershipRole.ADMIN.equals(membership.getRole()));
+                        && MembershipRole.ADMIN.equals(membership.getRole())
+                        && isOrganizationAdmin(userId, membership.getOrganizationId()));
     }
 
     private static Long lastId(String path) {
