@@ -68,5 +68,5 @@ Las predicciones generales y por categoría son independientes: su suma no tiene
 
 La carga del CSV en PostgreSQL es una tarea separada. Debe realizarse mediante un seed de desarrollo repetible, preservando relaciones y evitando duplicados. Si se convierte cada total agregado en un gasto, debe identificarse como representación sintética para demostración.
 
-La especificación completa de campos, validaciones, respuestas y errores se encuentra en [Contrato python](../docs/CONTRATO_PYTHON_V1.md).
+La especificación completa de campos, validaciones, respuestas y errores se encuentra en [Contrato python](../docs/contratos_api.md).
 

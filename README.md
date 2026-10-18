@@ -1,27 +1,34 @@
-# 📊 Shareverance - Sistema de Gestión de Gastos Organizacionales
+# Shareverance
 
-Sistema multi-tenant para la centralización, división, gestión y análisis predictivo de gastos aplicable a consorcios, universidades y hogares.
+Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
 
-**Alcance MVP simplificado:**
-- Registro y gestión de múltiples organizaciones.
-- Usuarios con roles (`ADMIN` o `USER`) asignados por organización.
-- Registro de gastos indicando fecha, importe, descripción, categoría y con quiénes se reparte (individual, con otro usuario, con varios o con todos).
-- Un `ADMIN` puede cargar gastos en nombre de otro usuario de su organización.
-- Análisis y proyecciones mensuales de gastos mediante el servicio predictivo.
+Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
-Las reglas de negocio detalladas se documentan en [Reglas de negocio](docs/REGLAS_DE_NEGOCIO.md).
 
----
+Sistema de registro, distribución y análisis de gastos para hogares, consorcios y universidades. MVP: organizaciones, roles, miembros, categorías, carga manual/OCR, historial, calendario, panel y predicción. ARS única; sin tesorería ni liquidaciones.
 
-## 🛠️ Stack Tecnológico
-* **Frontend:** React / TypeScript
-* **Backend Transaccional:** Java (Spring Boot)
-* **Microservicio Predictivo:** Python (FastAPI)
-* **Base de Datos:** PostgreSQL
+## Documentación
 
----
+- [Instrucciones para agentes](AGENTS.md)
+- [Alcance y reglas](docs/alcance_mvp.md)
+- [Java](docs/java.md)
+- [Python: analítica y predicción](docs/python_predictor.md)
+- [Python: OCR](docs/python_ocr.md)
+- [PostgreSQL](docs/postgre.md)
+- [Frontend](docs/front.md)
+- [Contratos API](docs/contratos_api.md)
+- [Roadmap y aceptación](docs/road_map.md)
+
+## Arquitectura y estado
+
+React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker Compose.
+
+Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java y devuelve predicciones simuladas. Objetivo: Java autoriza y orquesta; Python consulta vistas SQL con usuario de lectura y procesa OCR desde volumen compartido. Java escribe comprobantes y Python solo los lee. Este cambio requiere código, migraciones y configuración; todavía no está desplegado por esta actualización documental.
+
+Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones. Las demás vistas y el predictor real se completan según roadmap. La especificación incorpora calendario y preserva funciones existentes.
 
 ## Inicio rápido
+
 
 Requisitos: Git y Docker Desktop iniciado, con contenedores Linux y Docker Compose 2.20 o posterior. En Windows se usa WSL 2. No es necesario instalar Java, Python, Node.js o PostgreSQL por separado. La primera ejecución necesita Internet para descargar imágenes y dependencias.
 
@@ -33,7 +40,7 @@ Los comandos siguientes se ejecutan en PowerShell.
 git clone https://github.com/seba615/shareverance shareverance
 Set-Location shareverance
 ```
-Si el entorno todavía está en una rama pendiente de integración, seleccionar esa rama antes de continuar: `git switch --track origin/NOMBRE_RAMA`. 
+Seleccionar la rama que se desea ejecutar antes de iniciar contenedores; revisar primero su estado y sus migraciones.
 
 ### 2. Crear la configuración local
 
@@ -50,7 +57,7 @@ POSTGRES_HOST_PORT=5433
 JAVA_HOST_PORT=8080
 PYTHON_HOST_PORT=8000
 ```
-Los puertos son de referencia, verificar cuales están libres en entorno local. 
+Los puertos son de referencia, verificar cuales están libres en entorno local.
 
 ### 3. Construir e iniciar
 
@@ -67,7 +74,7 @@ Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demo
 
 Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Las operaciones de gastos, calendario y análisis se irán habilitando en las siguientes entregas.
 
-Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs). 
+Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs).
 
 ### 5. Detener el entorno
 
@@ -87,42 +94,34 @@ docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait
 
 No agregar `-v` al comando `down` durante el uso habitual: esa opción también elimina el volumen y los datos de la base.
 
-## Documentación
 
-- [Guía de desarrollo y mantenimiento](docs/GUIA_DESARROLLO.md): actualización, ramas, servicios y agregado de bibliotecas.
-- [Como se creó el entorno](docs/ENTORNO_INICIAL.md): cómo se creó la configuración y para qué sirve cada archivo.
-- [Reglas de negocio](docs/REGLAS_DE_NEGOCIO.md): decisiones y temas pendientes.
 
----
+## Modelo de datos vigente
 
-## 📐 Modelo de Datos (DER)
 ```mermaid
 erDiagram
-    direction TB
-    USER ||--o{ USER_ORGANIZATION : "belongs_to"
-    ORGANIZATION ||--o{ USER_ORGANIZATION : "includes"
-    ORGANIZATION ||--o{ CATEGORY : "defines"
-    ORGANIZATION ||--o{ EXPENSE : "owns"
-    CATEGORY ||--o{ EXPENSE : "classifies"
-    USER ||--o{ EXPENSE : "created_by"
-    USER_ORGANIZATION ||--o{ EXPENSE : "paid_by_member"
-    EXPENSE ||--o{ EXPENSE_SPLIT : "distributes"
-    USER_ORGANIZATION ||--o{ EXPENSE_SPLIT : "assumes"
-
-    ORGANIZATION {
-        bigint id PK
-        string name
-        string type
-        string currency
-        timestamp created_at
-        boolean is_active
-    }
-    USER {
+    USERS ||--o{ USER_ORGANIZATION : pertenece
+    ORGANIZATIONS ||--o{ USER_ORGANIZATION : incluye
+    ORGANIZATIONS ||--o{ CATEGORIES : define
+    ORGANIZATIONS ||--o{ EXPENSES : registra
+    USERS ||--o{ EXPENSES : crea
+    USER_ORGANIZATION ||--o{ EXPENSES : titular
+    CATEGORIES ||--o{ EXPENSES : clasifica
+    EXPENSES ||--|{ EXPENSE_SPLITS : distribuye
+    USER_ORGANIZATION ||--o{ EXPENSE_SPLITS : participa
+    USERS ||--o{ AUTH_SESSIONS : inicia
+    USERS {
         bigint id PK
         string full_name
         string email UK
         string password_hash
-        timestamp created_at
+        boolean is_active
+    }
+    ORGANIZATIONS {
+        bigint id PK
+        string name
+        string type
+        string currency
         boolean is_active
     }
     USER_ORGANIZATION {
@@ -130,19 +129,17 @@ erDiagram
         bigint user_id FK
         bigint organization_id FK
         string role
-        timestamp joined_at
         boolean is_active
     }
-    CATEGORY {
+    CATEGORIES {
         bigint id PK
         bigint organization_id FK
         string name
         string description
         string color
-        timestamp created_at
         boolean is_active
     }
-    EXPENSE {
+    EXPENSES {
         bigint id PK
         bigint organization_id FK
         bigint created_by_user_id FK
@@ -152,162 +149,559 @@ erDiagram
         date expense_date
         string description
         string receipt_url
-        timestamp created_at
+        string split_type
         boolean is_active
     }
-    EXPENSE_SPLIT {
+    EXPENSE_SPLITS {
         bigint id PK
+        bigint organization_id FK
         bigint expense_id FK
         bigint user_organization_id FK
         decimal amount
     }
+    AUTH_SESSIONS {
+        string token_hash PK
+        bigint user_id FK
+        timestamp expires_at
+    }
 ```
 
-El DER muestra exclusivamente las entidades indispensables para la gestión y división de gastos del MVP.
+Se muestran campos principales, no todas las columnas técnicas. El modelo completo y las restricciones están en migraciones y [postgre.md](docs/postgre.md). timezone fue eliminado por V3; no hay tablas de fondos ni pagos en el MVP. La versión optimista y las vistas analíticas son ampliaciones pendientes.
 
----
+## Operación y desarrollo
 
-# Detalle de Entidades y Atributos
+Las instrucciones siguientes corresponden al entorno existente. Sus credenciales Python→Java permanecen necesarias hasta completar la migración a vistas. El volumen de comprobantes y las credenciales SQL Python de lectura deben agregarse durante esa implementación; no basta editar este README. El diagnóstico confirma infraestructura, no reglas de negocio ni seguridad.
 
-## 1. ORGANIZATION
+## 1. Acceder directamente a los servicios
 
-Representa el grupo global o **tenant** del sistema (por ejemplo: consorcio, universidad o familia).
+Con ambos archivos Compose y las variables del ejemplo anterior:
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. Identificador único. |
-| `name` | VARCHAR(100) | Nombre de la entidad. Ej.: `"Edificio Central"`, `"Hogar Pérez"`. |
-| `type` | VARCHAR(50) | Clasificación del dominio: `HOUSEHOLD`, `CONDO`, `UNIVERSITY`. |
-| `currency` | CHAR(3) | Moneda de la organización (por defecto `ARS`). |
-| `created_at` | TIMESTAMP | Fecha de alta de la organización. |
-| `is_active` | BOOLEAN | Estado de la organización. Default: `true`. |
+| Servicio | Dirección o conexión | Uso |
+| --- | --- | --- |
+| Frontend | http://localhost:5173 | Registro/login y selección de organizaciones |
+| Java | http://localhost:8080/api/v1/auth/csrf | Inicialización del token CSRF para la sesión web |
+| Java | http://localhost:8080/api/v1/auth/me | Perfil de la sesión actual (requiere cookie) |
+| Java | http://localhost:8080/actuator/health | Estado de salud de la API |
+| Python | http://localhost:8000/health | Estado de salud de Python |
+| Python | http://localhost:8000/docs | Documentación interactiva de FastAPI |
+| PostgreSQL | Host `localhost`, puerto `5433` | Conexión desde pgAdmin u otro cliente SQL |
 
----
+Si se cambian los puertos de `.env`, adaptar estas direcciones. PostgreSQL no se abre como una página web: el cliente necesita nombre de base, usuario y contraseña definidos en `.env`. Desde los contenedores, su dirección es `postgres:5432`.
 
-## 2. USER
+Los puertos publicados se vinculan a `127.0.0.1`, para pruebas en la propia PC. Esta configuración corresponde al desarrollo local.
 
-Representa las cuentas y credenciales de los usuarios en la plataforma.
+## 2. Actualizar la rama actual
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. Identificador único. |
-| `full_name` | VARCHAR(100) | Nombre completo del usuario. |
-| `email` | VARCHAR(150) | Correo único para autenticación. **Unique**. |
-| `password_hash` | VARCHAR(255) | Hash seguro de la contraseña. |
-| `created_at` | TIMESTAMP | Fecha de registro. |
-| `is_active` | BOOLEAN | Estado de la cuenta global. Default: `true`. |
+Primero revisar el trabajo local:
 
----
+```powershell
+git status
+```
 
-## 3. USER_ORGANIZATION
+Guardar los cambios que se quieran conservar mediante un commit antes de actualizar. No descartar archivos para forzar el cambio de rama. Con el directorio de trabajo limpio:
 
-Mapea la membresía y el rol de cada usuario dentro de una organización específica (relación N:M).
+```powershell
+git pull --ff-only
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+```
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. |
-| `user_id` | BIGINT | **FK → USER.id**. Clave foránea al usuario. |
-| `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Clave foránea a la organización. |
-| `role` | VARCHAR(20) | Rol dentro del grupo: `ADMIN` o `USER`. |
-| `joined_at` | TIMESTAMP | Fecha de incorporación. |
-| `is_active` | BOOLEAN | Membresía activa o deshabilitada. Default: `true`. |
+`--ff-only` evita crear un merge inesperado al actualizar. Si Git informa que las ramas divergieron, resolverlo con el equipo. Revisar también cambios en `.env.example` y agregar las variables necesarias a `.env`.
 
-**Restricción:** `UNIQUE(user_id, organization_id)`.
+La reconstrucción incorpora código y dependencias de la rama actual. `docker compose restart` solo reinicia los contenedores existentes: no construye una imagen nueva.
 
----
+**Si la rama actual ya fue integrada en `main`, comenzar la siguiente tarea desde `main` actualizado**, siguiendo los pasos de la sección 3. Actualizar la rama anterior no incorpora automáticamente los cambios de `main`.
 
-## 4. CATEGORY
+## 3. Ejecutar otra rama o crear una propia
 
-Categorías de gastos configuradas por organización.
+Conservar primero el trabajo local. Luego detener los servicios y consultar las ramas:
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. |
-| `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Organización a la que pertenece. |
-| `name` | VARCHAR(100) | Nombre de la categoría (ej.: `"Supermercado"`, `"Servicios"`, `"Mantenimiento"`). |
-| `description` | TEXT | Detalle opcional. **Nullable**. |
-| `color` | VARCHAR(7) | Código hexadecimal para UI. Ej.: `#3B82F6`. |
-| `created_at` | TIMESTAMP | Fecha de creación. |
-| `is_active` | BOOLEAN | Habilitada para nuevos registros. Default: `true`. |
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml down
+git fetch origin --prune
+git branch -r
+```
 
----
+### Ejecutar una rama existente
 
-## 5. EXPENSE
+Para una rama que ya existe localmente:
 
-Entidad transaccional central. Representa los egresos registrados.
+```powershell
+git switch NOMBRE_RAMA
+git pull --ff-only
+```
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, Auto-increment. Identificador del gasto. |
-| `organization_id` | BIGINT | **FK → ORGANIZATION.id**. Tenant al que pertenece el gasto. La categoría y los participantes deben pertenecer al mismo tenant. El acceso de Python queda pendiente de contrato. |
-| `created_by_user_id` | BIGINT | **FK → USER.id**. Usuario que registró el gasto. No identifica necesariamente al pagador; los pagos se registran por separado. |
-| `paid_by_membership_id` |	BIGINT	| **FK → USER_ORGANIZATION.id**. Miembro a cuyo nombre se imputa el desembolso inicial (un ADMIN puede cargar en nombre de otro usuario). |
-| `category_id` | BIGINT | **FK → CATEGORY.id**. Categoría vinculada al gasto. |
-| `amount` | DECIMAL(12,2) | Monto monetario positivo, hasta 9.999.999.999,99; máximo dos decimales. |
-| `expense_date` | DATE | Fecha del gasto, no futura. Admite antecedentes anteriores al alta de la organización. |
-| `description` | TEXT | Detalle o concepto del gasto. **Nullable**. |
-| `receipt_url` | VARCHAR(255) | URL o path del comprobante. **Nullable**. |
-| `created_at` | TIMESTAMP | Timestamp de creación del registro. |
-| `is_active` | BOOLEAN | Indica si el gasto está vigente. `true` = vigente, `false` = anulado/deshabilitado. Default: `true`. |
+Para empezar a seguir una rama remota que no existe localmente:
 
----
+```powershell
+git switch --track origin/NOMBRE_RAMA
+```
 
-## 6. EXPENSE_SPLIT
+### Crear una rama propia desde `main`
 
-Participación económica de cada miembro. Reemplaza la imputación única en EXPENSE. UNIQUE(expense_id, user_organization_id). No incluye un booleano paid: la liquidación requiere considerar movimientos. Modalidades de reparto y vinculación de liquidaciones por gasto pendientes de cierre.
+Para comenzar una nueva tarea, especialmente cuando la rama anterior ya fue integrada, cambiar a `main` y actualizarla:
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | PK, auto-increment. |
-| `expense_id` | BIGINT | FK → EXPENSE.id. |
-| `user_organization_id` | BIGINT | FK → USER_ORGANIZATION.id; participante de la misma organización. |
-| `organization_id` | BIGINT | NOT NULL, y describí las claves foráneas compuestas que validan la organización.
-| `amount` | DECIMAL(12,2) | Parte positiva asignada. Suma de partes = total del gasto. |
+```powershell
+git switch main
+git pull --ff-only origin main
+```
 
----
+Después crear la rama de trabajo:
 
-## 7. FUND_CONTRIBUTION
+```powershell
+git switch -c feat/nombre-del-cambio
+```
 
-Dinero entregado al fondo. Solo la confirmación por ADMIN aumenta caja y crédito individual.
+Por ejemplo:
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | PK, auto-increment. |
-| `organization_id` | BIGINT | FK → ORGANIZATION.id. |
-| `contributor_membership_id` | BIGINT | FK → USER_ORGANIZATION.id; titular del crédito. |
-| `amount` | DECIMAL(12,2) | Aporte positivo, puede exceder la deuda. |
-| `movement_date` | DATE | Desde el alta de la organización, no futura. |
-| `status` | VARCHAR(20) | PENDING, CONFIRMED, REJECTED o CANCELLED. |
-| `created_by_user_id` | BIGINT | FK → USER.id; autor del registro. |
-| `created_at` | TIMESTAMP | Generado por servidor. |
-| `confirmed_by_membership_id` | BIGINT | FK → USER_ORGANIZATION.id; ADMIN que confirma. Nullable. |
-| `confirmed_at` | TIMESTAMP | Fecha de confirmación. Nullable. |
+```powershell
+git switch -c feat/python-predictor
+```
 
----
+La nueva rama parte del estado actualizado de `main`. No es necesario borrar la rama anterior para comenzar.
 
-## 8. EXPENSE_PAYMENT
+Crear una rama directamente desde otra rama de trabajo también es posible, pero incorpora sus cambios pendientes de integración. Utilizarlo solamente cuando la nueva tarea dependa de esos cambios y esté definido explícitamente.
 
-Dinero pagado al proveedor por un miembro o por el fondo. No crea otro gasto. Cada pago identifica obligatoriamente el origen del dinero. Un pago personal no exige aporte previo ni disponibilidad de caja y, al confirmarse, genera crédito al pagador sin modificar el fondo. Solo un pago desde el fondo requiere caja disponible y la reduce al confirmarse. La política de confirmación de pagos directos aún no fue acordada.
+### Levantar el entorno de la rama seleccionada
 
-Un mismo gasto puede pagarse con ambos orígenes mediante registros separados. Los pagos confirmados más pendientes vigentes no pueden superar el total del gasto. No registrar además un aporte al fondo por el mismo dinero utilizado en un pago personal: duplicaría el crédito.
-Representa la porción del gasto asignada a cada participante según la modalidad elegida (con nadie, con otro usuario, con varios o con todos).
+Después de seleccionar o crear la rama, revisar su README y `.env.example`, y levantar su código:
 
-| Atributo | Tipo | Restricciones / Descripción |
-|---|---|---|
-| `id` | BIGINT | **PK**, auto-increment. |
-| `expense_id` | BIGINT | **FK → EXPENSE.id**. |
-| `user_organization_id` | BIGINT | **FK → USER_ORGANIZATION.id**; miembro participante de la misma organización. |
-| `amount` | DECIMAL(12,2) | Parte asignada al participante. La suma de las partes debe ser igual al total de `EXPENSE.amount`. |
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+```
 
-**Restricción:** `UNIQUE(expense_id, user_organization_id)`.
+**La base de datos no cambia de versión al cambiar de rama.** El volumen conserva los datos y las migraciones ya aplicadas. Volver a una rama anterior no deshace el esquema. No modificar migraciones ya ejecutadas ni borrar el volumen como rutina.
 
----
+Si una rama requiere una base independiente para una prueba, detener primero el entorno habitual y usar otro nombre de proyecto:
 
-## Relaciones Principales
-- **ORGANIZATION → USER_ORGANIZATION:** Una organización nuclea múltiples miembros (`ADMIN` o `USER`).
-- **USER → USER_ORGANIZATION:** Un usuario puede pertenecer a más de una organización de forma aislada.
-- **ORGANIZATION → CATEGORY:** Categorías propias de cada organización.
-- **ORGANIZATION → EXPENSE:** Gastos centralizados por organización para su análisis mensual y predictivo.
-- **USER → EXPENSE (`created_by_user_id`):** Quién registró el gasto en el sistema.
-- **USER_ORGANIZATION → EXPENSE (`paid_by_membership_id`):** Miembro que pagó o asumió inicialmente el gasto (cargado por él mismo o por un `ADMIN` en su nombre).
-- **EXPENSE → EXPENSE_SPLIT:** Distribución del gasto entre los participantes asignados.
+```powershell
+docker compose -p shareverance-prueba -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+```
+
+Con la configuración actual, ese proyecto crea su propio volumen. Usar el mismo `-p shareverance-prueba` en todos sus comandos, incluida la detención:
+
+```powershell
+docker compose -p shareverance-prueba -f compose.yaml -f compose.tools.yaml down
+```
+
+Los puertos de la PC deben estar libres; por eso se detiene antes el entorno habitual.
+
+## 4. Trabajar con cambios locales
+
+Los Dockerfiles copian el código durante la construcción. Actualmente no hay montaje del código fuente para recarga automática: guardar un archivo en la PC no actualiza el contenedor.
+
+Para reconstruir únicamente el servicio modificado, elegir el comando que corresponda:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 java-service
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 python-service
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 frontend
+```
+
+Si cambiaron varios servicios o la configuración compartida, ejecutar el arranque completo. Para ver errores:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml logs --tail 100 java-service python-service frontend
+docker compose -f compose.yaml -f compose.tools.yaml logs -f python-service
+```
+
+`Ctrl+C` termina el seguimiento de los logs; los servicios siguen ejecutándose. Ejecutar sin Docker sería una modalidad diferente, con runtimes y configuración local propios; esta guía utiliza los contenedores como entorno de ejecución.
+
+## 5. Detener y volver a iniciar
+
+Para finalizar la sesión:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml down
+```
+
+Esto elimina los contenedores y la red del proyecto, pero conserva el volumen de PostgreSQL. Para volver a trabajar, ejecutar `up --build -d --wait --wait-timeout 300` con ambos archivos.
+
+Para pausar sin eliminar los contenedores:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml stop
+docker compose -f compose.yaml -f compose.tools.yaml start
+```
+
+`start` sirve para contenedores existentes; después de `down` hay que utilizar `up`.
+
+**No agregar `-v` a `down` en el uso habitual:** elimina también los volúmenes y los datos de la base. Cambiar las credenciales en `.env` tampoco cambia automáticamente las credenciales de una base ya inicializada.
+
+## 6. Incorporar bibliotecas en Java
+
+Las dependencias se declaran en `backend-java/pom.xml`, dentro de `<dependencies>`. Usar las coordenadas indicadas por la documentación oficial de la biblioteca. Este fragmento es una plantilla, no una dependencia real:
+
+```xml
+<dependency>
+    <groupId>GRUPO_DE_LA_BIBLIOTECA</groupId>
+    <artifactId>NOMBRE_DEL_ARTEFACTO</artifactId>
+    <version>VERSION_COMPATIBLE</version>
+</dependency>
+```
+
+Si Spring Boot gestiona la versión de esa dependencia, omitir `<version>` y conservar su gestión centralizada. Si no la gestiona, definir una versión compatible con Java 21 y el proyecto. No copiar archivos JAR manualmente al contenedor.
+
+Reconstruir Java:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 java-service
+```
+
+Maven resuelve las dependencias durante la construcción. Revisar los logs y probar la función incorporada. Subir a Git `pom.xml` y los cambios de código o configuración necesarios. Si la función cambia el esquema, agregar una nueva migración SQL; no editar una migración aplicada. Se mantiene JDBC: agregar una biblioteca no implica incorporar JPA/Hibernate.
+
+## 7. Incorporar bibliotecas o frameworks en Python
+
+`service-python/pyproject.toml` declara las dependencias; `service-python/uv.lock` conserva las versiones resueltas. Se deben actualizar y subir **ambos archivos**. El Dockerfile instala con el bloqueo existente y falla si quedó desactualizado.
+
+Se puede ejecutar uv desde un contenedor temporal, sin instalar Python en Windows. Desde la raíz del repositorio, reemplazar `nombre-del-paquete` por la dependencia elegida:
+
+```powershell
+$PythonSource = (Resolve-Path .\service-python).Path
+docker run --rm --mount "type=bind,source=$PythonSource,target=/app" -w /app python:3.13.16-slim-bookworm sh -c "pip install --no-cache-dir uv==0.12.19 && uv add --no-sync nombre-del-paquete"
+```
+
+`--mount` permite que uv escriba los archivos en la carpeta de la PC. `--no-sync` actualiza la declaración y el bloqueo sin crear un entorno virtual Linux en esa carpeta. Elegir versiones compatibles; para fijar una concreta, usar `nombre-del-paquete==VERSION`.
+
+Revisar y reconstruir:
+
+```powershell
+git diff -- service-python/pyproject.toml service-python/uv.lock
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 python-service
+```
+
+Probar `/health`, `/docs` y el diagnóstico del frontend. No instalar paquetes únicamente con `docker compose exec ... pip install`: esa modificación no queda declarada y se pierde al recrear el contenedor.
+
+Agregar un framework no siempre es solo agregar una dependencia. FastAPI y Uvicorn ya forman parte del arranque actual. Si se reemplazan, adaptar también el código, el comando de inicio del Dockerfile y la comprobación de salud. Conservar o actualizar de manera coordinada el contrato HTTP que utiliza Java. Las bibliotecas del predictor o del OCR se elegirán cuando se retomen esos módulos.
+
+## 8. Incorporar bibliotecas en React
+
+`frontend/package.json` declara las dependencias y `frontend/package-lock.json` bloquea la resolución. Para agregar una biblioteca desde Docker, reemplazar el nombre del ejemplo:
+
+```powershell
+$FrontendSource = (Resolve-Path .\frontend).Path
+docker run --rm --mount "type=bind,source=$FrontendSource,target=/app" -w /app node:24.21.0-bookworm-slim npm install --package-lock-only --save-exact nombre-del-paquete
+```
+
+Para una herramienta usada únicamente durante el desarrollo, agregar `--save-dev`. Este comando actualiza los archivos de dependencias; la instalación efectiva del contenedor se realiza después con `npm ci`.
+
+```powershell
+git diff -- frontend/package.json frontend/package-lock.json
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 frontend
+```
+
+Subir los dos archivos y el código correspondiente. No subir `node_modules`.
+
+## 9. Dependencias del sistema y cambios compartidos
+
+Si una biblioteca requiere programas o bibliotecas nativas del sistema operativo, declararlos en el Dockerfile del servicio. Esto puede ser necesario al implementar OCR; instalar el paquete Python por sí solo podría no alcanzar. Si cambia un puerto interno o una variable requerida, revisar también Compose, los clientes, las pruebas de salud y `.env.example`.
+
+Los cambios en los archivos de dependencias no reemplazan las pruebas funcionales. Antes de compartir una rama, reconstruir los servicios afectados, comprobar sus logs y volver a verificar las conexiones. Subir los archivos que permiten reproducir el cambio; no subir `.env`, entornos virtuales ni carpetas generadas.
+
+Referencias externas: [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/up/), [volúmenes y detención](https://docs.docker.com/reference/cli/docker/compose/down/), [uv](https://docs.astral.sh/uv/concepts/projects/dependencies/), [Maven](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html) y [npm](https://docs.npmjs.com/cli/commands/npm-install/).
+
+## 10. Resolver un puerto ocupado
+
+Si Docker informa que un puerto ya está asignado, elegir otro puerto externo para ese servicio en `.env`. Por ejemplo, si Python no puede publicar 8000:
+
+```dotenv
+PYTHON_HOST_PORT=8001
+```
+
+Recrear los servicios con la configuración actualizada:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300
+```
+
+En esa PC se accede entonces a `http://localhost:8001/docs`. Java sigue utilizando `http://python-service:8000`. Este ajuste local no se sube a Git ni cambia el puerto habitual de los demás integrantes.
+
+## 11. Crear y aplicar migraciones de base de datos
+
+Una migración es un archivo SQL que describe un cambio en la base de datos: crear tablas, agregar columnas, definir restricciones o modificar datos.
+
+En este proyecto utilizamos **Flyway**, integrado con Spring Boot. Al iniciar Java, Flyway consulta qué migraciones ya se ejecutaron y aplica las pendientes en orden.
+
+**Flyway y esta configuración son aportes externos a la clase.** El contenido de las migraciones se escribe en SQL.
+
+### 11.1. Ubicación y nombre del archivo
+
+Las migraciones de estructura se guardan en:
+
+```text
+backend-java/src/main/resources/db/migration/
+```
+
+El nombre sigue este formato:
+
+```text
+V<version>__<descripcion>.sql
+```
+
+- `V`: identifica una migración versionada.
+- `<version>`: número de versión, sin repetirlo en otro archivo.
+- `__`: dos guiones bajos que separan la versión de la descripción.
+- `<descripcion>`: nombre breve del cambio, usando guiones bajos entre palabras.
+- `.sql`: extensión del archivo.
+
+Ejemplos:
+
+```text
+V1__crear_tabla_demostracion.sql
+V2__modelo_inicial.sql
+V3__agregar_indice_gastos.sql
+```
+
+Por ejemplo `V2_Modelo_Inicial.sql` no respeta el formato: le falta el segundo guion bajo.
+
+Antes de crear una migración, coordinar su número con el equipo para evitar que dos ramas incorporen archivos con la misma versión.
+
+### 11.2. Crear la siguiente migración
+
+Desde PowerShell, en la raíz del repositorio:
+
+```powershell
+New-Item -ItemType File -Path .\backend-java\src\main\resources\db\migration\V2__modelo_inicial.sql
+```
+
+Abrir el archivo en el editor y escribir el SQL. Guardarlo con codificación UTF-8.
+
+V2 debe incluir los cambios nuevos. No copiar dentro el contenido de V1 ni volver a crear las tablas que ya existen.
+
+### 11.3. Ejemplo de construcción
+
+El siguiente ejemplo muestra cómo crear dos tablas relacionadas.
+
+Contenido de `V2__modelo_inicial.sql`:
+
+```sql
+-- Primero se crea la tabla que será referenciada.
+CREATE TABLE organization (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'ARS',
+    timezone VARCHAR(100) NOT NULL
+        DEFAULT 'America/Argentina/Buenos_Aires',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Después se crea la tabla que depende de organization.
+CREATE TABLE category (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    organization_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    color VARCHAR(7),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT fk_category_organization
+        FOREIGN KEY (organization_id)
+        REFERENCES organization (id)
+);
+
+-- Facilita las consultas de categorías de una organización.
+CREATE INDEX idx_category_organization
+    ON category (organization_id);
+```
+
+Qué hace este código:
+
+- `CREATE TABLE` crea una tabla.
+- `GENERATED BY DEFAULT AS IDENTITY` genera identificadores automáticamente.
+- `PRIMARY KEY` identifica cada registro de forma única.
+- `NOT NULL` exige que el campo tenga un valor.
+- `DEFAULT` establece el valor usado si no se proporciona uno.
+- `FOREIGN KEY` impide registrar una categoría con una organización inexistente.
+- `CREATE INDEX` crea una estructura que puede acelerar las consultas por organización.
+
+El orden importa: `organization` debe existir antes de crear la clave foránea de `category`.
+
+Antes de aplicar V2, completar y revisar el SQL del modelo acordado. No aplicar este ejemplo parcial si se pretende que V2 contenga todo el modelo inicial.
+
+### 11.4. Aplicar la migración
+
+Desde la raíz del repositorio:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300 java-service
+```
+
+Este comando reconstruye la imagen de Java para incorporar el nuevo archivo SQL y arranca el servicio.
+
+Durante el inicio, Flyway:
+
+1. Consulta la tabla `flyway_schema_history`.
+2. Valida las migraciones ya aplicadas.
+3. Detecta las versiones pendientes.
+4. Ejecuta sus archivos SQL en orden.
+5. Registra las migraciones aplicadas correctamente.
+
+No ejecutar el archivo manualmente en pgAdmin: Flyway debe aplicar el cambio y registrar su historial.
+
+### 11.5. Verificar el resultado
+
+Consultar los logs de Java:
+
+```powershell
+docker compose -f compose.yaml -f compose.tools.yaml logs --tail 100 java-service
+```
+
+Desde pgAdmin, conectado a la base del proyecto:
+
+```sql
+SELECT version, description, script, success
+FROM flyway_schema_history
+ORDER BY installed_rank;
+```
+
+V1 y V2 deberían aparecer con `success = true`. También puede aparecer la carga repetible de demostración, cuyo campo `version` es nulo.
+
+Para comprobar las tablas creadas por el ejemplo:
+
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('organization', 'category')
+ORDER BY table_name;
+```
+
+Finalmente, volver a comprobar las conexiones desde el frontend.
+
+### 11.6. Realizar cambios posteriores
+
+Las migraciones versionadas se ejecutan una sola vez por base de datos.
+
+| Estado de la base | Comportamiento |
+| --- | --- |
+| Base vacía | Ejecuta V1 y después V2 |
+| V1 ya aplicada | Ejecuta V2 |
+| V1 y V2 aplicadas | No vuelve a ejecutarlas |
+| Se incorpora V3 | Ejecuta V3 si está pendiente |
+
+Una vez que una migración fue aplicada y compartida, conservar su nombre y contenido. Flyway guarda una comprobación de su contenido; modificarla puede causar un error de validación.
+
+Por ejemplo, para agregar más adelante un índice sobre el nombre de la organización, crear:
+
+```text
+V3__agregar_indice_nombre_organizacion.sql
+```
+
+Contenido:
+
+```sql
+-- Agrega un índice sin volver a crear la tabla.
+CREATE INDEX idx_organization_name
+    ON organization (name);
+```
+
+Reconstruir Java con el mismo comando para aplicar V3. El índice es un ejemplo: incorporarlo solo si las consultas del proyecto lo justifican.
+
+### 11.7. Compartir la migración con el equipo
+
+Subir el archivo SQL a Git junto con el código que depende del cambio. Cada compañero obtiene la migración al actualizar su rama y reconstruir Java.
+
+No hace falta compartir una copia de la base ni crar tablas manualmente.
+
+Tener en cuenta:
+
+- No editar migraciones ya aplicadas y compartidas.
+- No reutilizar números de versión.
+- No borrar el volumen de PostgreSQL para aplicar una migración nueva.
+- Cambiar de rama no revierte las migraciones de la base.
+- Revisar especialmente cambios que eliminan columnas, tablas o datos.
+- Si una migración falla, revisar los logs y el estado de la base antes de volver a intentarlo.
+
+Los archivos `V...` se usan para cambios versionados. Los archivos `R__...` son repetibles: Flyway los vuelve a ejecutar cuando cambia su contenido. La carga `R__datos_demostracion.sql` utiliza este segundo mecanismo y está preparada para no duplicar registros.
+
+Referencia técnica externa: [Migraciones versionadas de Flyway](https://documentation.red-gate.com/flyway/flyway-concepts/migrations/versioned-migrations).
+
+## 12. Guardar cambios y subirlos para revisión
+
+Trabajar en una rama propia, por ejemplo `contrato-python`. La sección 3 explica cómo crearla desde `main` actualizado.
+
+### 12.1. Revisar los cambios
+
+```powershell
+git branch --show-current
+git status
+git diff
+```
+
+Confirmar que estamos en la rama correcta y que los cambios corresponden a la tarea. Antes de compartir cambios de código, ejecutar las comprobaciones pertinentes y reconstruir los servicios afectados.
+
+Si se modificó un archivo en `main` pero todavía no se creó el commit, se puede crear la rama sin perder ese cambio:
+
+```powershell
+git switch -c contrato-python
+```
+
+Los cambios sin commit se conservan en la nueva rama. Si el commit ya se hizo en `main`, revisar esa situación antes de continuar; crear una rama no elimina el commit de `main`.
+
+### 12.2. Preparar los archivos para el commit
+
+Para incluir todos los archivos nuevos, modificados y eliminados:
+
+```powershell
+git add -A
+```
+
+Revisar lo que se va a guardar:
+
+```powershell
+git diff --cached --stat
+git diff --cached
+```
+
+`git add -A` prepara los cambios, pero todavía no crea el commit. No incluir credenciales, archivos `.env` ni archivos generados que deban estar ignorados.
+
+Si un archivo se preparó por error, retirarlo de la selección sin borrar sus cambios locales:
+
+```powershell
+git restore --staged -- RUTA_DEL_ARCHIVO
+```
+
+### 12.3. Crear el commit
+
+```powershell
+git commit -m "docs: agregar contrato Python y datos de prueba"
+```
+
+El commit guarda una versión de los cambios preparados en la rama local. El mensaje debe describir brevemente lo realizado. Los cambios que no fueron preparados no se incluyen.
+
+Comprobar el estado después del commit:
+
+```powershell
+git status
+```
+
+### 12.4. Subir la rama a GitHub
+
+La primera vez:
+
+```powershell
+git push -u origin contrato-python
+```
+
+Reemplazar `contrato-python` por el nombre de la rama utilizada. `-u` vincula la rama local con la remota. El push sube los commits; no incorpora los cambios automáticamente a `main`.
+
+Para subir nuevos commits de esa misma rama:
+
+```powershell
+git push
+```
+
+Si el push es rechazado porque existen cambios remotos, revisar y coordinar la actualización con el equipo. No utilizar `--force` como solución rutinaria.
+
+### 12.5. Solicitar revisión del equipo
+
+En GitHub, crear un Pull Request:
+
+- **Base:** `main`.
+- **Compare:** la rama de trabajo, por ejemplo `contrato-python`.
+- Describir los cambios y las comprobaciones realizadas.
+
+Los nuevos commits que se suban a esa rama se incorporan automáticamente al mismo Pull Request mientras siga abierto.
+
+Después de integrar el Pull Request, comenzar la siguiente tarea desde `main` actualizado, siguiendo la sección 3.
