@@ -339,3 +339,51 @@ export const expenseHistoryApi = {
   },
   annul(id: number): Promise<Expense> { return request(`/api/v1/expenses/${id}`, { method: 'DELETE' }, true); },
 };
+
+export interface ReceiptUploadResponse {
+  receiptId: string;
+  organizationId: number;
+  originalFilename: string;
+  contentType: string;
+  fileSizeBytes: number;
+  createdAt: string;
+  status: string;
+}
+
+export interface OcrResultResponse {
+  receiptId: string;
+  status: 'OK' | 'PARTIAL' | 'FAILED';
+  currency: 'ARS';
+  date?: string | null;
+  amount?: number | null;
+  description?: string | null;
+  warnings: string[];
+}
+
+export const receiptApi = {
+  async upload(organizationId: number, file: File): Promise<ReceiptUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers = new Headers();
+    headers.set('X-XSRF-TOKEN', await authApi.csrf());
+    const response = await fetch(`/api/v1/organizations/${organizationId}/receipts`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'same-origin',
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new ApiError(err?.message || `Error al subir comprobante (${response.status})`, response.status);
+    }
+    return response.json();
+  },
+
+  processOcr(organizationId: number, receiptId: string): Promise<OcrResultResponse> {
+    return request<OcrResultResponse>(
+      `/api/v1/organizations/${organizationId}/receipts/${receiptId}/ocr`,
+      { method: 'POST' },
+      true,
+    );
+  },
+};

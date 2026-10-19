@@ -7,33 +7,36 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado y alcance
 
-No existe implementación OCR en la base revisada. Comparte el servicio FastAPI con analítica/predicción; separar módulos y pruebas, sin introducir un contenedor adicional como requisito.
+En E4.2 se incorpora el motor OCR local Tesseract (`tesseract-ocr` y `tesseract-ocr-spa` en Debian Bookworm) en el microservicio FastAPI Python, compartiendo el servicio sin agregar contenedores adicionales.
 
-Extraer únicamente fecha, importe ARS y descripción. No proveedor, razón social, CUIT ni moneda. La descripción utilizable no supera 500 caracteres; usar `Varios` si no puede representarse dentro de esa regla. Precisar antes de implementar si varias líneas siempre producen ese valor o si pueden normalizarse.
+Extrae únicamente fecha, importe ARS y descripción. No proveedor, razón social, CUIT ni moneda. La descripción utilizable se normaliza eliminando saltos de línea y espacios redundantes (hasta 500 caracteres); se utiliza `Varios` como valor alternativo determinista si la descripción queda vacía, supera los 500 caracteres o carece de texto legible.
 
 ## Flujo
 
-1. React sube JPEG/PNG a Java con organización mediante multipart.
-2. Java valida sesión, permisos, contenido, tamaño y dimensiones; asigna nombre y guarda en volumen persistente.
-3. Java solicita OCR por HTTP interno con request_id, organization_id y referencia controlada.
-4. Python valida llamada y resuelve el archivo dentro del directorio permitido; no descarga URLs ni recibe rutas libres.
-5. Python abre el archivo en modo lectura, ejecuta OCR y normaliza campos.
-6. Devuelve campos y advertencias a Java; Java los entrega al formulario.
-7. El usuario corrige y confirma; Java guarda el gasto y asocia el comprobante.
+1. React sube JPEG/PNG a Java con organización mediante multipart (E4.1).
+2. Java valida sesión, permisos, contenido, tamaño y dimensiones; asigna nombre y guarda en volumen persistente (E4.1).
+3. Java solicita OCR por HTTP interno a `POST /internal/v1/ocr` con `request_id`, `organization_id`, `receipt_id` y `storage_key` controlada.
+4. Python valida autenticación Bearer (`PYTHON_CLIENT_SECRET`), resuelve el archivo dentro de `/data/receipts/org_<id>/` y rechaza path traversal y enlaces simbólicos.
+5. Python abre el archivo en modo lectura, ejecuta Tesseract OCR y normaliza fecha, importe y descripción.
+6. Devuelve campos normalizados, advertencias y estado a Java; Java los entrega a React mediante `POST /api/v1/organizations/{id}/receipts/{receiptId}/ocr`.
+7. React precarga los campos en el formulario de carga de gastos, permitiendo que el usuario los revise, edite o complete manualmente. Al enviar el alta de gasto, se vincula el comprobante mediante `receiptService.linkReceiptToExpense`.
 
 ## Volumen y validación
 
-Un volumen persistente compartido de Compose (`receipts_data`) montado en `/data/receipts`: Java lectura/escritura, Python solo lectura (incorporado en E4.1). Una imagen hasta 10 MiB; JPEG/PNG válidos por decodificación y contenido, no solo extensión. Java comprueba el límite de 50 megapíxeles leyendo dimensiones antes de decodificar y limita los bytes realmente leídos. Rechaza enlaces simbólicos en los componentes de la ruta y referencias fuera del directorio de la organización; revalida al abrir la descarga. No acepta nombres de archivo aportados como rutas. Esta infraestructura no implementa todavía el motor OCR ni su integración.
+Un volumen persistente compartido de Compose (`receipts_data`) montado en `/data/receipts`: Java lectura/escritura, Python solo lectura (incorporado en E4.1). Una imagen hasta 10 MiB; JPEG/PNG válidos por decodificación y contenido, no solo extensión. Java comprueba el límite de 50 megapíxeles leyendo dimensiones antes de decodificar y limita los bytes realmente leídos. Rechaza enlaces simbólicos en los componentes de la ruta y referencias fuera del directorio de la organización; revalida al abrir la descarga. No acepta nombres de archivo aportados como rutas.
 
 El servidor conserva referencia y organización; la ruta relativa incluye un identificador generado y no datos personales. No permitir que el front invoque Python o elija rutas. Un contenedor recreado no debe borrar imágenes.
 
 ## Resultado
 
-Contrato en [contratos_api.md](contratos_api.md). Campos no reconocidos son null y llevan advertencia; no inventar fecha ni importe. La moneda se conoce como ARS. No emitir puntuaciones de confianza ficticias. OCR no confirma gastos ni decide categoría/reparto. Un timeout, archivo ilegible o error del motor permite carga manual.
+Contrato en [contratos_api.md](contratos_api.md). Campos no reconocidos son null y llevan advertencia en `warnings`; no inventar fecha ni importe. La moneda se conoce como ARS. No emitir puntuaciones de confianza ficticias. OCR no confirma gastos ni decide categoría/reparto. Un timeout, archivo ilegible o error del motor permite continuar con carga manual. Estados de resultado:
+- `OK`: fecha e importe detectados.
+- `PARTIAL`: solo uno de los dos campos (fecha o importe) detectado.
+- `FAILED`: no se pudo reconocer fecha ni importe, o el archivo es ilegible / vacío.
 
-## Motor y parámetros pendientes
+## Motor y parámetros
 
-Seleccionar motor local o servicio externo mediante prueba representativa; documentar dependencias, licencia operativa y necesidad de conexión cuando se elija. No enviar comprobantes a un proveedor externo como consecuencia implícita de instalar una biblioteca. Definir tiempos máximos y política de concurrencia según la prueba.
+En E4.2 se seleccionó Tesseract local (paquetes `tesseract-ocr` y `tesseract-ocr-spa`, licencia Apache 2.0). No envía comprobantes a proveedores externos y no requiere conectividad a internet para procesar imágenes. El tiempo límite de lectura interna está configurado en 15 segundos (`python.service.ocr-read-timeout-ms`).
 
 Conservar comprobantes asociados incluso tras anulación. No limpiar tablas de negocio. La limpieza de archivos sin asociación necesita una política explícita; 24 horas sigue siendo un valor propuesto, no una tarea automática habilitada.
 

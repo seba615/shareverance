@@ -13,6 +13,8 @@ from app.schemas.requests import (
 
 ResultStatus = Literal["OK", "INSUFFICIENT_HISTORY"]
 
+OcrStatus = Literal["OK", "PARTIAL", "FAILED"]
+
 OverallStatus = Literal[
     "OK",
     "PARTIAL",
@@ -93,3 +95,17 @@ class PredictionResponse(ResponseBase):
     target_month: Month
     organization: PredictionResult
     categories: list[CategoryPredictionResult] = Field(max_length=100)
+
+
+class InternalOcrResponse(ContractModel):
+    contract_version: Literal["1"]
+    request_id: UUID
+    organization_id: PositiveId
+    receipt_id: UUID
+    currency: Literal["ARS"]
+    status: OcrStatus
+    date: str | None = None
+    amount: float | None = None
+    description: str | None = None
+    raw_text: str | None = None
+    warnings: list[str] = Field(default_factory=list)

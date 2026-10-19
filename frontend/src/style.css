@@ -233,6 +233,20 @@ select:focus {
   color: #a13e3a;
 }
 
+.notice.warning {
+  border: 1px solid #fae3b3;
+  background: #fffcf2;
+  color: #8c6008;
+}
+
+.receipt-upload-box {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: #fbfbfd;
+  border: 1px dashed #cfd4dc;
+  border-radius: 8px;
+}
+
 .loading-card {
   width: fit-content;
   margin: 20vh auto 0;

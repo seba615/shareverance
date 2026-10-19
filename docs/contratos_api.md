@@ -143,7 +143,7 @@ Rutas internas de diseño (E3.2 implementa `POST /internal/v2/predictions/monthl
 | --- | --- | --- |
 | Predicción con datos desde vistas (implementado en E3.2) | POST /internal/v2/predictions/monthly | contract_version (`"2"`), request_id, organization_id, target_month |
 | Analítica desde vistas (pendiente E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
-| OCR (pendiente E4.2) | POST /internal/v1/ocr | contract_version, request_id, organization_id, receipt_id, storage_key |
+| OCR (implementado en E4.2) | POST /internal/v1/ocr | contract_version (`"1"`), request_id, organization_id, receipt_id, storage_key |
 
 Ejemplo predictivo v2:
 
@@ -185,7 +185,50 @@ Códigos de respuesta de comprobantes:
 * `415 UNSUPPORTED MEDIA TYPE`: el archivo no es JPEG ni PNG (validado por magic bytes).
 * `409 CONFLICT`: el comprobante ya se encuentra vinculado a otro gasto activo.
 
-La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. El alta de gasto mantiene el campo `receiptUrl` preexistente, pero todavía no ejecuta la asociación interna de `receipts`: no basta enviar esa cadena para vincular el comprobante. El servicio interno de asociación exige un gasto activo de la misma organización y evita reemplazar vínculos concurrentes; su integración pública queda pendiente. El 409 corresponde a esa operación interna, sin endpoint público nuevo. La llamada interna OCR (E4.2) se integrará sobre `POST /internal/v1/ocr`.
+La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. En E4.2 el alta de gasto vincula automáticamente el comprobante cuando `receiptUrl` contiene el UUID del comprobante activo perteneciente a la organización, invocando la asociación segura de `receipts`.
+
+## OCR y precarga editable de comprobantes (implementado en E4.2)
+
+Rutas para el procesamiento OCR de comprobantes:
+
+* `POST /api/v1/organizations/{organizationId}/receipts/{receiptId}/ocr` (Java pública):
+  - Autenticación: sesión activa y membresía en la organización. El comprobante temporal debe pertenecer al usuario autenticado o este debe tener rol `ADMIN`. Si ya está vinculado a un gasto, cualquier miembro activo puede solicitarlo.
+  - Comportamiento: Java invoca internamente al servicio Python (`POST /internal/v1/ocr`) pasando `storage_key` (`org_<id>/<uuid>.<ext>`) con cabecera `Authorization: Bearer <PYTHON_CLIENT_SECRET>`. Si Python no responde o se agota el timeout de 15 segundos, responde HTTP 503 permitiendo al frontend continuar con la carga manual.
+  - Respuesta `200 OK` (`OcrResultResponse`):
+    ```json
+    {
+      "receiptId": "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b",
+      "status": "OK",
+      "currency": "ARS",
+      "date": "2026-10-15",
+      "amount": 7650.50,
+      "description": "Supermercado compras varias",
+      "warnings": []
+    }
+    ```
+
+* `POST /internal/v1/ocr` (Python interna):
+  - Autenticación: `Authorization: Bearer <PYTHON_CLIENT_SECRET>` (admite `PYTHON_CLIENT_SECRET_PREVIOUS` para rotación).
+  - Cuerpo de solicitud (`InternalOcrRequest`):
+    ```json
+    {
+      "contract_version": "1",
+      "request_id": "7f69bfaa-465e-4e74-a13f-169447481317",
+      "organization_id": 1,
+      "receipt_id": "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b",
+      "storage_key": "org_1/cbad14ba-cbe2-47ca-bdf6-b9266054ef0b.png"
+    }
+    ```
+  - Reglas de validación: `storage_key` debe residir bajo `/data/receipts/org_<organization_id>/`, sin path traversal (`..`, rutas absolutas) ni enlaces simbólicos.
+  - Motor: Tesseract OCR local con paquetes en español e inglés (`spa+eng`).
+  - Normalización:
+    - Fecha: formatos `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, etc. Rechaza fechas futuras en huso `America/Argentina/Buenos_Aires`. Si no se detecta, devuelve `null` y aviso en `warnings`.
+    - Importe: detección de patrones monetarios con coma decimal y punto de miles. Prioriza líneas con `TOTAL` excluyendo subtotales. Límite máximo 9.999.999.999,99 ARS con hasta 2 decimales. Si no se detecta, devuelve `null` y aviso en `warnings`.
+    - Descripción: eliminación de ruido impositivo y de encabezados de tickets; espacios redundantes normalizados; longitud máxima de 500 caracteres. Si no es utilizable, está vacía o excede 500 caracteres, adopta el valor de respaldo `Varios`.
+  - Estados devueltos:
+    - `OK`: fecha e importe detectados.
+    - `PARTIAL`: solo uno de los dos campos numérico/temporal detectado.
+    - `FAILED`: ningún campo detectado o archivo vacío/ilegible.
 
 ## Resultados analíticos y predictivos
 

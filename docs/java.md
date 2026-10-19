@@ -120,3 +120,13 @@ Correcciones de aislamiento E4.1: V9 añade la FK `(organization_id, expense_id)
 La carga limita los bytes realmente leídos, consulta dimensiones con `ImageReader` antes de decodificar y valida el nombre original (hasta 255 caracteres, sin controles) antes de escribir. Se rechazan enlaces simbólicos en los componentes del almacenamiento y se vuelve a validar al abrir la descarga, con `NOFOLLOW_LINKS` sobre el archivo final. El volumen debe permanecer bajo control de Java; Python conserva sólo lectura.
 
 El archivo UUID creado por una carga se elimina si falla el guardado SQL o si la transacción termina en rollback. Esto es compensación entre disco y SQL, no una transacción distribuida: una caída del proceso o un fallo al eliminar requiere revisión operativa. Los fallos de limpieza se registran sin exponer rutas al cliente; no se habilita una purga automática. `Content-Disposition` se construye con codificación UTF-8 del nombre.
+
+## Invocación OCR y vinculación de comprobantes E4.2
+
+Se incorporan `OcrService` y su implementación `OcrServiceImpl`:
+- Endpoint público `POST /api/v1/organizations/{organizationId}/receipts/{receiptId}/ocr`:
+  - Requiere membresía activa en la organización y que el usuario sea el propietario del comprobante o `ADMIN` de la organización (si el comprobante ya está vinculado a un gasto, cualquier miembro activo puede procesarlo).
+  - Invoca internamente a Python en `POST /internal/v1/ocr` enviando cabecera `Authorization: Bearer <PYTHON_CLIENT_SECRET>` y cuerpo JSON con `storage_key` (`org_<id>/<uuid>.<ext>`).
+  - Aplica timeout de lectura configurable (`python.service.ocr-read-timeout-ms`, por defecto 15.000 ms). Si Python no está disponible, agota el tiempo de espera o retorna error, Java responde HTTP 503 (`SERVICE_UNAVAILABLE`) sin comprometer el alta ni consulta de gastos.
+- Vinculación en `createExpense`:
+  - Si `request.receiptUrl()` contiene el identificador UUID de un comprobante activo de la organización, `ExpenseServiceImpl` invoca `receiptService.linkReceiptToExpense` para asociarlo de forma atómica y condicional al nuevo gasto registrado. Si la cadena es un texto libre o no corresponde a un comprobante registrado, se conserva sin romper la creación del gasto.
