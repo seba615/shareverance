@@ -16,6 +16,5 @@ public interface ExpenseService {
     List<ExpenseDetailResponse> getExpensesByOrganization(Long organizationId);
     ExpenseDetailResponse updateExpense(Long id, ExpenseUpdateRequest request);
     Expense deactivateExpense(Long id);
-    com.shareverance.dto.contract.HistoryContractResponse getMonthlyHistoryContract(Long organizationId, String targetMonth);
 }
 

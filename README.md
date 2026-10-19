@@ -23,9 +23,9 @@ Sistema de registro, distribución y análisis de gastos para hogares, consorcio
 
 React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker Compose.
 
-Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java y devuelve predicciones simuladas. Objetivo: Java autoriza y orquesta; Python consulta vistas SQL con usuario de lectura y procesa OCR desde volumen compartido. Java escribe comprobantes y Python solo los lee. Este cambio requiere código, migraciones y configuración; todavía no está desplegado por esta actualización documental.
+Actual: React→Java→PostgreSQL para negocio; Java autoriza y orquesta hacia Python (`POST /internal/v2/predictions/monthly` con Bearer interno) y Python consulta directamente las vistas SQL de PostgreSQL con su rol de solo lectura (`shareverance_python`), devolviendo predicciones simuladas. Objetivo pendiente: OCR desde volumen compartido (E4), analítica mensual desde vistas y panel (E5) y modelo predictivo real (E6).
 
-E3.1 incorpora V7: vistas analíticas aisladas por contexto transaccional, cobertura explícita por mes cerrado y credenciales separadas para migración, Java y lectura Python. El consumidor Python y la retirada del callback permanecen pendientes de E3.2; no hay panel ni predicción real nuevos. Contratos y permisos en [PostgreSQL](docs/postgre.md) y [API](docs/contratos_api.md).
+E3.1 incorpora V7: vistas analíticas aisladas por contexto transaccional, cobertura explícita por mes cerrado y credenciales separadas para migración, Java y lectura Python. E3.2 incorpora el consumidor Python de vistas (`ViewsRepository` con `psycopg[binary]`), la llamada autenticada `Java → Python` (`GET /api/v1/organizations/{id}/predictions/monthly` → `POST /internal/v2/predictions/monthly`) con soporte de rotación de secreto (`PYTHON_CLIENT_SECRET` / `PYTHON_CLIENT_SECRET_PREVIOUS`) y el retiro del callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`). Contratos y permisos en [PostgreSQL](docs/postgre.md) y [API](docs/contratos_api.md).
 
 Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones y pestañas de gastos, miembros y categorías. E2.1 incorpora carga manual y listado de gastos, alta de miembros por email, cambio de rol, desactivación/reactivación y alta/desactivación de categorías. E2.2 agrega historial filtrado y paginado, detalle, edición con versión y anulación confirmada de gastos. E2.3 incorpora la vista alternable de calendario mensual con totales diarios y consulta/detalle por fecha dentro de la pestaña de gastos. Edición de categorías y analítica siguen pendientes. La especificación incorpora calendario y preserva funciones existentes.
 
@@ -52,9 +52,9 @@ Seleccionar la rama que se desea ejecutar antes de iniciar contenedores; revisar
 Copy-Item .env.example .env
 ```
 
-Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. La copia de `.env.example` incluye credenciales OAuth locales para que Python consulte el historial a través de Java; son solo para desarrollo y deben reemplazarse antes de cualquier despliegue. Si `.env` ya existía, agregarle `PYTHON_CLIENT_ID` y `PYTHON_CLIENT_SECRET` desde `.env.example`.
+Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. La copia de `.env.example` incluye `PYTHON_CLIENT_SECRET` (y `PYTHON_CLIENT_SECRET_PREVIOUS` opcional para rotación) para autenticar las llamadas internas `Java → Python`; son valores solo para desarrollo y deben reemplazarse antes de cualquier despliegue.
 
-E3.1 añade `JAVA_DB_PASSWORD` y `PYTHON_DB_PASSWORD`; agregar ambas a un `.env` existente y elegir valores distintos y no vacíos. `POSTGRES_USER/POSTGRES_PASSWORD` quedan para administración/Flyway; no usar `shareverance_java` ni `shareverance_python` como POSTGRES_USER. Los ejemplos son exclusivamente locales. Compose conserva valores de desarrollo predeterminados para las dos variables nuevas; deben reemplazarse fuera de este entorno.
+E3.1 y E3.2 utilizan `JAVA_DB_PASSWORD` y `PYTHON_DB_PASSWORD`; agregar ambas a un `.env` existente y elegir valores distintos y no vacíos. `POSTGRES_USER/POSTGRES_PASSWORD` quedan para administración/Flyway; no usar `shareverance_java` ni `shareverance_python` como POSTGRES_USER. Los ejemplos son exclusivamente locales. Compose conserva valores de desarrollo predeterminados para las dos variables nuevas; deben reemplazarse fuera de este entorno.
 
 Para el acceso directo a los servicios, si tienen algun puerto ocupado agregar a `.env`:
 

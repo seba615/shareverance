@@ -4,17 +4,25 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from app.api.error_handlers import (
+    InternalAuthError,
     history_validation_handler,
+    internal_auth_error_handler,
     internal_error_handler,
-    java_service_error_handler,
     request_validation_handler,
+    views_repository_error_handler,
 )
-from app.api.predictions import router as predictions_router
+from app.api.predictions import (
+    internal_router as internal_predictions_router,
+    router as predictions_router,
+)
 from app.api.request_limits import RequestLimitsMiddleware
 from app.config import load_settings
 from app.predictors.factory import create_predictor
-from app.services.java_client import JavaServiceClient, JavaServiceError
 from app.services.predictions import PredictionService
+from app.services.views_repository import (
+    ViewsRepository,
+    ViewsRepositoryError,
+)
 from app.validation.history import HistoryValidationError
 
 
@@ -23,12 +31,9 @@ async def lifespan(app: FastAPI):
     settings = load_settings()
     predictor = create_predictor(settings)
 
+    app.state.settings = settings
     app.state.prediction_service = PredictionService(predictor)
-    app.state.java_service_client = JavaServiceClient(
-        settings.java_service_url,
-        settings.java_client_id,
-        settings.java_client_secret,
-    )
+    app.state.views_repository = ViewsRepository(settings.database_url)
 
     yield
 
@@ -52,8 +57,13 @@ app.add_exception_handler(
 )
 
 app.add_exception_handler(
-    JavaServiceError,
-    java_service_error_handler,
+    InternalAuthError,
+    internal_auth_error_handler,
+)
+
+app.add_exception_handler(
+    ViewsRepositoryError,
+    views_repository_error_handler,
 )
 
 app.add_exception_handler(
@@ -62,6 +72,7 @@ app.add_exception_handler(
 )
 
 app.include_router(predictions_router)
+app.include_router(internal_predictions_router)
 
 
 @app.get("/health")

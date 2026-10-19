@@ -29,9 +29,18 @@ services:
   python-service:
     build: ./service-python
     environment:
-      JAVA_SERVICE_URL: http://java-service:8080
-      JAVA_CLIENT_ID: ${PYTHON_CLIENT_ID:-python-prediction-service}
-      JAVA_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
+      PYTHON_DB_HOST: postgres
+      PYTHON_DB_PORT: 5432
+      PYTHON_DB_NAME: ${POSTGRES_DB:-shareverance}
+      PYTHON_DB_USER: shareverance_python
+      PYTHON_DB_PASSWORD: ${PYTHON_DB_PASSWORD:-shareverance_python_sql_local_only}
+      PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
+      PYTHON_CLIENT_SECRET_PREVIOUS: ${PYTHON_CLIENT_SECRET_PREVIOUS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      database-access:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
@@ -49,7 +58,6 @@ services:
       SPRING_FLYWAY_USER: ${POSTGRES_USER:-shareverance_dev}
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
       PYTHON_SERVICE_URL: http://python-service:8000
-      PYTHON_CLIENT_ID: ${PYTHON_CLIENT_ID:-python-prediction-service}
       PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
     depends_on:
       postgres:

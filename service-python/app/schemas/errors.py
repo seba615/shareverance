@@ -7,6 +7,8 @@ from app.schemas.requests import ContractModel
 
 
 ErrorCode = Literal[
+    "UNAUTHORIZED",
+    "FORBIDDEN",
     "PAYLOAD_TOO_LARGE",
     "UNSUPPORTED_MEDIA_TYPE",
     "INVALID_REQUEST",
@@ -45,6 +47,6 @@ class ErrorBody(ContractModel):
 
 
 class ErrorResponse(ContractModel):
-    contract_version: Literal["1"]
+    contract_version: Literal["1", "2"]
     request_id: UUID | None
     error: ErrorBody

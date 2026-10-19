@@ -41,7 +41,7 @@ MonthCount = Annotated[
 
 
 class ResponseBase(ContractModel):
-    contract_version: Literal["1"]
+    contract_version: Literal["1", "2"]
     request_id: UUID
     organization_id: PositiveId
     currency: Literal["ARS"]

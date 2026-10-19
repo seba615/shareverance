@@ -75,6 +75,7 @@ class PredictionService:
     def predict(
         self,
         request: PredictionRequest,
+        contract_version: str | None = None,
     ) -> PredictionResponse:
         validate_history(request)
 
@@ -124,7 +125,7 @@ class PredictionService:
         ]
 
         return PredictionResponse(
-            contract_version=request.contract_version,
+            contract_version=contract_version or request.contract_version,
             request_id=request.request_id,
             organization_id=request.organization_id,
             currency=request.currency,

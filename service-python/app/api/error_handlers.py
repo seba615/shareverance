@@ -1,9 +1,9 @@
+import logging
 from uuid import UUID
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-import logging
 
 from app.schemas.errors import (
     DetailCode,
@@ -11,8 +11,22 @@ from app.schemas.errors import (
     ErrorDetail,
     ErrorResponse,
 )
-from app.services.java_client import JavaServiceError
+from app.services.views_repository import ViewsRepositoryError
 from app.validation.history import HistoryValidationError
+
+
+class InternalAuthError(Exception):
+    """Error de autenticación o autorización en el canal interno Java -> Python."""
+
+    def __init__(self, status_code: int, code: str, message: str):
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.message = message
+
+
+def _contract_version(request: Request) -> str:
+    return "2" if request.url.path.startswith("/internal/v2/") else "1"
 
 
 def get_request_id(body: object) -> UUID | None:
@@ -31,11 +45,12 @@ def get_request_id(body: object) -> UUID | None:
 
 
 def error_response(
+    request: Request,
     request_id: UUID | None,
     details: list[ErrorDetail],
 ) -> JSONResponse:
     response = ErrorResponse(
-        contract_version="1",
+        contract_version=_contract_version(request),
         request_id=request_id,
         error=ErrorBody(
             code="INVALID_REQUEST",
@@ -112,6 +127,7 @@ async def request_validation_handler(
     ]
 
     return error_response(
+        request=request,
         request_id=get_request_id(exc.body),
         details=details,
     )
@@ -121,8 +137,16 @@ async def history_validation_handler(
     request: Request,
     exc: HistoryValidationError,
 ) -> JSONResponse:
+    request_id = getattr(request.state, "contract_request_id", None)
+    if request_id is None:
+        try:
+            request_id = get_request_id(await request.json())
+        except Exception:
+            request_id = None
+
     return error_response(
-        request_id=get_request_id(await request.json()),
+        request=request,
+        request_id=request_id,
         details=[
             ErrorDetail(field=issue.field, code=issue.code)
             for issue in exc.issues
@@ -130,16 +154,36 @@ async def history_validation_handler(
     )
 
 
-async def java_service_error_handler(
+async def internal_auth_error_handler(
     request: Request,
-    _exc: JavaServiceError,
+    exc: InternalAuthError,
 ) -> JSONResponse:
     response = ErrorResponse(
-        contract_version="1",
+        contract_version=_contract_version(request),
+        request_id=getattr(request.state, "contract_request_id", None),
+        error=ErrorBody(
+            code=exc.code,
+            message=exc.message,
+            details=[],
+        ),
+    )
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=response.model_dump(mode="json"),
+    )
+
+
+async def views_repository_error_handler(
+    request: Request,
+    _exc: ViewsRepositoryError,
+) -> JSONResponse:
+    response = ErrorResponse(
+        contract_version=_contract_version(request),
         request_id=getattr(request.state, "contract_request_id", None),
         error=ErrorBody(
             code="SERVICE_UNAVAILABLE",
-            message="No se pudo obtener información desde Java.",
+            message="No se pudo consultar las vistas analíticas de PostgreSQL.",
             details=[],
         ),
     )
@@ -148,6 +192,7 @@ async def java_service_error_handler(
         status_code=503,
         content=response.model_dump(mode="json"),
     )
+
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +214,7 @@ async def internal_error_handler(
     )
 
     response = ErrorResponse(
-        contract_version="1",
+        contract_version=_contract_version(request),
         request_id=request_id,
         error=ErrorBody(
             code="INTERNAL_ERROR",

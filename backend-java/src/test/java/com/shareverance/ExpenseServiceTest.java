@@ -140,31 +140,6 @@ class ExpenseServiceTest {
         assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(individualRequest()));
     }
 
-    @Test
-    void testGetMonthlyHistoryContract() {
-        var contract = expenseService.getMonthlyHistoryContract(1L, "2026-10");
-
-        assertNotNull(contract);
-        assertEquals("1", contract.contractVersion());
-        assertNotNull(contract.requestId());
-        assertEquals(1L, contract.organizationId());
-        assertEquals("ARS", contract.currency());
-        assertEquals("2026-10", contract.targetMonth());
-        assertFalse(contract.categories().isEmpty());
-        assertFalse(contract.history().isEmpty());
-
-        // Verificamos que los meses sean 6 (abril a septiembre)
-        assertEquals(6, contract.history().size());
-        assertEquals("2026-04", contract.history().get(0).month());
-        assertEquals("2026-09", contract.history().get(5).month());
-
-        // Verificamos montos en centavos del mes de abril
-        var aprilTotals = contract.history().get(0).categoryTotals();
-        assertEquals(2, aprilTotals.size());
-        assertEquals(10000000L, aprilTotals.get(0).amountMinor()); // 100000 * 100
-        assertEquals(5000000L, aprilTotals.get(1).amountMinor());  // 50000 * 100
-    }
-
     private static ExpenseCreateRequest individualRequest() {
         return new ExpenseCreateRequest(
                 1L,
