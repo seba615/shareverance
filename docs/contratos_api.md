@@ -153,19 +153,39 @@ Ejemplo predictivo v2:
 
 La autenticación técnica Java→Python usa `Authorization: Bearer <PYTHON_CLIENT_SECRET>` (con soporte de rotación mediante `PYTHON_CLIENT_SECRET_PREVIOUS`), sin transmitir credenciales de usuario o de PostgreSQL en cuerpos. `organization_id` es el autorizado por Java. Python rechaza contexto ausente/inválido. `storage_key` se resuelve bajo raíz permitida y debe corresponder al comprobante y organización; no es una URL.
 
-## API pública a completar
+## API pública de comprobantes (implementado en E4.1)
 
-Rutas de diseño: POST /api/v1/organizations/{id}/receipts para multipart y GET de comprobante privado; GET /api/v1/organizations/{id}/analytics/monthly y /predictions/monthly. Fijar nombres y ejemplos antes de construir clientes. El alta de gasto mantiene su ruta existente; vinculación de receipt_id y version de edición requieren nuevos campos documentados en DTO.
+Rutas públicas para la carga, consulta y descarga de comprobantes organizacionales:
+* `POST /api/v1/organizations/{organizationId}/receipts`: subida multipart (`file`) de imagen JPEG o PNG hasta 10 MiB y 50 MP. Requiere sesión y membresía activa en la organización. Devuelve `201 CREATED` con metadatos del archivo persistido (`ReceiptUploadResponse`).
+* `GET /api/v1/organizations/{organizationId}/receipts/{receiptId}`: descarga autorizada en streaming del archivo (`Content-Disposition: inline`, `Content-Type: image/jpeg` o `image/png`, `Content-Length`). Requiere membresía activa. Si el comprobante aún no está vinculado a un gasto, solo el propietario de la carga o un `ADMIN` pueden descargarlo. Si está vinculado, cualquier miembro activo de la organización tiene acceso.
+* `GET /api/v1/organizations/{organizationId}/receipts/{receiptId}/metadata`: consulta de metadatos del comprobante (`ReceiptResponse`).
+* `GET /api/v1/organizations/{organizationId}/receipts`: listado de comprobantes activos de la organización visibles para el usuario autenticado.
 
-Upload: campo file y organización de ruta; respuesta incluye receipt_id y resultado OCR o su estado de fallo controlado. La subida válida puede conservarse si OCR falla, permitiendo completar manualmente. No repetir la subida automáticamente por un timeout ambiguo sin estrategia de deduplicación.
-
-Ejemplo de resultado OCR de diseño:
+Ejemplo de respuesta de subida (`201 CREATED`):
 
 ```json
-{"contract_version":"1","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":1,"receipt_id":"generated-id","status":"PARTIAL","fields":{"expense_date":"2026-10-17","amount_minor":125050,"description":"Varios"},"warnings":["DESCRIPTION_FALLBACK"]}
+{
+  "receiptId": "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b",
+  "organizationId": 1,
+  "originalFilename": "ticket_gas.png",
+  "contentType": "image/png",
+  "fileSizeBytes": 125050,
+  "createdAt": "2026-10-19T21:40:00Z",
+  "status": "STORED"
+}
 ```
 
-Fecha ISO o null; amount_minor entero positivo o null; description hasta 500 o Varios. Status OK/PARTIAL/FAILED según extracción; FAILED no crea un gasto. Limitar bytes/píxeles según especificación OCR.
+Códigos de respuesta de comprobantes:
+* `201 CREATED`: comprobante almacenado correctamente en el volumen privado y registrado en base de datos.
+* `400 BAD REQUEST`: archivo vacío, imagen corrupta o dimensiones superiores a 50 megapíxeles.
+* `401 UNAUTHORIZED`: falta sesión válida o CSRF en mutación.
+* `403 FORBIDDEN`: el usuario no pertenece a la organización o no tiene permiso sobre un comprobante temporal ajeno.
+* `404 NOT FOUND`: comprobante inexistente o perteneciente a otra organización.
+* `413 PAYLOAD TOO LARGE`: archivo supera el límite de 10 MiB.
+* `415 UNSUPPORTED MEDIA TYPE`: el archivo no es JPEG ni PNG (validado por magic bytes).
+* `409 CONFLICT`: el comprobante ya se encuentra vinculado a otro gasto activo.
+
+El alta de gasto mantiene su ruta existente y puede recibir `receiptUrl` con la referencia al comprobante almacenado. La llamada interna OCR (E4.2) se integrará sobre `POST /internal/v1/ocr`.
 
 ## Resultados analíticos y predictivos
 
