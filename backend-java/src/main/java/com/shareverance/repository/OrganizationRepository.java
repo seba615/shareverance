@@ -8,6 +8,7 @@ import java.util.Optional;
 public interface OrganizationRepository {
     Organization save(Organization organization);
     Optional<Organization> findById(Long id);
+    Optional<Organization> findByIdForUpdate(Long id);
     List<Organization> findAll();
     boolean existsById(Long id);
 }

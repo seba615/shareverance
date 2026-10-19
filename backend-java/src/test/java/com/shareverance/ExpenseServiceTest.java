@@ -216,7 +216,7 @@ class ExpenseServiceTest {
             assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
                     equalRequest(invalid,SplitMode.INDIVIDUAL,null)));
             assertThrows(BusinessRuleException.class, () -> expenseService.updateExpense(saved.expense().getId(),
-                    new com.shareverance.dto.ExpenseUpdateRequest(null,new BigDecimal(invalid),null,null,null)));
+                    new com.shareverance.dto.ExpenseUpdateRequest(null,new BigDecimal(invalid),null,null,null, 1)));
         }
         var maximum = expenseService.createExpense(equalRequest("9999999999.99",SplitMode.ALL_MEMBERS,null));
         assertEquals(new BigDecimal("9999999999.99"),maximum.splits().stream()

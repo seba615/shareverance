@@ -28,6 +28,22 @@ Se conservan POST /api/v1/expenses, PUT /api/v1/expenses/{id} y sus DTO. E1.2 cu
 
 Total positivo hasta 9.999.999.999,99, con hasta dos decimales; los repartos deben permitir al menos un centavo por participante. El servidor calcula partes iguales y sobrantes por ID ascendente. PUT conserva participantes históricos y aplica el mismo cálculo. Reglas inválidas devuelven HTTP 400 sin guardar cambios parciales. CUSTOM sigue presente en el DTO preexistente, fuera del alcance y de la aceptación de E1.2; no se declara soporte nuevo para esa modalidad. Reglas normativas en [alcance_mvp.md](alcance_mvp.md).
 
+## Gastos E1.3: versión y concurrencia
+
+`GET /api/v1/expenses/{id}` y el listado devuelven `expense.version` dentro del detalle. Cada gasto nuevo comienza en 1. `PUT /api/v1/expenses/{id}` requiere `version` como entero positivo, con el valor obtenido en la última consulta. Omitirlo, enviar null, cero o negativo devuelve HTTP 400. No existe guardado alternativo sin control optimista. Una versión desactualizada, incluso por una anulación concurrente, devuelve 409 sin cambios parciales. Un PUT exitoso devuelve el detalle con la versión incrementada.
+
+Ejemplo de edición (el resto de campos conserva su semántica existente):
+
+```json
+{"amount":1250.50,"description":"Servicios","version":1}
+```
+
+Java verifica `WHERE id = ? AND version = ? AND is_active = TRUE` antes de guardar partes; toda la operación sigue en una transacción. Ante 409 el consumidor debe recargar el detalle y resolver el conflicto, sin reintentar con una versión nueva de manera automática.
+
+`DELETE /api/v1/expenses/{id}` conserva ruta y formato: no exige cuerpo ni parámetro de versión y devuelve el objeto Expense con su versión actualizada. Actualiza atómicamente sólo `is_active` y `version`, preservando el último importe, descripción y partes. Si la edición obtiene primero el bloqueo, la anulación espera su commit y conserva esos valores; si se anula primero, una edición de la versión anterior devuelve 409. Una segunda anulación de un gasto ya anulado devuelve 400, como antes.
+
+Transición y consumidores: la variante de PUT sin version, admitida accidentalmente en PR #30, deja de aceptarse. El frontend integrado sólo consume sesión y organizaciones y no tiene un cliente de edición de gastos; Python no consume PUT/DELETE de gastos. Los nuevos clientes de E2 deben consultar y enviar version. No cambian los DTO de lectura ni la estructura del campo introducido en V6. Las pruebas HTTP de controlador verifican 400/409 y la versión de respuesta; la autorización por organización continúa en el circuito existente.
+
 ## Contrato interno objetivo
 
 Propuesta de rutas distintas para no romper v1:

@@ -53,7 +53,7 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, versión optimista, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, aceptación integral de concurrencia, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
 
 ## Implementación E1.2: individual e iguales
 
@@ -65,6 +65,12 @@ CUSTOM permanece como código preexistente del backend, fuera del alcance docume
 
 ## Implementación E1.3: versión optimista y último ADMIN
 
-Edición de gastos valida concurrencia mediante versión optimista. `expenses` cuenta con columna `version` (V6 Flyway, por defecto 1). Si la versión esperada provista en la solicitud no coincide con la almacenada, se interrumpe la transacción y se retorna HTTP 409 Conflict sin aplicar cambios parciales. El incremento de versión se ejecuta de forma condicional y atómica en el repositorio.
+Edición de gastos valida concurrencia mediante versión optimista. `expenses` cuenta con columna `version` (V6 Flyway, por defecto 1). La versión debe ser positiva y obligatoria en PUT (400 si falta o no es positiva). Si la versión esperada provista en la solicitud no coincide con la almacenada, se interrumpe la transacción y se retorna HTTP 409 Conflict sin aplicar cambios parciales. El incremento de versión se ejecuta de forma condicional y atómica en el repositorio.
 
-Desactivación y revocación de rol ADMIN (`updateMemberRole` y `deactivateMembership`) se ejecutan transaccionalmente con bloqueo pesimista de fila (`FOR UPDATE`) sobre la membresía consultada y validan que la organización activa no quede sin al menos un ADMIN activo, impidiendo estados inconsistentes ante peticiones concurrentes.
+Desactivación y revocación de rol ADMIN (`updateMemberRole` y `deactivateMembership`) se ejecutan transaccionalmente con bloqueo pesimista común (`FOR UPDATE`) sobre la organización y después sobre la membresía consultada y validan que la organización activa no quede sin al menos un ADMIN activo, impidiendo estados inconsistentes ante peticiones concurrentes.
+
+### Corrección E1.3
+
+La validación y actualización condicional del gasto ocurren antes de escribir sus partes; un fallo posterior revierte ambos. No se permite el fallback a `save` cuando falta versión. Anular usa una actualización de estado y versión, sin volver a persistir los demás campos de la copia leída. En cambios de rol/desactivación de membresías, el orden de bloqueo es organización → membresía → conteo → escritura: dos ADMIN distintos no pueden superar simultáneamente el conteo. Se mantiene JDBC, sin reorganizar servicios ni modificar migraciones.
+
+La aceptación integral continúa pendiente. Las nuevas pruebas usan servicios Spring transaccionales y repositorios JDBC reales, con dos conexiones y sincronización en puntos concretos. La prueba preexistente del último ADMIN ahora obtiene el servicio del contexto Spring en lugar de instanciarlo con new, de modo que se aplica `@Transactional`.

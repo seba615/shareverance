@@ -47,6 +47,11 @@ public class MockOrganizationRepository implements OrganizationRepository {
     }
 
     @Override
+    public Optional<Organization> findByIdForUpdate(Long id) {
+        return findById(id);
+    }
+
+    @Override
     public List<Organization> findAll() {
         return new ArrayList<>(store.values());
     }

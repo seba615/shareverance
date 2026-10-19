@@ -165,6 +165,7 @@ erDiagram
         string receipt_url
         string split_type
         boolean is_active
+        int version
     }
     EXPENSE_SPLITS {
         bigint id PK
@@ -180,7 +181,7 @@ erDiagram
     }
 ```
 
-Se muestran campos principales, no todas las columnas técnicas. El modelo completo y las restricciones están en migraciones y [postgre.md](docs/postgre.md). timezone fue eliminado por V3; no hay tablas de fondos ni pagos en el MVP. La versión optimista y las vistas analíticas son ampliaciones pendientes.
+Se muestran campos principales, no todas las columnas técnicas. El modelo completo y las restricciones están en migraciones y [postgre.md](docs/postgre.md). timezone fue eliminado por V3; no hay tablas de fondos ni pagos en el MVP. La versión optimista se incorpora mediante V6 y debe enviarse al editar; las vistas analíticas siguen pendientes.
 
 ## Operación y desarrollo
 
@@ -720,9 +721,9 @@ Los nuevos commits que se suban a esa rama se incorporan automáticamente al mis
 
 Después de integrar el Pull Request, comenzar la siguiente tarea desde `main` actualizado, siguiendo la sección 3.
 
-## Pruebas E1.2 con PostgreSQL aislado
+## Pruebas de gastos y concurrencia con PostgreSQL aislado
 
-`ExpenseTransactionPostgresTest` requiere una base exclusiva y vacía cuyo nombre contenga `shareverance_e12_equal_test`. Se habilita mediante `E12_TEST_JDBC_URL`; sin esa variable se omite la integración PostgreSQL. Las pruebas crean datos sintéticos, eliminan registros e inyectan errores mediante triggers. No apuntar a una base de desarrollo.
+`ExpenseTransactionPostgresTest` y `ExpenseConcurrencyPostgresTest` requieren una base exclusiva y vacía cuyo nombre contenga `shareverance_e12_equal_test`. Se habilita mediante `E12_TEST_JDBC_URL`; sin esa variable se omite la integración PostgreSQL. Las pruebas crean datos sintéticos, eliminan registros e inyectan errores mediante triggers. Las pruebas de concurrencia usan dos conexiones, servicios Spring transaccionales y un esquema separado e13_concurrency para comprobar bloqueos, 409 y consistencia gasto/partes. No apuntar a una base de desarrollo.
 
 Desde PowerShell en la raíz:
 

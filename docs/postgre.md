@@ -24,7 +24,7 @@ Las claves compuestas existentes protegen pertenencia de categorías, titulares 
 
 ## Evolución requerida
 
-Nuevas migraciones para versión optimista, restricciones adicionales necesarias, vistas, roles y metadatos de cobertura/adjuntos cuando se concrete su diseño. Comprobar migración desde base existente con datos, no únicamente desde una base vacía. La suma de partes requiere operación transaccional; una FK no garantiza esa igualdad.
+Nuevas migraciones para restricciones adicionales necesarias, vistas, roles y metadatos de cobertura/adjuntos cuando se concrete su diseño. Comprobar migración desde base existente con datos, no únicamente desde una base vacía. La suma de partes requiere operación transaccional; una FK no garantiza esa igualdad.
 
 ARS única y calendario en configuración de servidor, sin reintroducir timezone por organización. Anulación/desactivación lógica; no purgar datos como mantenimiento. Evitar que cambios en membresías alteren distribuciones históricas.
 
@@ -62,3 +62,9 @@ E1.2 individual/iguales utiliza el esquema vigente (V1, V2, V3 y V5), sin migrac
 ## Verificación E1.3: versión optimista y último ADMIN
 
 E1.3 incorpora la migración Flyway V6 (`version INT NOT NULL DEFAULT 1` en `expenses`). Se valida mediante pruebas de integración con PostgreSQL 17.11 exclusivo (`ExpenseTransactionPostgresTest`), verificando la respuesta HTTP 409 Conflict ante versiones desactualizadas sin alteraciones parciales en base de datos, y el rechazo transaccional con `FOR UPDATE` ante intentos de desactivar o revocar el rol al último ADMIN activo de la organización.
+
+### Corrección de concurrencia E1.3
+
+Se conserva V6 sin modificarla; no hay migraciones nuevas. La fila de organizations constituye el bloqueo compartido para las operaciones de revocación de rol/desactivación de membresías de una organización. Siempre se bloquea antes de bloquear la membresía y contar ADMIN activos, evitando el caso de dos filas distintas que veían el mismo conteo.
+
+La edición adquiere el bloqueo de expenses mediante UPDATE condicional por versión y estado activo antes de actualizar expense_splits. La anulación ejecuta UPDATE de is_active/version sobre la misma fila, conservando los demás valores. Las transacciones concurrentes conservan la igualdad entre importe y suma de partes. Las pruebas adicionales usan el esquema aislado `e13_concurrency` de la base temporal indicada por E12_TEST_JDBC_URL; no se instalan esos objetos en desarrollo.

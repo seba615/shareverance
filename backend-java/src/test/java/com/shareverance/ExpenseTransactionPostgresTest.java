@@ -38,7 +38,8 @@ class ExpenseTransactionPostgresTest {
         context = new AnnotationConfigApplicationContext();
         context.register(Config.class, JdbcExpenseRepository.class, JdbcExpenseSplitRepository.class,
                 JdbcOrganizationRepository.class, JdbcUserRepository.class,
-                JdbcUserOrganizationRepository.class, JdbcCategoryRepository.class, ExpenseServiceImpl.class);
+                JdbcUserOrganizationRepository.class, JdbcCategoryRepository.class, ExpenseServiceImpl.class,
+                com.shareverance.service.impl.MembershipServiceImpl.class);
         context.refresh();
         jdbc = context.getBean(JdbcTemplate.class);
         service = context.getBean(ExpenseService.class);
@@ -84,7 +85,7 @@ class ExpenseTransactionPostgresTest {
         var saved = service.createExpense(request());
         failOnSecondPart();
         assertThrows(RuntimeException.class, () -> service.updateExpense(saved.expense().getId(),
-                new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,"Cambio",null)));
+                new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,"Cambio",null, 1)));
         assertEquals(new BigDecimal("1.01"), jdbc.queryForObject("SELECT amount FROM expenses",BigDecimal.class));
         assertEquals(List.of(new BigDecimal("0.51"), new BigDecimal("0.50")),
                 jdbc.queryForList("SELECT amount FROM expense_splits ORDER BY user_organization_id",BigDecimal.class));
@@ -92,12 +93,12 @@ class ExpenseTransactionPostgresTest {
     }
 
 
-    @Test void rollsBackPartsIfExpenseUpdateFailsAfterSavingParts() {
+    @Test void rollsBackWhenExpenseUpdateFailsBeforeSavingParts() {
         var saved = service.createExpense(request());
         jdbc.execute("CREATE OR REPLACE FUNCTION e12_expense_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Fallo final E1.2'; END $$");
         jdbc.execute("CREATE TRIGGER e12_expense_failure BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION e12_expense_fail()");
         assertThrows(RuntimeException.class, () -> service.updateExpense(saved.expense().getId(),
-                new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null)));
+                new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null, 1)));
         assertEquals(new BigDecimal("1.01"),jdbc.queryForObject("SELECT amount FROM expenses",BigDecimal.class));
         assertEquals(List.of(new BigDecimal("0.51"),new BigDecimal("0.50")),
                 jdbc.queryForList("SELECT amount FROM expense_splits ORDER BY user_organization_id",BigDecimal.class));
@@ -108,7 +109,7 @@ class ExpenseTransactionPostgresTest {
         jdbc.update("INSERT INTO users(id,full_name,email,password_hash) VALUES (3,'Nuevo','nuevo@example.invalid','test')");
         jdbc.update("INSERT INTO user_organization(id,user_id,organization_id,role) VALUES (3,3,1,'USER')");
         jdbc.update("UPDATE user_organization SET is_active = FALSE WHERE id = 2");
-        service.updateExpense(saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null));
+        service.updateExpense(saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null, 1));
         assertEquals(List.of(1L,2L),jdbc.queryForList("SELECT user_organization_id FROM expense_splits ORDER BY user_organization_id",Long.class));
         assertEquals(List.of(new BigDecimal("1.01"),new BigDecimal("1.00")),
                 jdbc.queryForList("SELECT amount FROM expense_splits ORDER BY user_organization_id",BigDecimal.class));
@@ -118,7 +119,7 @@ class ExpenseTransactionPostgresTest {
     @Test void refusesEqualUpdateLeavingZeroPartsWithoutChangingData() {
         var saved = service.createExpense(request());
         assertThrows(com.shareverance.exception.BusinessRuleException.class, () -> service.updateExpense(
-                saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("0.01"),null,null,null)));
+                saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("0.01"),null,null,null, 1)));
         assertEquals(new BigDecimal("1.01"),jdbc.queryForObject("SELECT amount FROM expenses",BigDecimal.class));
         assertEquals(List.of(new BigDecimal("0.51"),new BigDecimal("0.50")),
                 jdbc.queryForList("SELECT amount FROM expense_splits ORDER BY user_organization_id",BigDecimal.class));
@@ -127,7 +128,7 @@ class ExpenseTransactionPostgresTest {
     @Test void individualUpdateKeepsOnlyItsHistoricalParticipant() {
         var saved = service.createExpense(new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal("1.00"),
                 LocalDate.now(),"Individual",null,SplitMode.INDIVIDUAL,null,null));
-        service.updateExpense(saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null));
+        service.updateExpense(saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null, 1));
         assertEquals("INDIVIDUAL",jdbc.queryForObject("SELECT split_type FROM expenses",String.class));
         assertEquals(List.of(1L),jdbc.queryForList("SELECT user_organization_id FROM expense_splits",Long.class));
         assertEquals(new BigDecimal("2.01"),jdbc.queryForObject("SELECT amount FROM expense_splits",BigDecimal.class));
@@ -154,10 +155,7 @@ class ExpenseTransactionPostgresTest {
     }
 
     @Test void protectsLastActiveAdminFromDeactivationAndDemotionInPostgres() {
-        var membershipService = new com.shareverance.service.impl.MembershipServiceImpl(
-                context.getBean(com.shareverance.repository.UserOrganizationRepository.class),
-                context.getBean(com.shareverance.repository.UserRepository.class),
-                context.getBean(com.shareverance.repository.OrganizationRepository.class));
+        var membershipService = context.getBean(com.shareverance.service.MembershipService.class);
 
         // En org 1 sólo hay 1 admin (membership 1). Intentar desactivarlo debe fallar:
         assertThrows(com.shareverance.exception.BusinessRuleException.class, () ->
