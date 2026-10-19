@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { createCalendarOperations } from './calendarOperations';
 import {
   ApiError,
   Category,
@@ -60,8 +61,7 @@ export function ExpenseCalendarView({
   const [confirmAnnul, setConfirmAnnul] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const detailRequest = useRef(0);
-  const mounted = useRef(true);
+  const [operations] = useState(() => createCalendarOperations(setBusy));
 
   const calendarKey = JSON.stringify([organizationId, month, refresh, refreshToken]);
   const dayKey = JSON.stringify([organizationId, selectedDate, page, size, refresh, refreshToken]);
@@ -72,12 +72,9 @@ export function ExpenseCalendarView({
   const categoryName = (id: number) => categories.find(c => c.id === id)?.name ?? `Categoría #${id}`;
 
   useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      detailRequest.current++;
-    };
-  }, []);
+    operations.activate();
+    return () => operations.dispose();
+  }, [operations]);
 
   useEffect(() => {
     let current = true;
@@ -124,7 +121,7 @@ export function ExpenseCalendarView({
 
   function changeMonth(nextMonth: string) {
     if (nextMonth > currentMonth) return;
-    detailRequest.current++;
+    operations.invalidate();
     setDetail(null);
     setEditing(false);
     setConfirmAnnul(false);
@@ -139,7 +136,7 @@ export function ExpenseCalendarView({
 
   function selectDay(date: string) {
     if (date > todayDate) return;
-    detailRequest.current++;
+    operations.invalidate();
     setDetail(null);
     setEditing(false);
     setConfirmAnnul(false);
@@ -150,21 +147,13 @@ export function ExpenseCalendarView({
   }
 
   async function showDetail(id: number) {
-    const request = ++detailRequest.current;
     setError('');
-    setBusy(true);
-    try {
-      const response = await expenseHistoryApi.detail(id);
-      if (!mounted.current || request !== detailRequest.current) return;
+    await operations.run(() => expenseHistoryApi.detail(id), response => {
       setDetail(response);
       setEditing(false);
       setConflict(false);
       setConfirmAnnul(false);
-    } catch (cause) {
-      if (mounted.current && request === detailRequest.current) setError(message(cause));
-    } finally {
-      if (mounted.current && request === detailRequest.current) setBusy(false);
-    }
+    }, cause => setError(message(cause)));
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -182,55 +171,43 @@ export function ExpenseCalendarView({
       setError('La descripción es obligatoria y admite hasta 500 caracteres');
       return;
     }
-    setBusy(true);
     setError('');
-    try {
-      const updated = await expenseHistoryApi.update(detail.expense.id, {
-        amount,
-        description,
-        categoryId: Number(form.get('categoryId')),
-        expenseDate: nextDate,
-        version: detail.expense.version,
-      });
-      if (!mounted.current) return;
+    await operations.run(() => expenseHistoryApi.update(detail.expense.id, {
+      amount,
+      description,
+      categoryId: Number(form.get('categoryId')),
+      expenseDate: nextDate,
+      version: detail.expense.version,
+    }), updated => {
       setDetail(updated);
       setEditing(false);
       setNotice('Gasto actualizado');
       const updatedMonth = updated.expense.expenseDate.slice(0, 7);
       if (updatedMonth <= currentMonth) {
+        setPage(0);
         setMonth(updatedMonth);
         setSelectedDate(updated.expense.expenseDate);
       }
       setRefresh(value => value + 1);
-    } catch (cause) {
-      if (!mounted.current) return;
+    }, cause => {
       if (cause instanceof ApiError && cause.status === 409) {
         setConflict(true);
         setError('El gasto cambió en otra operación. Recargá el detalle antes de volver a editar.');
       } else {
         setError(message(cause));
       }
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
+    });
   }
 
   async function annul() {
     if (!detail) return;
-    setBusy(true);
     setError('');
-    try {
-      await expenseHistoryApi.annul(detail.expense.id);
-      if (!mounted.current) return;
+    await operations.run(() => expenseHistoryApi.annul(detail.expense.id), () => {
       setDetail(null);
       setConfirmAnnul(false);
       setNotice('Gasto anulado');
       setRefresh(value => value + 1);
-    } catch (cause) {
-      if (mounted.current) setError(message(cause));
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
+    }, cause => setError(message(cause)));
   }
 
   const cells = buildCalendarCells(month, calendarData?.days ?? [], todayDate);
@@ -534,7 +511,7 @@ export function ExpenseCalendarView({
               type="button"
               disabled={busy}
               onClick={() => {
-                detailRequest.current++;
+                operations.invalidate();
                 setDetail(null);
                 setEditing(false);
                 setConfirmAnnul(false);
