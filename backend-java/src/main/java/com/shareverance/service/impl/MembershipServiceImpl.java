@@ -33,12 +33,18 @@ public class MembershipServiceImpl implements MembershipService {
 
     @Override
     public UserOrganization addMemberToOrganization(MembershipRequest request) {
-        if (request.userId() == null) {
-            throw new ResourceNotFoundException("Usuario no encontrado con id: null");
+        User user;
+        if (request.email() != null && !request.email().isBlank()) {
+            user = userRepository.findByEmail(request.email().trim())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Usuario no encontrado con email: " + request.email().trim()));
+        } else if (request.userId() != null) {
+            user = userRepository.findById(request.userId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Usuario no encontrado con id: " + request.userId()));
+        } else {
+            throw new ResourceNotFoundException("Se requiere userId o email del usuario");
         }
-        User user = userRepository.findById(request.userId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Usuario no encontrado con id: " + request.userId()));
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new BusinessRuleException("No se puede incorporar un usuario inactivo");
         }
@@ -46,7 +52,7 @@ public class MembershipServiceImpl implements MembershipService {
             throw new ResourceNotFoundException("Organización no encontrada con id: null");
         }
         requireActiveArsOrganization(request.organizationId());
-        if (userOrganizationRepository.existsByUserIdAndOrganizationId(request.userId(), request.organizationId())) {
+        if (userOrganizationRepository.existsByUserIdAndOrganizationId(user.getId(), request.organizationId())) {
             throw new BusinessRuleException("El usuario ya pertenece a esta organización");
         }
 
@@ -54,7 +60,7 @@ public class MembershipServiceImpl implements MembershipService {
 
         UserOrganization uo = new UserOrganization(
                 null,
-                request.userId(),
+                user.getId(),
                 request.organizationId(),
                 role,
                 LocalDateTime.now(),

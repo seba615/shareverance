@@ -147,3 +147,143 @@ export const organizationApi = {
     }, true);
   },
 };
+
+export type MembershipRole = 'ADMIN' | 'USER';
+
+export interface UserOrganization {
+  id: number;
+  userId: number;
+  organizationId: number;
+  role: MembershipRole;
+  joinedAt: string;
+  isActive: boolean;
+}
+
+export interface AddMemberRequest {
+  organizationId: number;
+  userId?: number;
+  email?: string;
+  role?: MembershipRole;
+}
+
+export const membershipApi = {
+  listByOrganization(organizationId: number): Promise<UserOrganization[]> {
+    return request<UserOrganization[]>(`/api/v1/memberships/organization/${organizationId}`);
+  },
+
+  addMember(payload: AddMemberRequest): Promise<UserOrganization> {
+    return request<UserOrganization>('/api/v1/memberships', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  updateRole(id: number, role: MembershipRole): Promise<UserOrganization> {
+    return request<UserOrganization>(`/api/v1/memberships/${id}/role?role=${role}`, {
+      method: 'PATCH',
+    }, true);
+  },
+
+  deactivate(id: number): Promise<UserOrganization> {
+    return request<UserOrganization>(`/api/v1/memberships/${id}`, {
+      method: 'DELETE',
+    }, true);
+  },
+};
+
+export interface Category {
+  id: number;
+  organizationId: number;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface CategoryRequest {
+  name: string;
+  description?: string;
+  color?: string;
+}
+
+export const categoryApi = {
+  listByOrganization(organizationId: number): Promise<Category[]> {
+    return request<Category[]>(`/api/v1/categories/organization/${organizationId}`);
+  },
+
+  create(organizationId: number, payload: CategoryRequest): Promise<Category> {
+    return request<Category>(`/api/v1/categories/organization/${organizationId}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  update(id: number, payload: CategoryRequest): Promise<Category> {
+    return request<Category>(`/api/v1/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  deactivate(id: number): Promise<Category> {
+    return request<Category>(`/api/v1/categories/${id}`, {
+      method: 'DELETE',
+    }, true);
+  },
+};
+
+export type SplitMode = 'INDIVIDUAL' | 'ALL_MEMBERS' | 'BETWEEN_TWO' | 'SPECIFIC_GROUP';
+
+export interface Expense {
+  id: number;
+  organizationId: number;
+  createdByUserId: number;
+  paidByMembershipId: number;
+  categoryId: number;
+  amount: number;
+  expenseDate: string;
+  description: string;
+  receiptUrl?: string;
+  splitType: string;
+  createdAt: string;
+  isActive: boolean;
+  version: number;
+}
+
+export interface ExpenseSplit {
+  id: number;
+  expenseId: number;
+  userOrganizationId: number;
+  amount: number;
+}
+
+export interface ExpenseDetailResponse {
+  expense: Expense;
+  splits: ExpenseSplit[];
+}
+
+export interface ExpenseCreateRequest {
+  organizationId: number;
+  paidByMembershipId: number;
+  categoryId: number;
+  amount: string;
+  expenseDate: string;
+  description: string;
+  receiptUrl?: string;
+  splitMode?: SplitMode;
+  splitMemberIds?: number[];
+}
+
+export const expenseApi = {
+  listByOrganization(organizationId: number): Promise<ExpenseDetailResponse[]> {
+    return request<ExpenseDetailResponse[]>(`/api/v1/expenses/organization/${organizationId}`);
+  },
+
+  create(payload: ExpenseCreateRequest): Promise<ExpenseDetailResponse> {
+    return request<ExpenseDetailResponse>('/api/v1/expenses', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+};

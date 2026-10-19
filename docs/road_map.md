@@ -140,4 +140,25 @@ Contrato y consumidores: contratos_api.md detalla version de solicitud/respuesta
 
 Verificado: `mvn --batch-mode --no-transfer-progress clean test` en Docker, Maven 3.9.11/Java 21, PostgreSQL 17.11 temporal con `E12_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_e12_equal_test`. Resultado: 54 pruebas aprobadas, 0 fallos, 0 errores, 0 omitidas; 37 unitarias y 17 con PostgreSQL (8 transaccionales existentes y 9 adicionales). Los casos nuevos verifican dos editores con versión idéntica (un éxito y un 409), anulación con lectura anterior a una edición ya confirmada, anulación anterior al UPDATE de edición (409 sin cambios parciales), anulación esperando el commit de edición, dos desactivaciones de ADMIN, dos degradaciones y combinación de ambas. Se comprobó la espera real mediante pg_blocking_pids en las carreras con bloqueo. Las pruebas HTTP standalone de controlador cubren versión omitida/null/no positiva (400), incremento de versión y versión desactualizada (409); no sustituyen aceptación HTTP con autenticación completa ni pruebas de UI.
 
-Comprobaciones adicionales: `git diff --check` y enlaces Markdown locales correctos; revisión final remota, origin/main sigue en 02ff308, sin PR abiertos. No se usó ni alteró la base de desarrollo ni sus volúmenes. Documentación y pruebas distinguen evidencia anterior del PR #30 de estas verificaciones concurrentes. La entrega se identifica mediante el commit de la rama `codex/corregir-e1-3-concurrencia`; tarea #29 y tablero sin modificaciones. Aceptación y cierre manuales.
+### Evidencia E2.1 — miembros, categorías y carga manual de gastos, 19/10/2026
+
+Relacionado con [#21](https://github.com/seba615/shareverance/issues/21), asignado a la cuenta autenticada `chelofabian` y vinculado al proyecto de GitHub #3 (item `PVTI_lAHOAlJuzs4BlIz_zhB21OQ`). Se reutiliza el seguimiento existente sin cerrar la tarea ni alterar estados del tablero. Implementación en rama `feat/e2-1-miembros-categorias-carga-gastos` a partir de `main` (`2c3bc23`).
+
+Implementado:
+- Backend Java:
+  - Soporte de alta de miembro por email exacto de usuario existente (`MembershipRequest` con campo opcional `email`, validación en `MembershipServiceImpl.addMemberToOrganization` buscando cuenta activa y verificando no duplicidad en la organización).
+  - Pruebas unitarias en `MembershipServiceTest` verificando incorporación por email y rechazo ante email inexistente.
+  - Ajuste de idempotencia en fixtures de pruebas PostgreSQL (`ExpenseConcurrencyPostgresTest` y `ExpenseTransactionPostgresTest`) usando `ON CONFLICT (id) DO NOTHING` para permitir ejecuciones de suites sobre esquemas compartidos.
+- Frontend React:
+  - `frontend/src/api/java.ts`: interfaces y clientes de API para miembros (`membershipApi`), categorías (`categoryApi`) y gastos (`expenseApi`).
+  - `frontend/src/App.tsx`: navegación de pestañas dentro de la organización activa (`Gastos`, `Miembros`, `Categorías`).
+  - Formulario y listado de gastos: validación de fecha no futura, importe positivo en ARS (con hasta dos decimales), descripción de hasta 500 caracteres, selección de categoría activa, selección de titular (con restricción: solo ADMIN puede asignar otro titular miembro activo), modalidad de reparto (`INDIVIDUAL`, `ALL_MEMBERS`, `SPECIFIC_GROUP` con selector de miembros activos) asegurando al menos $0.01 por participante.
+  - Administración de miembros: incorporación por email exacto, cambio de rol (ADMIN/USER con protección contra degradación) y desactivación (con confirmación y control de último ADMIN del lado servidor).
+  - Administración de categorías: alta de categoría y desactivación de categorías existentes.
+  - Estilos en `frontend/src/style.css` adaptables para cabeceras, pestañas, selectores de miembros, tablas y badges de rol y estado.
+
+Verificado:
+- Suite de backend Java: `mvn --batch-mode --no-transfer-progress package` ejecutado en contenedor Docker con Maven 3.9.11/Java 21: 55 pruebas aprobadas, 0 fallos, 0 errores (38 unitarias limpias y 17 PostgreSQL preparadas con fixtures idempotentes).
+- Build de frontend: `docker compose -f compose.yaml -f compose.tools.yaml build frontend` completó `tsc --noEmit` y el build de Vite limpiamente sin errores de tipado ni advertencias de compilación.
+- Verificación de formato y sintaxis con `git diff --check`.
+- La entrega se identifica mediante el commit en la rama `feat/e2-1-miembros-categorias-carga-gastos`. Aceptación, merge y cierre de issue/tablero permanecen exclusivamente manuales conforme a `AGENTS.md`.

@@ -48,4 +48,24 @@ class MembershipServiceTest {
         memberships.save(new com.shareverance.model.UserOrganization(null, 3L, 1L, com.shareverance.model.MembershipRole.ADMIN, java.time.LocalDateTime.now(), true));
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.updateMemberRole(1L, com.shareverance.model.MembershipRole.USER));
     }
+
+    @Test
+    void canAddMemberByExactEmail() {
+        var memberships = new MockUserOrganizationRepository();
+        var users = new MockUserRepository();
+        var organizations = new MockOrganizationRepository();
+        var service = new MembershipServiceImpl(memberships, users, organizations);
+
+        // User 3 (maria@gomez.com) no está en Org 1
+        var created = service.addMemberToOrganization(
+                new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "maria@gomez.com"));
+        org.junit.jupiter.api.Assertions.assertNotNull(created.getId());
+        org.junit.jupiter.api.Assertions.assertEquals(3L, created.getUserId());
+        org.junit.jupiter.api.Assertions.assertEquals(1L, created.getOrganizationId());
+
+        // Intentar agregar email inexistente lanza ResourceNotFoundException
+        org.junit.jupiter.api.Assertions.assertThrows(com.shareverance.exception.ResourceNotFoundException.class, () ->
+                service.addMemberToOrganization(
+                        new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "inexistente@example.invalid")));
+    }
 }
