@@ -65,7 +65,7 @@ class ExpenseTransactionPostgresTest {
     }
 
     static ExpenseCreateRequest request() {
-        return new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal("1.01"),LocalDate.now(),
+        return new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal("1.01"),LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Prueba transaccional",null,SplitMode.ALL_MEMBERS,null,null);
     }
 
@@ -127,7 +127,7 @@ class ExpenseTransactionPostgresTest {
 
     @Test void individualUpdateKeepsOnlyItsHistoricalParticipant() {
         var saved = service.createExpense(new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal("1.00"),
-                LocalDate.now(),"Individual",null,SplitMode.INDIVIDUAL,null,null));
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),"Individual",null,SplitMode.INDIVIDUAL,null,null));
         service.updateExpense(saved.expense().getId(),new ExpenseUpdateRequest(null,new BigDecimal("2.01"),null,null,null, 1));
         assertEquals("INDIVIDUAL",jdbc.queryForObject("SELECT split_type FROM expenses",String.class));
         assertEquals(List.of(1L),jdbc.queryForList("SELECT user_organization_id FROM expense_splits",Long.class));

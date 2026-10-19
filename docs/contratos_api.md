@@ -58,6 +58,24 @@ Se conservan POST /api/v1/expenses, PUT /api/v1/expenses/{id} y sus DTO. E1.2 cu
 
 Total positivo hasta 9.999.999.999,99, con hasta dos decimales; los repartos deben permitir al menos un centavo por participante. El servidor calcula partes iguales y sobrantes por ID ascendente. PUT conserva participantes históricos y aplica el mismo cálculo. Reglas inválidas devuelven HTTP 400 sin guardar cambios parciales. CUSTOM sigue presente en el DTO preexistente, fuera del alcance y de la aceptación de E1.2; no se declara soporte nuevo para esa modalidad. Reglas normativas en [alcance_mvp.md](alcance_mvp.md).
 
+## Historial E2.2: consulta paginada y detalle
+
+Se añade GET `/api/v1/expenses/organization/{organizationId}/page`. No cambia el GET de listado anterior ni `/history`, que conserva el contrato mensual de Python. Se requiere sesión de un miembro activo de la organización; la autorización de edición/anulación sigue limitada al autor o ADMIN.
+
+| Parámetro | Semántica |
+| --- | --- |
+| fromDate / toDate | Fechas ISO YYYY-MM-DD opcionales e inclusivas; inicio no posterior al fin |
+| categoryId | Categoría de la misma organización; se admiten categorías históricas inactivas |
+| state | ACTIVE (predeterminado), ANNULLED o ALL |
+| page | Índice desde 0, no negativo; predeterminado 0 |
+| size | De 1 a 100; predeterminado 20 |
+
+Orden fijo: expenseDate descendente e ID descendente para desempatar. Respuesta 200: `items` (detalles con expense y splits), `page`, `size`, `totalElements`, `totalPages` y `totalAmount` (ARS). Los totales corresponden a todos los resultados de los filtros, no sólo a la página; no se duplica el importe por unir partes. Una página fuera del rango devuelve items vacíos conservando los totales; sin coincidencias, totalPages es 0. La UI vuelve a una página válida si una anulación reduce el número de páginas.
+
+Los parámetros inválidos devuelven 400, la falta de sesión 401 y otra organización 403. Java consulta totales, filas y partes bajo una transacción de sólo lectura REPEATABLE_READ: cada respuesta utiliza un único snapshot. La paginación usa offset; no se mantiene un snapshot entre solicitudes distintas, por lo que cambios externos entre páginas requieren recargar la consulta. Con datos sin cambios, el desempate por ID evita orden indeterminado y duplicados de navegación.
+
+GET `/api/v1/expenses/{id}` conserva su respuesta de detalle y permite consultar anulados del ámbito autorizado. PUT conserva la versión positiva obligatoria de E1.3; no acepta cambio de titular ni de participantes. La categoría actual puede mantenerse si quedó inactiva, pero no puede elegirse otra categoría inactiva. Descripción no vacía de hasta 500 caracteres; fecha no futura según Buenos Aires; las validaciones monetarias se mantienen. DELETE conserva el contrato de E1.3 y no incorpora reactivación. La UI exige confirmación antes de anular y, ante 409, ofrece recarga explícita sin reintentar ni sustituir automáticamente la versión local.
+
 ## Gastos E1.3: versión y concurrencia
 
 `GET /api/v1/expenses/{id}` y el listado devuelven `expense.version` dentro del detalle. Cada gasto nuevo comienza en 1. `PUT /api/v1/expenses/{id}` requiere `version` como entero positivo, con el valor obtenido en la última consulta. Omitirlo, enviar null, cero o negativo devuelve HTTP 400. No existe guardado alternativo sin control optimista. Una versión desactualizada, incluso por una anulación concurrente, devuelve 409 sin cambios parciales. Un PUT exitoso devuelve el detalle con la versión incrementada.

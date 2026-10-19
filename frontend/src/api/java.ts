@@ -295,3 +295,32 @@ export const expenseApi = {
     }, true);
   },
 };
+
+export interface ExpenseFilter {
+  fromDate?: string;
+  toDate?: string;
+  categoryId?: string;
+  state: 'ACTIVE' | 'ANNULLED' | 'ALL';
+}
+export interface ExpensePage {
+  items: ExpenseDetailResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  totalAmount: number;
+}
+export const expenseHistoryApi = {
+  page(organizationId: number, filter: ExpenseFilter, page: number, size: number): Promise<ExpensePage> {
+    const query = new URLSearchParams({ state: filter.state, page: String(page), size: String(size) });
+    if (filter.fromDate) query.set('fromDate', filter.fromDate);
+    if (filter.toDate) query.set('toDate', filter.toDate);
+    if (filter.categoryId) query.set('categoryId', filter.categoryId);
+    return request<ExpensePage>(`/api/v1/expenses/organization/${organizationId}/page?${query}`);
+  },
+  detail(id: number): Promise<ExpenseDetailResponse> { return request(`/api/v1/expenses/${id}`); },
+  update(id: number, payload: { categoryId: number; amount: string; expenseDate: string; description: string; version: number }): Promise<ExpenseDetailResponse> {
+    return request(`/api/v1/expenses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, true);
+  },
+  annul(id: number): Promise<Expense> { return request(`/api/v1/expenses/${id}`, { method: 'DELETE' }, true); },
+};

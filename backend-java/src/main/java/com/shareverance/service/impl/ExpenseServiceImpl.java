@@ -82,7 +82,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (request.expenseDate() == null) {
             throw new BusinessRuleException("La fecha del gasto es obligatoria");
         }
-        if (request.expenseDate().isAfter(LocalDate.now())) {
+        if (request.expenseDate().isAfter(LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")))) {
             throw new BusinessRuleException("La fecha del gasto no puede ser futura");
         }
 
@@ -122,6 +122,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (!Boolean.TRUE.equals(category.getIsActive())) {
             throw new BusinessRuleException("No se puede cargar un gasto en una categoría inactiva");
         }
+
+        validateDescription(request.description());
 
         // Calcular los splits según SplitMode
         List<ExpenseSplit> splits = calculateSplits(request, payerMembership);
@@ -253,6 +255,11 @@ public class ExpenseServiceImpl implements ExpenseService {
         splits.addAll(equalParts(totalAmount, memberIds));
     }
 
+    private void validateDescription(String description) {
+        if (description == null || description.isBlank() || description.length() > 500)
+            throw new BusinessRuleException("La descripción es obligatoria y admite hasta 500 caracteres");
+    }
+
     private BigDecimal validateAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
             throw new BusinessRuleException("El importe debe ser mayor a cero");
@@ -282,6 +289,27 @@ public class ExpenseServiceImpl implements ExpenseService {
                     BigDecimal.valueOf(cents / sorted.size() + (i < cents % sorted.size() ? 1 : 0), 2)));
         }
         return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public com.shareverance.dto.ExpensePageResponse getExpensePage(Long organizationId,
+            com.shareverance.dto.ExpenseFilter filter, int page, int size) {
+        requireActiveArsOrganization(organizationId);
+        if (page < 0 || size < 1 || size > 100) throw new BusinessRuleException("Página o tamaño inválidos (1 a 100)");
+        if (!List.of("ACTIVE", "ANNULLED", "ALL").contains(filter.state())) throw new BusinessRuleException("Estado inválido");
+        if (filter.fromDate() != null && filter.toDate() != null && filter.fromDate().isAfter(filter.toDate()))
+            throw new BusinessRuleException("El inicio del período no puede ser posterior al fin");
+        if (filter.categoryId() != null) {
+            Category category = categoryRepository.findById(filter.categoryId())
+                    .orElseThrow(() -> new BusinessRuleException("Categoría no válida para el filtro"));
+            if (!organizationId.equals(category.getOrganizationId())) throw new BusinessRuleException("Categoría de otra organización");
+        }
+        var result = expenseRepository.findPage(organizationId, filter, page, size);
+        var items = result.expenses().stream().map(e -> new ExpenseDetailResponse(e,
+                expenseSplitRepository.findByExpenseId(e.getId()))).toList();
+        return new com.shareverance.dto.ExpensePageResponse(items, page, size, result.totalElements(),
+                (result.totalElements() + size - 1) / size, result.totalAmount());
     }
 
     @Override
@@ -334,13 +362,14 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
 
         if (request.expenseDate() != null) {
-            if (request.expenseDate().isAfter(LocalDate.now())) {
+            if (request.expenseDate().isAfter(LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")))) {
                 throw new BusinessRuleException("La fecha del gasto no puede ser futura");
             }
             expense.setExpenseDate(request.expenseDate());
         }
 
         if (request.description() != null) {
+            validateDescription(request.description());
             expense.setDescription(request.description());
         }
 

@@ -68,3 +68,7 @@ E1.3 incorpora la migración Flyway V6 (`version INT NOT NULL DEFAULT 1` en `exp
 Se conserva V6 sin modificarla; no hay migraciones nuevas. La fila de organizations constituye el bloqueo compartido para las operaciones de revocación de rol/desactivación de membresías de una organización. Siempre se bloquea antes de bloquear la membresía y contar ADMIN activos, evitando el caso de dos filas distintas que veían el mismo conteo.
 
 La edición adquiere el bloqueo de expenses mediante UPDATE condicional por versión y estado activo antes de actualizar expense_splits. La anulación ejecuta UPDATE de is_active/version sobre la misma fila, conservando los demás valores. Las transacciones concurrentes conservan la igualdad entre importe y suma de partes. Las pruebas adicionales usan el esquema aislado `e13_concurrency` de la base temporal indicada por E12_TEST_JDBC_URL; no se instalan esos objetos en desarrollo.
+
+## Consultas de historial E2.2
+
+Sin migraciones nuevas: utiliza V1–V6 vigentes. Los filtros de fecha, categoría, estado y organización se aplican a expenses antes de la paginación; SUM se calcula sin unir expense_splits para evitar duplicaciones. Orden estable expense_date DESC/id DESC, LIMIT/OFFSET parametrizados. Totales, filas y partes de una respuesta se consultan bajo REPEATABLE_READ; no se conserva un snapshot entre páginas solicitadas en momentos distintos. No se añaden índices ni se acredita rendimiento con volúmenes de producción. Las pruebas usan el esquema e22_history dentro de la base aislada de pruebas; nunca la base de desarrollo.

@@ -90,6 +90,8 @@ Si faltan capacidades o permisos para identificar la cuenta, asignarla o agregar
 
 ## Git y pull requests: límites obligatorios
 
+Las nuevas ramas de trabajo usan el prefijo `feat/`.
+
 Para publicar el trabajo, el agente puede crear commits, hacer push de su rama de trabajo y crear pull requests. Títulos, descripciones y textos de tareas/PR deben estar en español. Referenciar el issue con «Relacionado con #N»; no utilizar palabras de cierre automático como Closes, Fixes o Resolves.
 
 Cada merge debe realizarse manualmente por una persona. El agente no puede ejecutar merges locales o remotos, integrar PR, habilitar auto-merge, incorporar PR a una cola de integración ni configurar automatizaciones que completen tareas o integren ramas. No hacer push directo a main ni a ramas protegidas. No sustituir el merge manual por otro mecanismo de integración. La creación del PR y un resultado de pruebas satisfactorio no autorizan a cerrar la tarea ni a integrar el cambio.

@@ -117,6 +117,18 @@ public class MockExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public PageResult findPage(Long organizationId, com.shareverance.dto.ExpenseFilter filter, int page, int size) {
+        var rows = findByOrganizationId(organizationId).stream()
+                .filter(e -> filter.fromDate() == null || !e.getExpenseDate().isBefore(filter.fromDate()))
+                .filter(e -> filter.toDate() == null || !e.getExpenseDate().isAfter(filter.toDate()))
+                .filter(e -> filter.categoryId() == null || filter.categoryId().equals(e.getCategoryId()))
+                .filter(e -> "ALL".equals(filter.state()) || Boolean.TRUE.equals(e.getIsActive()) == "ACTIVE".equals(filter.state()))
+                .sorted(java.util.Comparator.comparing(Expense::getExpenseDate).thenComparing(Expense::getId).reversed()).toList();
+        var total = rows.stream().map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new PageResult(rows.stream().skip((long) page * size).limit(size).toList(), rows.size(), total);
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return store.containsKey(id);
     }

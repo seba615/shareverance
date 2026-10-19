@@ -53,7 +53,7 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, aceptación integral de concurrencia, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+Pendiente: aceptación de E1.1 con integración y datos persistidos, aceptación integral del historial y de concurrencia, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
 
 ## Implementación E1.2: individual e iguales
 
@@ -82,3 +82,9 @@ La aceptación integral continúa pendiente. Las nuevas pruebas usan servicios S
 Alta de membresía nueva: rol solicitado o USER por defecto. Reincorporación mediante POST de una membresía inactiva: conserva ID y joinedAt, activa la membresía y usa el rol solicitado si existe; de lo contrario mantiene el anterior. La nueva ruta PATCH /api/v1/memberships/{id}/reactivate conserva el rol, requiere ADMIN de la misma organización y cuenta activa, y bloquea organización y membresía en ese orden. No se agregan migraciones ni se modifican los repartos históricos.
 
 Las respuestas de membresías incluyen userName y userEmail como datos de presentación de la cuenta vinculada. Las consultas con JOIN los completan; las respuestas de operaciones que usan consultas sin JOIN pueden devolverlos como null. No contienen hashes ni credenciales. La UI recarga los datos autorizados de la organización al terminar las operaciones. Contrato detallado en contratos_api.md. La aceptación de concurrencia en la reincorporación mediante POST no queda acreditada por el build o por las pruebas del cargador de frontend.
+
+## Historial E2.2
+
+Se conserva el listado anterior para compatibilidad y se añade consulta paginada mediante ExpenseFilter/ExpensePageResponse. Validación del período, categoría perteneciente a la organización, estado y límites de página; errores de conversión de parámetros devuelven 400. El repositorio aplica filtros y límites SQL parametrizados y orden expense_date DESC/id DESC. La transacción REPEATABLE_READ de sólo lectura mantiene coherencia entre count/sum, filas y partes de cada respuesta. No se introduce JPA ni se modifica el contrato mensual Python.
+
+La UI usa los servicios existentes de detalle, edición optimista y anulación atómica de E1.3. Alta/edición validan ahora explícitamente descripción no vacía hasta 500 caracteres y fecha usando America/Argentina/Buenos_Aires. Se conserva la composición histórica y se permiten categorías inactivas sólo si ya eran la categoría del gasto. Sin migraciones nuevas. Pruebas E2.2 en ExpenseHistoryPostgresTest, incluidas solicitudes HTTP con filtro real de autenticación y sesión de usuario/administrador.

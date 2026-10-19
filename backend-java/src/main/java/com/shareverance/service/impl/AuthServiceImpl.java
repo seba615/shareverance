@@ -329,7 +329,7 @@ public class AuthServiceImpl implements AuthService {
         if (path.matches("/api/v1/expenses/organization/\\d+")) {
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, lastId(path));
         }
-        if (path.matches("/api/v1/expenses/organization/\\d+/history")) {
+        if (path.matches("/api/v1/expenses/organization/\\d+/(history|page)")) {
             String[] pathParts = path.split("/");
             Long organizationId = Long.parseLong(pathParts[pathParts.length - 2]);
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, organizationId);

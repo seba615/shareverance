@@ -616,3 +616,9 @@ select:focus {
     align-items: stretch;
   }
 }
+
+.history-filters { margin-block: 1rem; align-items: end; }
+.history-pagination, .history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-block: 1rem; }
+.history-pagination label { display: flex; gap: .5rem; align-items: center; }
+.expense-detail { margin-block: 1rem; overflow-wrap: anywhere; }
+.history-actions button, .history-pagination button, .expense-detail button { padding: .5rem .75rem; cursor: pointer; }
