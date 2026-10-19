@@ -290,6 +290,13 @@ public class AuthServiceImpl implements AuthService {
         if (path.equals("/api/v1/organizations")) {
             return "GET".equalsIgnoreCase(method) || "POST".equalsIgnoreCase(method);
         }
+        if (path.matches("/api/v1/organizations/\\d+/analytics/coverage(/[^/]+)?")) {
+            Long organizationId = Long.parseLong(path.split("/")[4]);
+            boolean collection = path.endsWith("/coverage");
+            return isOrganizationAdmin(userId, organizationId) &&
+                    (collection ? "GET".equalsIgnoreCase(method) :
+                            "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method));
+        }
         if (path.matches("/api/v1/organizations/\\d+")) {
             Long organizationId = lastId(path);
             if ("GET".equalsIgnoreCase(method)) {

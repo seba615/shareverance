@@ -7,7 +7,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado persistido
 
-PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses. No renumerar versiones ni modificar SQL aplicado.
+PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses; V7 agrega cobertura mensual explícita, roles de ejecución y vistas analíticas. No renumerar versiones ni modificar SQL aplicado.
 
 | Tabla | Responsabilidad |
 | --- | --- |
@@ -19,6 +19,7 @@ PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/
 | expense_splits | Participación monetaria de cada membresía en el gasto |
 | auth_sessions | Sesiones técnicas web, hash de token y expiración |
 | infra_demo | Diagnóstico de infraestructura, sin significado financiero |
+| analytics_month_coverage | Declaración explícita de mes completo por organización, autor, fecha y confirmación lógica |
 
 Las claves compuestas existentes protegen pertenencia de categorías, titulares y partes. amounts son DECIMAL(12,2); amount de partes positivo; par gasto/membresía único. No hay tablas de caja, pagos ni liquidaciones. La columna receipt_url existe pero no acredita servicio de archivos. El DER del [README](../README.md) representa el modelo vigente.
 
@@ -28,22 +29,37 @@ Nuevas migraciones para restricciones adicionales necesarias, vistas, roles y me
 
 ARS única y calendario en configuración de servidor, sin reintroducir timezone por organización. Anulación/desactivación lógica; no purgar datos como mantenimiento. Evitar que cambios en membresías alteren distribuciones históricas.
 
-## Contrato de vistas analíticas — diseño a implementar
+## Contrato de vistas analíticas E3.1
 
-Nombres propuestos para implementar y fijar en migración:
+V7 implementa las siguientes vistas, propiedad del migrador, con `security_barrier=true` y permisos de tablas comprobados con el propietario de la vista (no `security_invoker`). Python no recibe acceso directo a las tablas:
 
 | Vista | Grano | Columnas mínimas |
 | --- | --- | --- |
 | analytics.v_monthly_expenses | organización, mes, categoría | organization_id, month, category_id, amount_minor |
 | analytics.v_monthly_participations | organización, mes, categoría, membresía | organization_id, month, category_id, membership_id, amount_minor |
+| analytics.v_monthly_coverage | organización, mes declarado completo | organization_id, month |
 
-Solo gastos vigentes, mes de expense_date, conversión exacta a centavos. No agrupar importes de gasto después de unirlos con múltiples repartos: eso duplica totales. Las vistas no fabrican cobertura; definir fuente de cobertura confiable y su fecha inicial antes de producir ceros. Datos personales y hashes no forman parte de las vistas.
+`month` es DATE del primer día del mes; `amount_minor` es BIGINT calculado por SUM de decimales multiplicados por 100, sin pasar por coma flotante. Sólo gastos vigentes de organizaciones activas ARS. Categorías y membresías inactivas conservan sus importes históricos. Gastos y participaciones son agregaciones separadas: no se multiplica el gasto al unir partes. Las vistas no exponen nombres, correos, descripciones, comprobantes ni hashes. No rellenan filas cero ni excluyen por sí mismas el mes corriente: la cobertura y el corte de período deben aplicarse explícitamente al consumirlas.
+
+La cobertura se declara por organización y mes completo anterior al actual de Buenos Aires. `analytics_month_coverage` conserva `declared_by_user_id`, `declared_at` e `is_confirmed`; la FK exige membresía del autor, y CHECK exige primer día de mes cerrado. La API Java exige ADMIN activo. PUT confirma/reconfirma y DELETE retira lógicamente sin borrar el registro; se conserva la última declaración, sin incorporar una auditoría completa de cambios. La migración no certifica automáticamente ningún mes existente. `v_monthly_coverage` publica únicamente confirmaciones vigentes del contexto. Ausencia de gastos en un mes confirmado permite representar cero; ausencia de cobertura significa desconocido. Los huecos no se certifican ni se rellenan automáticamente. La adaptación a `available_from_month`, continuidad y recorte de 60 meses del contrato Python corresponde a E3.2; E3.1 no modifica ese contrato ni declara cobertura histórica de categorías por su primer gasto.
 
 ## Roles y aislamiento
 
-Separar propietario/migrador, usuario Java de ejecución y usuario Python de lectura. Python: CONNECT a base, USAGE al esquema analítico y SELECT exclusivamente sobre vistas autorizadas. Sin privilegios heredados que permitan leer tablas, crear objetos o escribir. Credenciales distintas, fuera de Git.
+El propietario/migrador sigue siendo `POSTGRES_USER` en el entorno local y necesita CREATEROLE al instalar por primera vez. Sus credenciales se configuran separadamente en `SPRING_FLYWAY_URL/USER/PASSWORD`. El datasource de Java usa `shareverance_java`, con CRUD sobre tablas de aplicación y uso de sus secuencias, sin DDL ni lectura de `flyway_schema_history`. Python usa `shareverance_python`: CONNECT, USAGE de analytics, ejecución de la función de contexto y SELECT sólo sobre las tres vistas. Sin membresías de roles, herencia, SUPERUSER, CREATEDB, CREATEROLE, REPLICATION, BYPASSRLS ni permisos de creación de objetos, temporales o escritura. V7 retira CONNECT/TEMP públicos en la base y permisos públicos sobre tablas de negocio; no reasigna propietarios. Es una base dedicada a Shareverance: revisar roles ajenos antes de aplicarla en una base compartida.
 
-Toda consulta requiere organización. Una vista global con WHERE aplicado solo por Python no constituye aislamiento adicional en PostgreSQL. Pendiente elegir e implementar mecanismo SQL: por ejemplo contexto transaccional de organización y vistas filtradas, o RLS compatible con el rol y las vistas. No asumir que RLS se aplica al consumidor de cualquier vista: verificar propietario, invocador y privilegios efectivos. Contexto solicitado debe proceder de Java autenticado; limpiar conexiones del pool al terminar. Estas medidas protegen errores de consulta, no convierten una credencial de servicio comprometida en credencial individual por usuario.
+`database/configure-access.sql`, ejecutado por el servicio efímero Compose `database-access` antes de Java, crea los roles si faltan y configura sus contraseñas desde variables de entorno (nunca desde una migración). Rechaza contraseñas vacías/iguales o roles con atributos/membresías incompatibles; no corrige privilegios administrativos ajenos silenciosamente. Funciona también con un volumen existente y no borra datos. V7 puede crear los roles como NOLOGIN cuando Flyway se ejecuta fuera de Compose; deben aprovisionarse antes de iniciar los clientes. Las credenciales SQL de Python se preparan pero no se entregan aún a su contenedor: E3.2 implementará el consumidor y retirará el callback.
+
+Toda consulta analítica debe usar una transacción explícita, preferentemente READ ONLY, con contexto de organización autorizado por Java:
+
+```sql
+BEGIN READ ONLY;
+SELECT set_config('shareverance.organization_id', '123', true);
+SELECT * FROM analytics.v_monthly_expenses;
+SELECT * FROM analytics.v_monthly_coverage;
+COMMIT;
+```
+
+El tercer parámetro `true` limita el valor a la transacción; el consumidor debe enviar el ID como parámetro enlazado, nunca concatenarlo. Las tres vistas filtran dentro de SQL aunque el consumidor omita WHERE. Contexto ausente, vacío, no entero, fuera de BIGINT o no positivo devuelve cero filas. Commit/rollback elimina el contexto local antes de reutilizar la conexión A→B; el pool debe terminar siempre la transacción y no usar contexto de sesión (`false`/SET persistente). No se usa RLS: la barrera y la función de contexto son parte de las vistas. Una credencial de servicio puede establecer otro contexto; esto protege errores de consulta, no sustituye autorización Java ni defiende de una credencial Python comprometida. E3.2 debe establecer el contexto sólo desde llamadas Java autenticadas.
 
 Antes de darlo por terminado, probar lectura autorizada de A, rechazo/ausencia de B, acceso sin contexto, SQL directo sobre tablas y reutilización de conexión A→B. Revisar asimismo acceso técnico histórico desde Python a Java y retirarlo durante transición.
 

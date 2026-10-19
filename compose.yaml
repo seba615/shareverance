@@ -14,6 +14,18 @@ services:
       timeout: 3s
       retries: 20
       start_period: 15s
+  database-access:
+    image: postgres:17.11-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
+      JAVA_DB_PASSWORD: ${JAVA_DB_PASSWORD:-shareverance_java_local_only}
+      PYTHON_DB_PASSWORD: ${PYTHON_DB_PASSWORD:-shareverance_python_sql_local_only}
+    volumes:
+      - ./database/configure-access.sql:/bootstrap/configure-access.sql:ro
+    command: ["psql", "-h", "postgres", "-U", "${POSTGRES_USER:-shareverance_dev}", "-d", "${POSTGRES_DB:-shareverance}", "-f", "/bootstrap/configure-access.sql"]
+    depends_on:
+      postgres:
+        condition: service_healthy
   python-service:
     build: ./service-python
     environment:
@@ -31,14 +43,19 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-shareverance}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shareverance_dev}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
+      SPRING_DATASOURCE_USERNAME: shareverance_java
+      SPRING_DATASOURCE_PASSWORD: ${JAVA_DB_PASSWORD:-shareverance_java_local_only}
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-shareverance}
+      SPRING_FLYWAY_USER: ${POSTGRES_USER:-shareverance_dev}
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
       PYTHON_SERVICE_URL: http://python-service:8000
       PYTHON_CLIENT_ID: ${PYTHON_CLIENT_ID:-python-prediction-service}
       PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
     depends_on:
       postgres:
         condition: service_healthy
+      database-access:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s

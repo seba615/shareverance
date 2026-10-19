@@ -54,6 +54,8 @@ El calendario debe permitir consultar gastos por fecha y abrir su detalle. El di
 
 Analítica usa fecha del gasto y solo gastos vigentes; diferencia entre gasto organizacional y participación individual. Un mes sin cobertura conocida no se transforma automáticamente en cero. Predicción del mes siguiente al último cerrado con cobertura confiable.
 
+E3.1 registra cobertura explícita por organización y mes cerrado, declarada por ADMIN activo mediante Java y retirable lógicamente sin borrar el registro. No infiere cobertura por el primer gasto, por crear una organización ni por ausencia de filas. Las vistas SQL usan contexto de organización limitado a la transacción; sin contexto válido no devuelven datos. El consumidor Python y la retirada del callback siguen pendientes de E3.2; esta base SQL no acredita analítica ni predicción reales.
+
 OCR opcional: fecha, importe y descripción de hasta 500 caracteres; valor alternativo `Varios` cuando la descripción no es utilizable. No extrae proveedor, razón social ni moneda. El usuario revisa y confirma antes del alta. Un fallo de OCR permite continuar manualmente.
 
 ## Seguridad y entrega
@@ -64,4 +66,4 @@ Logs técnicos mínimos con correlación, sin secretos, contraseñas, tokens ni 
 
 ## Precisiones todavía necesarias
 
-Las decisiones de arquitectura no resuelven por sí solas estos parámetros: semántica detallada del calendario, motor OCR y límite de píxeles, condición exacta para usar `Varios`, limpieza de archivos sin asociación, mecanismo de aislamiento SQL por organización, autenticación Java→Python, biblioteca gráfica, umbral de evaluación predictiva, tiempos de OCR, retención de logs y recuperación de contraseña/verificación de email. Ver tareas del [roadmap](road_map.md). Ninguno se considera implementado por estar especificado aquí.
+Las decisiones de arquitectura no resuelven por sí solas estos parámetros: semántica detallada del calendario, motor OCR y límite de píxeles, condición exacta para usar `Varios`, limpieza de archivos sin asociación, autenticación Java→Python, biblioteca gráfica, umbral de evaluación predictiva, tiempos de OCR, retención de logs y recuperación de contraseña/verificación de email. El aislamiento SQL transaccional y la fuente de cobertura se concretan en E3.1 y [postgre.md](postgre.md). Ver tareas del [roadmap](road_map.md). Ninguno se considera implementado por estar especificado aquí.

@@ -15,6 +15,10 @@ Implementación E1.1 integrada mediante PR #25, commit `7733612`: la autorizaci�
 
 ## Reglas y permisos
 
+E3.1 añade `AnalyticsCoverageController` y `AnalyticsCoverageService` para listar, confirmar o retirar cobertura de meses completos, siempre como ADMIN activo de la organización. La identidad proviene de la sesión; no se acepta un autor en el cuerpo. Las escrituras JDBC son transaccionales, bloquean la organización antes de comprobar ADMIN y conservan metadatos al retirar una confirmación. No hay JPA ni interfaz de usuario nueva. Rutas y respuestas en [contratos_api.md](contratos_api.md).
+
+En Compose, Java usa `shareverance_java` para operaciones de aplicación y una conexión Flyway separada con `SPRING_FLYWAY_URL/USER/PASSWORD`. El servicio previo `database-access` aprovisiona los logins; V7 aplica permisos y crea vistas/cobertura. Fuera de Compose deben configurarse explícitamente ambas credenciales. La cuenta de ejecución no puede crear tablas ni consultar el historial Flyway. E3.2 sigue pendiente: el callback Python→Java y los contratos mensuales existentes se conservan.
+
 Aplicar [alcance_mvp.md](alcance_mvp.md) en servidor, sin confiar en IDs o roles enviados por React. Resolver usuario desde sesión y verificar organización activa, membresía activa y operación permitida.
 
 | Operación | USER | ADMIN de la organización |
