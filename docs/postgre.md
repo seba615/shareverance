@@ -54,3 +54,7 @@ Respaldar PostgreSQL y volumen de comprobantes con correspondencia consistente. 
 ## Pruebas
 
 Migraciones limpias e incrementales, FK de tenant cruzado, importes/roles inválidos, unicidad, rollback gasto/partes, versión optimista con dos conexiones y protección del último ADMIN. Validar agregaciones contra dataset manual y permisos reales de cada rol. Los tests de repositorios mock no sustituyen estas comprobaciones.
+
+## Verificación E1.2: gasto y partes
+
+E1.2 individual/iguales utiliza el esquema vigente (V1, V2, V3 y V5), sin migraciones nuevas ni cambios en restricciones. Las pruebas de integración usan PostgreSQL 17.11 exclusivo y verifican rollback si falla una parte en alta o edición, y si falla el guardado final del gasto después de actualizar partes. No prueban concurrencia E1.3 ni constituyen aceptación integral. La base y el volumen de desarrollo quedan fuera de estas pruebas.

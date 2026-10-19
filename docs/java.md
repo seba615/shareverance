@@ -11,7 +11,7 @@ Spring Boot con JDBC, sin JPA. Código en `backend-java/src/main/java/com/sharev
 
 Sesión web mediante cookie; frontend obtiene CSRF antes de mutaciones. El código contiene además autenticación técnica para el circuito histórico Python→Java. Ese circuito debe migrarse al acceso Python→vistas, sin reutilizar sus credenciales automáticamente en sentido inverso.
 
-Implementación E1.1 en curso: la autorización de rutas exige cuenta, membresía y organización activas; las organizaciones con moneda distinta de ARS no son operables. Java también rechaza moneda no ARS y estados inactivos al crear organizaciones, miembros, categorías y gastos. Esto no certifica aislamiento integral ni aceptación con PostgreSQL.
+Implementación E1.1 integrada mediante PR #25, commit `7733612`: la autorización de rutas exige cuenta, membresía y organización activas; las organizaciones con moneda distinta de ARS no son operables. Java también rechaza moneda no ARS y estados inactivos al crear organizaciones, miembros, categorías y gastos. Esto no certifica aislamiento integral ni aceptación con PostgreSQL.
 
 ## Reglas y permisos
 
@@ -53,4 +53,12 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, reparto determinista, versión optimista, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+Pendiente: aceptación de E1.1 con integración y datos persistidos, filtros/paginación, versión optimista, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+
+## Implementación E1.2: individual e iguales
+
+Alta y edición validan importe positivo hasta 9.999.999.999,99 ARS, con hasta dos decimales sin redondeo silencioso. El reparto igualitario usa centavos y asigna sobrantes por ID de membresía ascendente; rechaza IDs nulos o repetidos, selección inválida y partes cero. El modo individual asigna todo al titular. Las membresías y cuentas deben estar activas para participar en altas; ALL_MEMBERS excluye las inactivas.
+
+Editar conserva los participantes históricos aunque luego se inactiven y no agrega miembros nuevos. Recalcula mediante el mismo algoritmo determinista; rechaza repartos vacíos o importes insuficientes. Se conservan las transacciones Spring de alta y edición y los repositorios JDBC; no cambia el esquema ni se incorpora versión optimista (E1.3).
+
+CUSTOM permanece como código preexistente del backend, fuera del alcance documentado del MVP y sin aceptación en esta entrega. No se agrega soporte, persistencia diferenciada ni recálculo proporcional para esa modalidad. Su presencia sigue siendo una brecha respecto del alcance; no se retira unilateralmente un modo del DTO compartido.
