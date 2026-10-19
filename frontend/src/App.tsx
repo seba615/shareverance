@@ -1,14 +1,24 @@
 import { FormEvent, useEffect, useState } from 'react';
 import {
   ApiError,
+  Category,
+  ExpenseDetailResponse,
   Organization,
   OrganizationType,
+  SplitMode,
   User,
+  UserOrganization,
   authApi,
+  categoryApi,
+  expenseApi,
+  membershipApi,
   organizationApi,
 } from './api/java';
 
+import { createOrganizationLoader } from './organizationLoader';
+
 type AuthMode = 'login' | 'register';
+type OrgTab = 'expenses' | 'members' | 'categories';
 
 const organizationTypeLabels: Record<OrganizationType, string> = {
   HOUSEHOLD: 'Hogar',
@@ -35,6 +45,221 @@ export default function App() {
   const [creatingOrganization, setCreatingOrganization] = useState(false);
   const [error, setError] = useState('');
 
+  // Estados de datos de la organización activa
+  const [activeTab, setActiveTab] = useState<OrgTab>('expenses');
+  const [organizationData, setOrganizationData] = useState<{
+    organizationId: number;
+    members: UserOrganization[];
+    categories: Category[];
+    expenses: ExpenseDetailResponse[];
+  } | null>(null);
+  const activeData = organizationData?.organizationId === selectedOrganizationId ? organizationData : null;
+  const members = activeData?.members ?? [];
+  const categories = activeData?.categories ?? [];
+  const expenses = activeData?.expenses ?? [];
+  const [loadingOrgData, setLoadingOrgData] = useState(false);
+
+  // Estados de formularios secundarios
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+
+  // Estado del reparto de gasto
+  const [splitMode, setSplitMode] = useState<SplitMode>('INDIVIDUAL');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+
+  const currentMembership = members.find(m => m.userId === user?.id && m.isActive);
+  const isAdmin = currentMembership?.role === 'ADMIN';
+  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+  const membershipMap = new Map(members.map(m => [m.id, m]));
+
+  function getMemberLabel(m: UserOrganization): string {
+    const isSelf = m.userId === user?.id;
+    const name = m.userName ? m.userName : `Usuario #${m.userId}`;
+    return `${name}${isSelf ? ' (Vos)' : ''}`;
+  }
+
+  const [organizationLoader] = useState(() => createOrganizationLoader({
+    async fetchData(orgId: number) {
+      const [members, categories, expenses] = await Promise.all([
+        membershipApi.listByOrganization(orgId),
+        categoryApi.listByOrganization(orgId),
+        expenseApi.listByOrganization(orgId),
+      ]);
+      return { members, categories, expenses };
+    },
+    onData: (organizationId, data) => setOrganizationData({ organizationId, ...data }),
+    onError: cause => setError(messageFrom(cause)),
+    onLoading: setLoadingOrgData,
+  }));
+  const loadOrganizationData = organizationLoader.load;
+
+  function selectOrganization(organizationId: number | null) {
+    if (organizationId === selectedOrganizationId) return;
+    // Invalidar inmediatamente: no esperar al siguiente efecto de React.
+    organizationLoader.select(organizationId);
+    setSelectedOrganizationId(organizationId);
+    setOrganizationData(null);
+    setLoadingOrgData(organizationId !== null);
+    setError('');
+    setShowAddMember(false);
+    setShowAddCategory(false);
+    setShowAddExpense(false);
+    setSelectedMemberIds([]);
+    setSplitMode('INDIVIDUAL');
+    setActiveTab('expenses');
+  }
+
+  useEffect(() => {
+    organizationLoader.select(selectedOrganizationId);
+    if (selectedOrganizationId !== null) void loadOrganizationData(selectedOrganizationId);
+    return () => organizationLoader.select(null);
+  }, [selectedOrganizationId, organizationLoader]);
+
+  async function handleAddMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get('email') ?? '').trim();
+    const role = (String(form.get('role') ?? 'USER')) as 'ADMIN' | 'USER';
+    try {
+      await membershipApi.addMember({ organizationId: selectedOrganizationId, email, role });
+      if (!isCurrentOrganization()) return;
+      setShowAddMember(false);
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggleRole(m: UserOrganization) {
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    const newRole = m.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    try {
+      await membershipApi.updateRole(m.id, newRole);
+      if (!isCurrentOrganization()) return;
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeactivateMember(memberId: number) {
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    try {
+      await membershipApi.deactivate(memberId);
+      if (!isCurrentOrganization()) return;
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReactivateMember(memberId: number) {
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    try {
+      await membershipApi.reactivate(memberId);
+      if (!isCurrentOrganization()) return;
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get('name') ?? '').trim();
+    const description = String(form.get('description') ?? '').trim() || undefined;
+    try {
+      await categoryApi.create(selectedOrganizationId, { name, description });
+      if (!isCurrentOrganization()) return;
+      setShowAddCategory(false);
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeactivateCategory(categoryId: number) {
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    try {
+      await categoryApi.deactivate(categoryId);
+      if (!isCurrentOrganization()) return;
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCreateExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const description = String(form.get('description') ?? '').trim();
+    const amount = String(form.get('amount') ?? '').trim();
+    const expenseDate = String(form.get('expenseDate') ?? '').trim();
+    const categoryId = Number(form.get('categoryId'));
+    const paidByMembershipId = form.get('paidByMembershipId')
+      ? Number(form.get('paidByMembershipId'))
+      : currentMembership?.id ?? 0;
+
+    try {
+      await expenseApi.create({
+        organizationId: selectedOrganizationId,
+        paidByMembershipId,
+        categoryId,
+        amount,
+        expenseDate,
+        description,
+        splitMode,
+        splitMemberIds: splitMode === 'SPECIFIC_GROUP' ? selectedMemberIds : undefined,
+      });
+      if (!isCurrentOrganization()) return;
+      setShowAddExpense(false);
+      setSelectedMemberIds([]);
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -46,7 +271,7 @@ export default function App() {
         if (mounted) {
           setUser(restoredUser);
           setOrganizations(memberships);
-          setSelectedOrganizationId(memberships[0]?.id ?? null);
+          selectOrganization(memberships[0]?.id ?? null);
         }
       } catch (cause) {
         if (mounted && !(cause instanceof ApiError && cause.status === 401)) {
@@ -86,7 +311,7 @@ export default function App() {
       const memberships = await organizationApi.list();
       setUser(currentUser);
       setOrganizations(memberships);
-      setSelectedOrganizationId(memberships[0]?.id ?? null);
+      selectOrganization(memberships[0]?.id ?? null);
     } catch (cause) {
       setError(messageFrom(cause));
     } finally {
@@ -107,7 +332,7 @@ export default function App() {
         currency: 'ARS',
       });
       setOrganizations((current) => [...current, organization]);
-      setSelectedOrganizationId(organization.id);
+      selectOrganization(organization.id);
       setCreatingOrganization(false);
     } catch (cause) {
       setError(messageFrom(cause));
@@ -123,7 +348,7 @@ export default function App() {
       await authApi.logout();
       setUser(null);
       setOrganizations([]);
-      setSelectedOrganizationId(null);
+      selectOrganization(null);
       setAuthMode('login');
     } catch (cause) {
       setError(messageFrom(cause));
@@ -286,7 +511,7 @@ export default function App() {
                 className={`organization-card${organization.id === selectedOrganizationId ? ' selected' : ''}`}
                 key={organization.id}
                 type="button"
-                onClick={() => setSelectedOrganizationId(organization.id)}
+                onClick={() => selectOrganization(organization.id)}
                 aria-pressed={organization.id === selectedOrganizationId}
               >
                 <span className="organization-icon" aria-hidden="true">
@@ -303,13 +528,387 @@ export default function App() {
 
         {selectedOrganization && (
           <section className="selected-organization panel" aria-live="polite">
-            <div>
-              <p className="eyebrow">Organización seleccionada</p>
-              <h2>{selectedOrganization.name}</h2>
-              <p className="muted">
-                {organizationTypeLabels[selectedOrganization.type]} · {selectedOrganization.currency}
-              </p>
+            <div className="org-header-row">
+              <div>
+                <p className="eyebrow">Organización activa</p>
+                <h2>{selectedOrganization.name}</h2>
+                <p className="muted">
+                  {organizationTypeLabels[selectedOrganization.type]} · {selectedOrganization.currency}
+                  {currentMembership && ` · Tu rol: ${currentMembership.role}`}
+                </p>
+              </div>
+              <nav className="tab-nav" aria-label="Secciones de la organización">
+                <button
+                  className={`tab-btn${activeTab === 'expenses' ? ' active' : ''}`}
+                  type="button"
+                  onClick={() => { setActiveTab('expenses'); setError(''); }}
+                >
+                  Gastos ({expenses.length})
+                </button>
+                <button
+                  className={`tab-btn${activeTab === 'members' ? ' active' : ''}`}
+                  type="button"
+                  onClick={() => { setActiveTab('members'); setError(''); }}
+                >
+                  Miembros ({members.length})
+                </button>
+                <button
+                  className={`tab-btn${activeTab === 'categories' ? ' active' : ''}`}
+                  type="button"
+                  onClick={() => { setActiveTab('categories'); setError(''); }}
+                >
+                  Categorías ({categories.length})
+                </button>
+              </nav>
             </div>
+
+            {loadingOrgData ? (
+              <p className="muted" role="status">Cargando datos de la organización…</p>
+            ) : (
+              <>
+                {activeTab === 'expenses' && (
+                  <div className="tab-pane">
+                    <div className="tab-pane-header">
+                      <h3>Gastos de la organización</h3>
+                      <button
+                        className="primary-button"
+                        type="button"
+                        onClick={() => { setShowAddExpense(curr => !curr); setError(''); }}
+                      >
+                        {showAddExpense ? 'Cancelar' : '＋ Cargar gasto'}
+                      </button>
+                    </div>
+
+                    {showAddExpense && (
+                      <form className="subform panel" onSubmit={handleCreateExpense}>
+                        <h4>Nuevo gasto</h4>
+                        <div className="form-grid-expense">
+                          <label>
+                            Descripción
+                            <input name="description" type="text" maxLength={500} required placeholder="Ej. Compra supermercado" />
+                          </label>
+
+                          <label>
+                            Importe (ARS)
+                            <input
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              max="9999999999.99"
+                              required
+                              placeholder="0.00"
+                            />
+                          </label>
+
+                          <label>
+                            Fecha
+                            <input
+                              name="expenseDate"
+                              type="date"
+                              max={new Date().toISOString().split('T')[0]}
+                              defaultValue={new Date().toISOString().split('T')[0]}
+                              required
+                            />
+                          </label>
+
+                          <label>
+                            Categoría
+                            <select name="categoryId" required defaultValue={categories.find(c => c.isActive)?.id ?? ''}>
+                              {categories.filter(c => c.isActive).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          {isAdmin && (
+                            <label>
+                              Titular / Pagador
+                              <select name="paidByMembershipId" defaultValue={currentMembership?.id ?? ''} required>
+                                {members.filter(m => m.isActive).map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    {getMemberLabel(m)} ({m.role})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+
+                          <label>
+                            Modalidad de reparto
+                            <select
+                              value={splitMode}
+                              onChange={(e) => setSplitMode(e.target.value as SplitMode)}
+                            >
+                              <option value="INDIVIDUAL">Individual (100% titular)</option>
+                              <option value="ALL_MEMBERS">Partes iguales: Todos los miembros activos</option>
+                              <option value="SPECIFIC_GROUP">Partes iguales: Grupo específico</option>
+                            </select>
+                          </label>
+                        </div>
+
+                        {splitMode === 'SPECIFIC_GROUP' && (
+                          <div className="member-picker">
+                            <span className="field-hint">Seleccioná los participantes:</span>
+                            <div className="checkbox-list">
+                              {members.filter(m => m.isActive).map(m => (
+                                <label key={m.id} className="checkbox-item">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedMemberIds.includes(m.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedMemberIds(curr => [...curr, m.id]);
+                                      } else {
+                                        setSelectedMemberIds(curr => curr.filter(id => id !== m.id));
+                                      }
+                                    }}
+                                  />
+                                  <span>{getMemberLabel(m)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <button className="primary-button" type="submit" disabled={busy}>
+                          {busy ? 'Guardando…' : 'Registrar gasto'}
+                        </button>
+                      </form>
+                    )}
+
+                    {expenses.length === 0 ? (
+                      <p className="muted">No hay gastos registrados en esta organización.</p>
+                    ) : (
+                      <div className="table-wrapper">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Fecha</th>
+                              <th>Descripción</th>
+                              <th>Categoría</th>
+                              <th>Importe</th>
+                              <th>Modalidad</th>
+                              <th>Partes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {expenses.map(({ expense, splits }) => (
+                              <tr key={expense.id}>
+                                <td>{expense.expenseDate}</td>
+                                <td><strong>{expense.description}</strong></td>
+                                <td>
+                                  <span className="badge">
+                                    {categoryMap.get(expense.categoryId) ?? `Cat #${expense.categoryId}`}
+                                  </span>
+                                </td>
+                                <td>${expense.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                <td>{expense.splitType}</td>
+                                <td>
+                                  <span
+                                    className="muted"
+                                    title={splits.map(s => {
+                                      const member = membershipMap.get(s.userOrganizationId);
+                                      const label = member ? getMemberLabel(member) : `M #${s.userOrganizationId}`;
+                                      return `${label}: $${s.amount.toFixed(2)}`;
+                                    }).join(', ')}
+                                  >
+                                    {splits.length} participante(s)
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'members' && (
+                  <div className="tab-pane">
+                    <div className="tab-pane-header">
+                      <h3>Miembros de la organización</h3>
+                      {isAdmin && (
+                        <button
+                          className="primary-button"
+                          type="button"
+                          onClick={() => { setShowAddMember(curr => !curr); setError(''); }}
+                        >
+                          {showAddMember ? 'Cancelar' : '＋ Incorporar miembro'}
+                        </button>
+                      )}
+                    </div>
+
+                    {showAddMember && isAdmin && (
+                      <form className="subform panel" onSubmit={handleAddMember}>
+                        <h4>Agregar miembro por email exacto</h4>
+                        <div className="form-grid">
+                          <label>
+                            Correo electrónico
+                            <input name="email" type="email" required placeholder="usuario@ejemplo.com" />
+                          </label>
+                          <label>
+                            Rol inicial
+                            <select name="role" defaultValue="USER">
+                              <option value="USER">USER</option>
+                              <option value="ADMIN">ADMIN</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button className="primary-button" type="submit" disabled={busy}>
+                          {busy ? 'Incorporando…' : 'Incorporar'}
+                        </button>
+                      </form>
+                    )}
+
+                    <div className="table-wrapper">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>ID Membresía</th>
+                            <th>Miembro</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            {isAdmin && <th>Acciones</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {members.map(m => (
+                            <tr key={m.id} className={!m.isActive ? 'row-inactive' : ''}>
+                              <td>#{m.id}</td>
+                              <td>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <strong style={{ color: '#172b4d' }}>{getMemberLabel(m)}</strong>
+                                  <span style={{ fontSize: '0.8rem', color: '#62728f' }}>
+                                    {m.userEmail ? m.userEmail : `Usuario #${m.userId}`}
+                                  </span>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={`badge ${m.role === 'ADMIN' ? 'badge-admin' : ''}`}>
+                                  {m.role}
+                                </span>
+                              </td>
+                              <td>{m.isActive ? 'Activo' : 'Inactivo'}</td>
+                              {isAdmin && (
+                                <td>
+                                  {m.isActive ? (
+                                    <div className="action-buttons">
+                                      <button
+                                        className="text-button"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => handleToggleRole(m)}
+                                      >
+                                        Cambiar a {m.role === 'ADMIN' ? 'USER' : 'ADMIN'}
+                                      </button>
+                                      <button
+                                        className="text-button danger"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => handleDeactivateMember(m.id)}
+                                      >
+                                        Desactivar
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="action-buttons">
+                                      <button
+                                        className="text-button"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => handleReactivateMember(m.id)}
+                                      >
+                                        Reactivar
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'categories' && (
+                  <div className="tab-pane">
+                    <div className="tab-pane-header">
+                      <h3>Categorías</h3>
+                      {isAdmin && (
+                        <button
+                          className="primary-button"
+                          type="button"
+                          onClick={() => { setShowAddCategory(curr => !curr); setError(''); }}
+                        >
+                          {showAddCategory ? 'Cancelar' : '＋ Nueva categoría'}
+                        </button>
+                      )}
+                    </div>
+
+                    {showAddCategory && isAdmin && (
+                      <form className="subform panel" onSubmit={handleCreateCategory}>
+                        <h4>Crear categoría</h4>
+                        <div className="form-grid">
+                          <label>
+                            Nombre
+                            <input name="name" type="text" maxLength={100} required placeholder="Ej. Servicios, Alquiler" />
+                          </label>
+                          <label>
+                            Descripción
+                            <input name="description" type="text" maxLength={500} placeholder="Opcional" />
+                          </label>
+                        </div>
+                        <button className="primary-button" type="submit" disabled={busy}>
+                          {busy ? 'Creando…' : 'Crear categoría'}
+                        </button>
+                      </form>
+                    )}
+
+                    <div className="table-wrapper">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            {isAdmin && <th>Acciones</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categories.map(c => (
+                            <tr key={c.id} className={!c.isActive ? 'row-inactive' : ''}>
+                              <td><strong>{c.name}</strong></td>
+                              <td>{c.description || '—'}</td>
+                              <td>{c.isActive ? 'Activa' : 'Inactiva (histórica)'}</td>
+                              {isAdmin && (
+                                <td>
+                                  {c.isActive ? (
+                                    <button
+                                      className="text-button danger"
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => handleDeactivateCategory(c.id)}
+                                    >
+                                      Desactivar
+                                    </button>
+                                  ) : (
+                                    <span className="muted">—</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </section>
         )}
       </section>

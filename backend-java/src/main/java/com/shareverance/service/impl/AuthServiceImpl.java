@@ -370,8 +370,8 @@ public class AuthServiceImpl implements AuthService {
                         })
                         .orElse(false);
             }
-            if (path.matches("/api/v1/memberships/\\d+/role")) {
-                Long membershipId = Long.parseLong(path.replaceAll(".*/(\\d+)/role", "$1"));
+            if (path.matches("/api/v1/memberships/\\d+/role") || path.matches("/api/v1/memberships/\\d+/reactivate")) {
+                Long membershipId = Long.parseLong(path.replaceAll(".*/(\\d+)/(role|reactivate)", "$1"));
                 return "PATCH".equalsIgnoreCase(method) && membershipRepository != null
                         && membershipRepository.findById(membershipId)
                         .map(membership -> isOrganizationAdmin(userId, membership.getOrganizationId()))

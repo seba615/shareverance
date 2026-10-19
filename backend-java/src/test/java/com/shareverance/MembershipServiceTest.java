@@ -1,7 +1,6 @@
 package com.shareverance;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.junit.jupiter.api.Test;
 
 import com.shareverance.dto.MembershipRequest;
@@ -47,5 +46,51 @@ class MembershipServiceTest {
         // Si agregamos un segundo ADMIN a Org 1, ahora sí se puede desactivar o cambiar de rol al primero
         memberships.save(new com.shareverance.model.UserOrganization(null, 3L, 1L, com.shareverance.model.MembershipRole.ADMIN, java.time.LocalDateTime.now(), true));
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.updateMemberRole(1L, com.shareverance.model.MembershipRole.USER));
+    }
+
+    @Test
+    void canAddMemberByExactEmail() {
+        var memberships = new MockUserOrganizationRepository();
+        var users = new MockUserRepository();
+        var organizations = new MockOrganizationRepository();
+        var service = new MembershipServiceImpl(memberships, users, organizations);
+
+        // User 3 (maria@gomez.com) no está en Org 1
+        var created = service.addMemberToOrganization(
+                new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "maria@gomez.com"));
+        org.junit.jupiter.api.Assertions.assertNotNull(created.getId());
+        org.junit.jupiter.api.Assertions.assertEquals(3L, created.getUserId());
+        org.junit.jupiter.api.Assertions.assertEquals(1L, created.getOrganizationId());
+        org.junit.jupiter.api.Assertions.assertEquals("María Gómez", created.getUserName());
+        org.junit.jupiter.api.Assertions.assertEquals("maria@gomez.com", created.getUserEmail());
+
+        // Intentar agregar email inexistente lanza ResourceNotFoundException
+        org.junit.jupiter.api.Assertions.assertThrows(com.shareverance.exception.ResourceNotFoundException.class, () ->
+                service.addMemberToOrganization(
+                        new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "inexistente@example.invalid")));
+    }
+
+    @Test
+    void canReactivateDeactivatedMembership() {
+        var memberships = new MockUserOrganizationRepository();
+        var users = new MockUserRepository();
+        var organizations = new MockOrganizationRepository();
+        var service = new MembershipServiceImpl(memberships, users, organizations);
+
+        // En Org 1, membership 2 (User 2, USER) se desactiva
+        var deactivated = service.deactivateMembership(2L);
+        org.junit.jupiter.api.Assertions.assertFalse(deactivated.getIsActive());
+
+        // Reactivar mediante método explícito
+        var reactivated = service.reactivateMembership(2L);
+        org.junit.jupiter.api.Assertions.assertTrue(reactivated.getIsActive());
+        org.junit.jupiter.api.Assertions.assertEquals(2L, reactivated.getId());
+
+        // Volver a desactivar y reactivar mediante addMemberToOrganization por email
+        service.deactivateMembership(2L);
+        var readded = service.addMemberToOrganization(
+                new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "juan@perez.com"));
+        org.junit.jupiter.api.Assertions.assertTrue(readded.getIsActive());
+        org.junit.jupiter.api.Assertions.assertEquals(2L, readded.getId());
     }
 }

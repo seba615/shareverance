@@ -65,6 +65,11 @@ public class MembershipController {
         return ResponseEntity.ok(membershipService.updateMemberRole(id, role));
     }
 
+    @PatchMapping("/{id}/reactivate")
+    public ResponseEntity<UserOrganization> reactivateMembership(@PathVariable Long id) {
+        return ResponseEntity.ok(membershipService.reactivateMembership(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<UserOrganization> deactivateMembership(@PathVariable Long id) {
         return ResponseEntity.ok(membershipService.deactivateMembership(id));

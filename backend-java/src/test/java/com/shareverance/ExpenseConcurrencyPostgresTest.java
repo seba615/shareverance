@@ -83,10 +83,10 @@ class ExpenseConcurrencyPostgresTest {
         Flyway.configure().dataSource(context.getBean(DataSource.class))
                 .schemas("e13_concurrency").defaultSchema("e13_concurrency")
                 .locations("classpath:db/migration").load().migrate();
-        jdbc.update("INSERT INTO users(id,full_name,email,password_hash) VALUES (1,'Prueba A','a@example.invalid','test'),(2,'Prueba B','b@example.invalid','test')");
-        jdbc.update("INSERT INTO organizations(id,name,type) VALUES (1,'Prueba E1.3','HOUSEHOLD')");
-        jdbc.update("INSERT INTO user_organization(id,user_id,organization_id,role) VALUES (1,1,1,'ADMIN'),(2,2,1,'ADMIN')");
-        jdbc.update("INSERT INTO categories(id,organization_id,name) VALUES (1,1,'Prueba')");
+        jdbc.update("INSERT INTO users(id,full_name,email,password_hash) VALUES (1,'Prueba A','a@example.invalid','test'),(2,'Prueba B','b@example.invalid','test') ON CONFLICT (id) DO NOTHING");
+        jdbc.update("INSERT INTO organizations(id,name,type) VALUES (1,'Prueba E1.3','HOUSEHOLD') ON CONFLICT (id) DO NOTHING");
+        jdbc.update("INSERT INTO user_organization(id,user_id,organization_id,role) VALUES (1,1,1,'ADMIN'),(2,2,1,'ADMIN') ON CONFLICT (id) DO NOTHING");
+        jdbc.update("INSERT INTO categories(id,organization_id,name) VALUES (1,1,'Prueba') ON CONFLICT (id) DO NOTHING");
     }
 
     @BeforeEach void reset() {

@@ -22,6 +22,36 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 
 Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. El GET Python actual llama a Java; deberá migrar al repositorio de vistas.
 
+## Miembros y categorías E2.1
+
+React sigue consumiendo únicamente Java, con sesión same-origin y CSRF en mutaciones. Los permisos efectivos los aplica Java: las lecturas requieren pertenencia autorizada a la organización; altas, roles, desactivaciones y reactivaciones requieren ADMIN. Se rechazan operaciones sobre otra organización o cuentas/organizaciones inactivas según el circuito existente.
+
+| Operación | Ruta y datos | Respuesta |
+| --- | --- | --- |
+| Listar miembros | GET /api/v1/memberships/organization/{organizationId} | 200, lista de membresías activas e inactivas |
+| Incorporar/reincorporar | POST /api/v1/memberships; organizationId, email o userId, role opcional | 201, membresía nueva o reincorporada |
+| Cambiar rol | PATCH /api/v1/memberships/{id}/role?role=ADMIN o USER | 200, membresía; protección del último ADMIN |
+| Desactivar miembro | DELETE /api/v1/memberships/{id} | 200, membresía inactiva; conserva historial |
+| Reactivar miembro | PATCH /api/v1/memberships/{id}/reactivate; sin cuerpo | 200, membresía activa; conserva rol e ID |
+| Listar categorías | GET /api/v1/categories/organization/{organizationId} | 200, categorías activas e inactivas |
+| Crear categoría | POST /api/v1/categories/organization/{organizationId}; name, description/color opcionales | 201, categoría |
+| Editar categoría | PUT /api/v1/categories/{id}; CategoryRequest | 200, categoría; API existente, UI pendiente |
+| Desactivar categoría | DELETE /api/v1/categories/{id} | 200, categoría inactiva; conserva asociación histórica |
+
+Ejemplo de incorporación:
+
+```json
+{"organizationId":1,"email":"persona@example.invalid","role":"USER"}
+```
+
+El email se recorta y compara exactamente sin distinguir mayúsculas/minúsculas. El userId anterior sigue admitido; si llegan ambos identificadores prevalece email. Si faltan ambos o no existe la cuenta, el servicio devuelve 404. Cuenta inactiva o membresía activa duplicada: 400. Sin sesión: 401; sin permiso: 403. Los formatos de error existentes no se modifican.
+
+Si existe una membresía inactiva, POST la reactiva con el mismo ID y joinedAt; actualiza el rol si se envió, o conserva el previo. Para una membresía nueva, role omitido equivale a USER. PATCH de reactivación conserva el rol y valida que la cuenta esté activa. Ninguna de estas operaciones recrea repartos ni reactiva gastos anulados.
+
+Respuesta de membresía: id, userId, organizationId, role, joinedAt, isActive y los campos aditivos userName/userEmail (nullable si la consulta de la operación no los completa). Las lecturas con JOIN incluyen nombre y correo; los consumidores deben aceptar null y pueden recargar el listado. No se exponen credenciales. No se retiran campos anteriores.
+
+E2.1 utiliza POST /api/v1/expenses para alta y GET del listado, sin añadir edición en React. El cliente envía amount como cadena decimal y las validaciones monetarias finales permanecen en Java. La edición futura debe respetar la versión obligatoria de E1.3. No se incorporan CUSTOM, calendario ni analítica a esta entrega.
+
 ## Gastos E1.2: individual e iguales
 
 Se conservan POST /api/v1/expenses, PUT /api/v1/expenses/{id} y sus DTO. E1.2 cubre INDIVIDUAL, BETWEEN_TWO, SPECIFIC_GROUP y ALL_MEMBERS. INDIVIDUAL asigna todo al titular; BETWEEN_TWO requiere dos participantes distintos contando al titular; SPECIFIC_GROUP recibe una selección no vacía; el servidor agrega al titular si no está incluido. No se permiten IDs repetidos o nulos. ALL_MEMBERS selecciona membresías y cuentas activas de la organización.

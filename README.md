@@ -25,7 +25,7 @@ React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker
 
 Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java y devuelve predicciones simuladas. Objetivo: Java autoriza y orquesta; Python consulta vistas SQL con usuario de lectura y procesa OCR desde volumen compartido. Java escribe comprobantes y Python solo los lee. Este cambio requiere código, migraciones y configuración; todavía no está desplegado por esta actualización documental.
 
-Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones. Las demás vistas y el predictor real se completan según roadmap. La especificación incorpora calendario y preserva funciones existentes.
+Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones y pestañas de gastos, miembros y categorías. E2.1 incorpora carga manual y listado de gastos, alta de miembros por email, cambio de rol, desactivación/reactivación y alta/desactivación de categorías. Edición de categorías, edición/anulación de gastos, historial filtrado, calendario y analítica siguen pendientes de las entregas correspondientes. La especificación incorpora calendario y preserva funciones existentes.
 
 E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
 
@@ -86,7 +86,7 @@ Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demo
 
 ### 4. Usar la aplicación
 
-Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Las operaciones de gastos, calendario y análisis se irán habilitando en las siguientes entregas.
+Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Dentro de la organización activa están las pestañas Gastos, Miembros y Categorías: se pueden cargar y listar gastos, y ADMIN puede administrar miembros y crear/desactivar categorías. Calendario, edición/anulación de gastos, filtros y análisis siguen pendientes.
 
 Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs).
 
@@ -744,3 +744,15 @@ Al terminar, eliminar exclusivamente el contenedor temporal. Para repetir, volve
 ```powershell
 docker rm -f shareverance-e12-equal-test-db
 ```
+
+## Pruebas del cambio de organización en frontend
+
+Desde la raíz, ejecutar las pruebas con Node 24 del contenedor, sin instalar dependencias adicionales:
+
+```powershell
+$FrontendSource = (Resolve-Path .\frontend).Path
+docker run --rm --mount "type=bind,source=$FrontendSource,target=/app" -w /app node:24.21.0-bookworm-slim npm test
+docker compose -f compose.yaml -f compose.tools.yaml build frontend
+```
+
+Las pruebas usan promesas controladas para simular respuestas fuera de orden, errores tardíos, A→B→A, recargas simultáneas y cierre de sesión/desmontaje. Verifican el cargador utilizado por React; no sustituyen pruebas de navegador ni aceptación integral con Java.

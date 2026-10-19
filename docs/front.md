@@ -9,7 +9,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. ARS es la única moneda: no se ofrece un campo de selección y el cliente envía `ARS` al crear una organización.
 
-No hay pantallas completas de gastos, miembros, categorías, calendario o analítica en esa base. El diagnóstico de infraestructura sigue disponible por script/API; no atribuirle una pantalla vigente que el código actual no muestra.
+E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. No se implementaron edición de categorías, edición/anulación de gastos, detalle completo, filtros/paginación, calendario ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
 
 ## Navegación y vistas requeridas
 
@@ -31,7 +31,7 @@ Calendario incluido; diseño propuesto: mes navegable, total por día y lista al
 
 ## Formularios
 
-Aplicar reglas de [alcance_mvp.md](alcance_mvp.md). Mostrar importe localizado sin usar coma/punto para alterar su valor; validar precisión, conservar decimales exactos al serializar. USER titular propio; ADMIN selector de miembros activos. Individual o iguales con selección de otro/grupo/todos. Mostrar distribución y ajuste de centavos por ID ascendente; un importe insuficiente para asignar al menos un centavo por participante es inválido. E1.2 implementa esas reglas en Java sin agregar pantallas de gastos.
+Aplicar reglas de [alcance_mvp.md](alcance_mvp.md). Mostrar importe localizado sin usar coma/punto para alterar su valor; validar precisión, conservar decimales exactos al serializar. USER titular propio; ADMIN selector de miembros activos. Individual o iguales con selección de otro/grupo/todos. Mostrar distribución y ajuste de centavos por ID ascendente; un importe insuficiente para asignar al menos un centavo por participante es inválido. E1.2 implementa esas reglas en Java. E2.1 incorpora el formulario manual con INDIVIDUAL, ALL_MEMBERS y SPECIFIC_GROUP; este último permite elegir otro miembro o un grupo. El cliente envía el importe como cadena decimal para conservar su representación; Java aplica las validaciones finales. CUSTOM no está expuesto en el formulario.
 
 Edición conserva participantes históricos y debe enviar la versión positiva de la última consulta; Java la exige en PUT. Omitirla devuelve 400. Ante 409, informar cambio concurrente y permitir recargar sin sobrescribir silenciosamente. Anulación requiere acción explícita y actualiza listas/panel. No presentar participación como deuda.
 
@@ -39,7 +39,7 @@ OCR: subir una imagen a Java y mostrar resultado editable. No fijar Content-Type
 
 ## Sesión, accesibilidad y estados
 
-Conservar cookies same-origin y flujo CSRF actual. No almacenar tokens técnicos en navegador. Ante expiración, pedir login y evitar mostrar datos de otra organización. Al cambiar organización, cancelar/descartar respuestas de la anterior y reiniciar filtros pertinentes.
+Conservar cookies same-origin y flujo CSRF actual. No almacenar tokens técnicos en navegador. Ante expiración, pedir login y evitar mostrar datos de otra organización. Al cambiar organización se invalidan inmediatamente los datos, errores y estados de carga de solicitudes previas; no se muestran datos ni roles de A bajo B. También se reinician formularios, participantes, modalidad de reparto y pestaña. El cargador identifica la selección y la solicitud más reciente: A→B→A no acepta la respuesta de la primera visita a A, y una recarga vieja de la misma organización no reemplaza una nueva. Las operaciones de escritura de la selección anterior pueden terminar en Java, pero sus resultados no cierran formularios, muestran errores ni recargan otra selección. Logout y desmontaje invalidan las respuestas pendientes; no se abortan escrituras del servidor.
 
 Diseño adaptable móvil/escritorio, labels de campos, teclado, foco visible y errores junto al campo. Gráficos con tabla; comparación sin base previa muestra porcentaje no disponible. Diferenciar cero, carga, error e historial insuficiente. No mostrar resultados simulados como predicciones reales.
 
@@ -48,3 +48,7 @@ Biblioteca gráfica pendiente de selección. No incorporar un framework adiciona
 ## Pruebas
 
 Preservar registro/login/recarga/logout y creación/selección. Recorrido manual y OCR→revisión→alta→historial→calendario→panel→predicción. Verificar USER/ADMIN, sesión vencida, cambio rápido de organización, filtros/paginación, conflicto 409, OCR fallido y Python caído. Revisar móvil y escritorio; build TypeScript/Vite y pruebas existentes afectadas.
+
+## Comprobación automatizada de selección
+
+`frontend/tests/organizationLoader.test.mjs`, mediante `npm test` en Node 24, ejercita el cargador real utilizado por App con respuestas controladas fuera de orden, errores tardíos, recargas, A→B→A y descarte tras cierre/desmontaje. No instala bibliotecas de pruebas adicionales. El build TypeScript/Vite comprueba la integración de tipos. El recorrido visual y la autorización integral con backend quedan pendientes de aceptación.

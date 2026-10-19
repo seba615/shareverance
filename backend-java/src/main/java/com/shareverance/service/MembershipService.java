@@ -13,5 +13,6 @@ public interface MembershipService {
     List<UserOrganization> getMembershipsByUser(Long userId);
     UserOrganization updateMemberRole(Long id, MembershipRole newRole);
     UserOrganization deactivateMembership(Long id);
+    UserOrganization reactivateMembership(Long id);
 }
 

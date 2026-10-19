@@ -21,14 +21,14 @@ public class MockUserOrganizationRepository implements UserOrganizationRepositor
         // En org 1 (Consorcio Central):
         // User 1 es ADMIN (id 1)
         // User 2 es USER (id 2)
-        save(new UserOrganization(null, 1L, 1L, MembershipRole.ADMIN, LocalDateTime.now(), true));
-        save(new UserOrganization(null, 2L, 1L, MembershipRole.USER, LocalDateTime.now(), true));
+        save(new UserOrganization(null, 1L, 1L, MembershipRole.ADMIN, LocalDateTime.now(), true, "Admin Central", "admin@shareverance.com"));
+        save(new UserOrganization(null, 2L, 1L, MembershipRole.USER, LocalDateTime.now(), true, "Juan Pérez", "juan@perez.com"));
 
         // En org 2 (Hogar Pérez):
         // User 2 es ADMIN (id 3)
         // User 3 es USER (id 4)
-        save(new UserOrganization(null, 2L, 2L, MembershipRole.ADMIN, LocalDateTime.now(), true));
-        save(new UserOrganization(null, 3L, 2L, MembershipRole.USER, LocalDateTime.now(), true));
+        save(new UserOrganization(null, 2L, 2L, MembershipRole.ADMIN, LocalDateTime.now(), true, "Juan Pérez", "juan@perez.com"));
+        save(new UserOrganization(null, 3L, 2L, MembershipRole.USER, LocalDateTime.now(), true, "María Gómez", "maria@gomez.com"));
     }
 
     @Override
