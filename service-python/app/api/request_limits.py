@@ -9,7 +9,12 @@ MAX_BODY_BYTES = 1024 * 1024
 CONTRACT_PATHS = {
     "/api/v1/predictions/monthly",
     "/api/v1/analytics/monthly",
+    "/internal/v2/predictions/monthly",
 }
+
+
+def _contract_version_for_path(path: str) -> str:
+    return "2" if path.startswith("/internal/v2/") else "1"
 
 
 class RequestLimitsMiddleware:
@@ -28,7 +33,7 @@ class RequestLimitsMiddleware:
         message: str,
     ) -> None:
         body = ErrorResponse(
-            contract_version="1",
+            contract_version=_contract_version_for_path(scope["path"]),
             request_id=None,
             error=ErrorBody(
                 code=code,

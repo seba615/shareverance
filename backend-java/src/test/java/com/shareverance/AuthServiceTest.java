@@ -25,10 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 import com.shareverance.controller.AuthController;
-import com.shareverance.dto.ClientCredentialsRequest;
 import com.shareverance.dto.LoginRequest;
 import com.shareverance.dto.UserRequest;
-import com.shareverance.exception.OAuthTokenException;
 import com.shareverance.exception.BusinessRuleException;
 import com.shareverance.model.User;
 import com.shareverance.model.Expense;
@@ -75,8 +73,7 @@ class AuthServiceTest {
                     "ARS", LocalDateTime.now(), true));
         });
         authService = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, organizationRepository, expenseRepository, categoryRepository, null,
-                "python-client", "test-secret");
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, null);
     }
 
     @Test
@@ -184,19 +181,24 @@ class AuthServiceTest {
     }
 
     @Test
-    void allowsHistoryContractOnlyForMembersOfActiveArsOrganizations() {
+    void allowsPredictionsEndpointForActiveOrganizationMembersAndRetiresCallbackRoutes() {
         User user = new User(1L, "User", "user@shareverance.com",
                 passwordEncoder.encode("password123"), null, true);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(
                 new UserOrganization(1L, 1L, 10L, MembershipRole.USER, LocalDateTime.now(), true)));
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 20L)).thenReturn(Optional.empty());
         var session = authService.login(new LoginRequest(user.getEmail(), "password123"));
 
         assertTrue(authService.isAuthorizedForRequest(
-                session.token(), "GET", "/api/v1/expenses/organization/10/history"));
+                session.token(), "GET", "/api/v1/organizations/10/predictions/monthly"));
         assertFalse(authService.isAuthorizedForRequest(
-                session.token(), "POST", "/api/v1/expenses/organization/10/history"));
+                session.token(), "POST", "/api/v1/organizations/10/predictions/monthly"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/20/predictions/monthly"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/expenses/organization/10/history"));
         assertFalse(authService.isAuthorizedForRequest(
                 session.token(), "GET", "/api/v1/users"));
         assertFalse(authService.isAuthorizedForRequest(
@@ -239,8 +241,7 @@ class AuthServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(sessions.findActiveUserId(anyString(), any(Instant.class))).thenReturn(Optional.of(1L));
         AuthServiceImpl service = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions,
-                "python-client", "test-secret");
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions);
         var session = service.login(new LoginRequest(user.getEmail(), "password123"));
 
         var hashCaptor = forClass(String.class);
@@ -249,8 +250,7 @@ class AuthServiceTest {
         assertFalse(hashCaptor.getValue().equals(session.token()));
 
         AuthServiceImpl restartedService = new AuthServiceImpl(userRepository, passwordEncoder,
-                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions,
-                "python-client", "test-secret");
+                membershipRepository, organizationRepository, expenseRepository, categoryRepository, sessions);
         assertTrue(restartedService.validateToken(session.token()));
         assertEquals(1L, restartedService.getAuthenticatedUserId(session.token()));
 
@@ -259,66 +259,14 @@ class AuthServiceTest {
     }
 
     @Test
-    void issuesScopedClientCredentialsToken() {
-        var response = authService.issueServiceToken(
-                "client_credentials",
-                new ClientCredentialsRequest("python-client", "test-secret"),
-                "analytics:read");
+    void retiredOAuthTokenEndpointReturnsNotFound() throws Exception {
+        MockMvc mockMvc = standaloneSetup(new AuthController(authService)).build();
 
-        assertEquals("Bearer", response.tokenType());
-        assertEquals(3600, response.expiresIn());
-        assertEquals("analytics:read", response.scope());
-        assertTrue(authService.validateToken(response.accessToken()));
-        assertTrue(authService.isAuthorizedForRequest(
-                response.accessToken(), "GET", "/api/v1/expenses/organization/1/history"));
-        assertFalse(authService.isAuthorizedForRequest(
-                response.accessToken(), "GET", "/api/v1/expenses/organization/1"));
-        assertFalse(authService.isAuthorizedForRequest(
-                response.accessToken(), "POST", "/api/v1/expenses/organization/1/history"));
+        mockMvc.perform(post("/api/v1/auth/token")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("grant_type", "client_credentials"))
+                .andExpect(status().isNotFound());
     }
-
-    @Test
-    void rejectsInvalidClientCredentials() {
-        var exception = assertThrows(OAuthTokenException.class, () -> authService.issueServiceToken(
-                "client_credentials",
-                new ClientCredentialsRequest("python-client", "wrong-secret"),
-                null));
-
-        assertEquals("invalid_client", exception.getError());
-        assertEquals(401, exception.getStatus());
-    }
-
-    @Test
-    void rejectsUnsupportedGrantAndScope() {
-        var grantException = assertThrows(OAuthTokenException.class, () -> authService.issueServiceToken(
-                "password",
-                new ClientCredentialsRequest("python-client", "test-secret"),
-                null));
-        assertEquals("unsupported_grant_type", grantException.getError());
-
-        var scopeException = assertThrows(OAuthTokenException.class, () -> authService.issueServiceToken(
-                "client_credentials",
-                new ClientCredentialsRequest("python-client", "test-secret"),
-                "expenses:write"));
-        assertEquals("invalid_scope", scopeException.getError());
-    }
-
-        @Test
-        void oauthTokenEndpointAcceptsFormAndReturnsStandardFields() throws Exception {
-                MockMvc mockMvc = standaloneSetup(new AuthController(authService)).build();
-
-                mockMvc.perform(post("/api/v1/auth/token")
-                                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                                                .param("grant_type", "client_credentials")
-                                                .param("client_id", "python-client")
-                                                .param("client_secret", "test-secret")
-                                                .param("scope", "analytics:read"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.access_token").isNotEmpty())
-                                .andExpect(jsonPath("$.token_type").value("Bearer"))
-                                .andExpect(jsonPath("$.expires_in").value(3600))
-                                .andExpect(jsonPath("$.scope").value("analytics:read"));
-        }
 
     @Test
     void loginReturnsHttpOnlyCookieWithoutExposingSessionToken() throws Exception {

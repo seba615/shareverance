@@ -2,9 +2,16 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from app.api.predictions import get_java_service_client, get_prediction_service
+
+from app.api.predictions import (
+    get_prediction_service,
+    get_settings,
+    get_views_repository,
+)
+from app.config import Settings
 from app.main import app
-from app.services.java_client import JavaServiceError
+from app.schemas.requests import PredictionRequest
+from app.services.views_repository import ViewsRepositoryError
 
 
 @pytest.fixture
@@ -42,7 +49,18 @@ def payload():
     }
 
 
+@pytest.fixture
+def internal_payload():
+    return {
+        "contract_version": "2",
+        "request_id": "7f69bfaa-465e-4e74-a13f-169447481317",
+        "organization_id": 1,
+        "target_month": "2026-07",
+    }
+
+
 URL = "/api/v1/predictions/monthly"
+INTERNAL_URL = "/internal/v2/predictions/monthly"
 
 
 def test_health_remains_available(client):
@@ -92,52 +110,112 @@ def test_prediction_returns_contract_response(client, payload):
     ]
 
 
-def test_organization_prediction_fetches_history_from_java(client, payload):
-    payload["target_month"] = "2026-07"
+def test_legacy_callback_endpoint_is_retired(client):
+    response = client.get(
+        "/api/v1/predictions/organization/1/monthly?target_month=2026-07"
+    )
+    assert response.status_code == 404
 
-    class FakeJavaServiceClient:
-        def get_prediction_request(self, organization_id, target_month):
-            assert organization_id == 1
-            assert target_month == "2026-07"
-            from app.schemas.requests import PredictionRequest
 
+def test_internal_prediction_rejects_missing_or_invalid_bearer_token(
+    client,
+    internal_payload,
+):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        predictor_mode="mock",
+        database_url="postgresql://localhost/test",
+        internal_service_token="active-secret",
+        internal_service_token_previous="previous-secret",
+    )
+
+    try:
+        missing_response = client.post(INTERNAL_URL, json=internal_payload)
+        assert missing_response.status_code == 401
+        assert missing_response.json()["contract_version"] == "2"
+        assert missing_response.json()["error"]["code"] == "UNAUTHORIZED"
+
+        invalid_response = client.post(
+            INTERNAL_URL,
+            json=internal_payload,
+            headers={"Authorization": "Bearer wrong-secret"},
+        )
+        assert invalid_response.status_code == 403
+        assert invalid_response.json()["contract_version"] == "2"
+        assert invalid_response.json()["error"]["code"] == "FORBIDDEN"
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
+
+
+def test_internal_prediction_accepts_active_and_previous_secret_and_reads_views(
+    client,
+    payload,
+    internal_payload,
+):
+    class FakeViewsRepository:
+        def build_prediction_request(self, req):
+            assert req.organization_id == 1
+            assert req.target_month == "2026-07"
             return PredictionRequest.model_validate(payload)
 
-    app.dependency_overrides[get_java_service_client] = (
-        lambda: FakeJavaServiceClient()
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        predictor_mode="mock",
+        database_url="postgresql://localhost/test",
+        internal_service_token="active-secret",
+        internal_service_token_previous="previous-secret",
+    )
+    app.dependency_overrides[get_views_repository] = (
+        lambda: FakeViewsRepository()
     )
 
     try:
-        response = client.get(
-            "/api/v1/predictions/organization/1/monthly?target_month=2026-07"
-        )
+        for secret in ("active-secret", "previous-secret"):
+            response = client.post(
+                INTERNAL_URL,
+                json=internal_payload,
+                headers={"Authorization": f"Bearer {secret}"},
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["contract_version"] == "2"
+            assert body["target_month"] == "2026-07"
+            assert body["organization"]["estimated_amount_minor"] == 60000
     finally:
-        app.dependency_overrides.pop(get_java_service_client, None)
-
-    assert response.status_code == 200
-    assert response.json()["target_month"] == "2026-07"
-    assert response.json()["organization"]["estimated_amount_minor"] == 60000
+        app.dependency_overrides.pop(get_settings, None)
+        app.dependency_overrides.pop(get_views_repository, None)
 
 
-def test_java_service_failure_uses_contract_error_response(client):
-    class FailingJavaServiceClient:
-        def get_prediction_request(self, organization_id, target_month):
-            raise JavaServiceError("Internal details must not be exposed")
+def test_views_repository_failure_uses_contract_error_response(
+    client,
+    internal_payload,
+):
+    class FailingViewsRepository:
+        def build_prediction_request(self, _req):
+            raise ViewsRepositoryError("Internal SQL details must not be exposed")
 
-    app.dependency_overrides[get_java_service_client] = (
-        lambda: FailingJavaServiceClient()
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        predictor_mode="mock",
+        database_url="postgresql://localhost/test",
+        internal_service_token="active-secret",
+        internal_service_token_previous="",
+    )
+    app.dependency_overrides[get_views_repository] = (
+        lambda: FailingViewsRepository()
     )
 
     try:
-        response = client.get(
-            "/api/v1/predictions/organization/1/monthly?target_month=2026-10"
+        response = client.post(
+            INTERNAL_URL,
+            json=internal_payload,
+            headers={"Authorization": "Bearer active-secret"},
         )
     finally:
-        app.dependency_overrides.pop(get_java_service_client, None)
+        app.dependency_overrides.pop(get_settings, None)
+        app.dependency_overrides.pop(get_views_repository, None)
 
     assert response.status_code == 503
+    assert response.json()["contract_version"] == "2"
     assert response.json()["error"]["code"] == "SERVICE_UNAVAILABLE"
-    assert "Internal details" not in response.text
+    assert "Internal SQL details" not in response.text
 
 
 def test_insufficient_history_is_not_http_error(client, payload):
@@ -211,6 +289,7 @@ def test_malformed_json_returns_contract_error(client):
         for detail in body["error"]["details"]
     )
 
+
 def test_wrong_content_type_is_rejected(client):
     response = client.post(
         URL,
@@ -225,6 +304,7 @@ def test_wrong_content_type_is_rejected(client):
     assert body["request_id"] is None
     assert body["error"]["code"] == "UNSUPPORTED_MEDIA_TYPE"
     assert body["error"]["details"] == []
+
 
 def test_large_body_is_rejected(client):
     response = client.post(
@@ -269,8 +349,9 @@ def test_exact_body_limit_is_not_rejected_as_too_large(
 
     assert response.status_code == 200
 
+
 class FailingPredictionService:
-    def predict(self, payload):
+    def predict(self, payload, contract_version=None):
         raise RuntimeError("Fallo intencional de prueba.")
 
 

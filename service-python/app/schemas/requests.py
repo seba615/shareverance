@@ -70,6 +70,15 @@ class AnalyticsRequest(HistoryRequest):
 
 
 class PredictionRequest(HistoryRequest):
-    """Solicitud de predicción del próximo mes."""
+    """Solicitud de predicción del próximo mes con historial explícito."""
 
+    target_month: Month
+
+
+class InternalPredictionRequest(ContractModel):
+    """Solicitud interna v2 donde Python consulta vistas SQL autorizadas."""
+
+    contract_version: Literal["2"]
+    request_id: UUID
+    organization_id: PositiveId
     target_month: Month

@@ -1,17 +1,35 @@
-from typing import Annotated
+import hmac
 
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Request
 
-from app.schemas.requests import MAX_SAFE_INTEGER, Month, PredictionRequest
+from app.api.error_handlers import InternalAuthError
+from app.config import Settings, load_settings
+from app.schemas.requests import (
+    InternalPredictionRequest,
+    PredictionRequest,
+)
 from app.schemas.responses import PredictionResponse
-from app.services.java_client import JavaServiceClient
 from app.services.predictions import PredictionService
+from app.services.views_repository import ViewsRepository
 
 
 router = APIRouter(
     prefix="/api/v1/predictions",
     tags=["Predicciones"],
 )
+
+internal_router = APIRouter(
+    prefix="/internal/v2/predictions",
+    tags=["Predicciones Internas"],
+)
+
+
+def get_settings(request: Request) -> Settings:
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None:
+        settings = load_settings()
+        request.app.state.settings = settings
+    return settings
 
 
 def get_prediction_service(
@@ -20,8 +38,50 @@ def get_prediction_service(
     return request.app.state.prediction_service
 
 
-def get_java_service_client(request: Request) -> JavaServiceClient:
-    return request.app.state.java_service_client
+def get_views_repository(
+    request: Request,
+) -> ViewsRepository:
+    return request.app.state.views_repository
+
+
+def verify_internal_service_auth(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> None:
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise InternalAuthError(
+            status_code=401,
+            code="UNAUTHORIZED",
+            message="Falta token de autenticación de servicio interno.",
+        )
+
+    token = auth_header[7:].strip()
+    if not token:
+        raise InternalAuthError(
+            status_code=401,
+            code="UNAUTHORIZED",
+            message="Falta token de autenticación de servicio interno.",
+        )
+
+    valid_tokens = [
+        secret
+        for secret in (
+            settings.internal_service_token,
+            settings.internal_service_token_previous,
+        )
+        if secret
+    ]
+
+    if not valid_tokens or not any(
+        hmac.compare_digest(token.encode("utf-8"), secret.encode("utf-8"))
+        for secret in valid_tokens
+    ):
+        raise InternalAuthError(
+            status_code=403,
+            code="FORBIDDEN",
+            message="Token de servicio interno inválido.",
+        )
 
 
 @router.post(
@@ -38,20 +98,17 @@ def predict_monthly(
     return service.predict(payload)
 
 
-@router.get(
-    "/organization/{organization_id}/monthly",
+@internal_router.post(
+    "/monthly",
     response_model=PredictionResponse,
+    dependencies=[Depends(verify_internal_service_auth)],
 )
-def predict_organization_monthly(
-     organization_id: Annotated[
-          int,
-          Path(gt=0, le=MAX_SAFE_INTEGER),
-     ],
-    target_month: Month,
+def predict_internal_monthly(
+    payload: InternalPredictionRequest,
     request: Request,
     service: PredictionService = Depends(get_prediction_service),
-    java_client: JavaServiceClient = Depends(get_java_service_client),
+    views_repository: ViewsRepository = Depends(get_views_repository),
 ) -> PredictionResponse:
-    payload = java_client.get_prediction_request(organization_id, target_month)
     request.state.contract_request_id = payload.request_id
-    return service.predict(payload)
+    prediction_request = views_repository.build_prediction_request(payload)
+    return service.predict(prediction_request, contract_version="2")

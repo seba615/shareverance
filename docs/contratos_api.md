@@ -14,13 +14,12 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 | Servicio | Rutas observadas |
 | --- | --- |
 | Java, sesión | GET /api/v1/auth/csrf; POST /login, /register, /logout y GET /me bajo /api/v1/auth |
-| Java, técnico | POST /api/v1/auth/token, formulario de credenciales de servicio |
 | Java, negocio | /api/v1/users, /organizations, /memberships, /categories, /expenses; métodos según controladores |
-| Java, historial | GET /api/v1/expenses/organization/{organizationId}/history |
-| Python | POST /api/v1/predictions/monthly; GET /api/v1/predictions/organization/{organization_id}/monthly?target_month=YYYY-MM |
+| Java, cobertura y predicción | GET/PUT/DELETE /api/v1/organizations/{organizationId}/analytics/coverage; GET /api/v1/organizations/{organizationId}/predictions/monthly |
+| Python, interno y contrato | POST /internal/v2/predictions/monthly (Bearer interno, lee vistas SQL); POST /api/v1/predictions/monthly (contrato v1 con historial en cuerpo para pruebas) |
 | Salud | Python /health; Java /actuator/health y readiness |
 
-Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. El GET Python actual llama a Java; deberá migrar al repositorio de vistas.
+Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. En E3.2 se retiran el callback `GET /api/v1/predictions/organization/{organization_id}/monthly` de Python y los endpoints `/api/v1/auth/token` y `/api/v1/expenses/organization/{organizationId}/history` de Java.
 
 ## Miembros y categorías E2.1
 
@@ -120,23 +119,39 @@ Las rutas siguientes requieren sesión, usuario, organización ARS y membresía 
 
 `month` tiene formato estricto YYYY-MM (años 0001–9999) y debe ser anterior al mes actual de Buenos Aires; inválido, actual o futuro devuelve 400. Las confirmaciones repetidas no duplican filas; retirar un mes conserva una declaración no confirmada. Sin sesión, 401; USER, otra organización o estados inactivos, 403. No se interpreta cobertura retirada como cero. La vista de cobertura sólo expone confirmaciones vigentes; columnas, roles y uso transaccional se definen en [postgre.md](postgre.md). Las vistas de importes muestran observaciones, incluso fuera de meses confirmados; el consumidor debe cruzarlas con cobertura y validar continuidad antes de construir historial confiable. No hay cambios de respuesta v1, callback o consumidor Python en E3.1.
 
+## Predicción autenticada y lectura de vistas E3.2
+
+En E3.2 se implementa el flujo unidireccional `React → Java → Python → PostgreSQL (vistas)` y se retira el callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`).
+
+| Servicio | Operación | Ruta | Autenticación y permisos |
+| --- | --- | --- | --- |
+| Java (pública) | Obtener predicción mensual de la organización | `GET /api/v1/organizations/{organizationId}/predictions/monthly?targetMonth=YYYY-MM` | Sesión activa y membresía activa (`USER` o `ADMIN`) en organización activa con moneda `ARS` |
+| Python (interna) | Calcular predicción mensual leyendo vistas SQL | `POST /internal/v2/predictions/monthly` | `Authorization: Bearer <PYTHON_CLIENT_SECRET>` (admite `PYTHON_CLIENT_SECRET_PREVIOUS` durante rotación) |
+| Python (pruebas de contrato) | Calcular predicción sobre historial enviado | `POST /api/v1/predictions/monthly` | Contrato v1 con `history` explícito para pruebas aisladas del predictor y validador |
+
+Reglas de E3.2:
+- **Resolución de `targetMonth` en Java**: si `targetMonth` se informa, debe cumplir `YYYY-MM` (años `0001` a `9999`), devolviendo `400 Bad Request` si es inválido. Si se omite, Java consulta el último `covered_month` confirmado (`is_confirmed = TRUE`) en `analytics_month_coverage` para la organización y utiliza el mes siguiente (`MAX(covered_month) + 1 mes`); si la organización aún no tiene meses confirmados, utiliza el mes actual en `America/Argentina/Buenos_Aires`.
+- **Autenticación técnica `Java → Python` y rotación de secreto**: Java envía `Authorization: Bearer <PYTHON_CLIENT_SECRET>` con tiempos límite configurables (`python.service.connect-timeout-ms`, por defecto `2000` ms; `python.service.read-timeout-ms`, por defecto `5000` ms). Python valida el encabezado en tiempo constante (`hmac.compare_digest`) contra `PYTHON_CLIENT_SECRET` y opcionalmente `PYTHON_CLIENT_SECRET_PREVIOUS`. Ausencia de Bearer devuelve `401 UNAUTHORIZED`; token inválido devuelve `403 FORBIDDEN`.
+- **Lectura transaccional de vistas en Python (`ViewsRepository`)**: Python conecta como `shareverance_python` y ejecuta cada lectura dentro de `BEGIN READ ONLY`, `SELECT set_config('shareverance.organization_id', $1, true)`, lectura de `analytics.v_monthly_coverage` y `analytics.v_monthly_expenses`, y `COMMIT` (o `ROLLBACK` en bloque de error antes de cerrar o devolver la conexión), garantizando que ninguna conexión conserve `shareverance.organization_id` fuera de la transacción.
+- **Armado de ventana histórica**: Python toma el tramo continuo más reciente de meses confirmados en `analytics.v_monthly_coverage` inmediatamente anterior a `target_month` (terminado en `target_month - 1`, recortado a un máximo de 60 meses). Para cada categoría con gastos dentro de ese tramo continuo, `available_from_month` es su primer mes con gasto en el tramo y los meses confirmados posteriores sin gasto se completan explícitamente con `amount_minor = 0`. Si `target_month - 1` no está confirmado en `v_monthly_coverage`, el historial continuo queda vacío y Python responde `200 OK` con `status: "INSUFFICIENT_HISTORY"`.
+
 ## Contrato interno objetivo (E3.2 y OCR)
 
-Propuesta de rutas distintas para no romper v1:
+Rutas internas de diseño (E3.2 implementa `POST /internal/v2/predictions/monthly`; analítica v2 y OCR permanecen pendientes):
 
-| Operación | Ruta de diseño | Cuerpo |
+| Operación | Ruta | Cuerpo |
 | --- | --- | --- |
-| Predicción con datos desde vistas | POST /internal/v2/predictions/monthly | contract_version, request_id, organization_id, target_month |
-| Analítica desde vistas | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
-| OCR | POST /internal/v1/ocr | contract_version, request_id, organization_id, receipt_id, storage_key |
+| Predicción con datos desde vistas (implementado en E3.2) | POST /internal/v2/predictions/monthly | contract_version (`"2"`), request_id, organization_id, target_month |
+| Analítica desde vistas (pendiente E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
+| OCR (pendiente E4.2) | POST /internal/v1/ocr | contract_version, request_id, organization_id, receipt_id, storage_key |
 
-Ejemplo predictivo:
+Ejemplo predictivo v2:
 
 ```json
 {"contract_version":"2","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":1,"target_month":"2026-11"}
 ```
 
-La autenticación técnica Java→Python es obligatoria; esquema concreto pendiente de selección, sin transmitir credenciales de usuario o de PostgreSQL en cuerpos. organization_id es el autorizado por Java. Python rechaza contexto ausente/inválido. storage_key se resuelve bajo raíz permitida y debe corresponder al comprobante y organización; no es una URL.
+La autenticación técnica Java→Python usa `Authorization: Bearer <PYTHON_CLIENT_SECRET>` (con soporte de rotación mediante `PYTHON_CLIENT_SECRET_PREVIOUS`), sin transmitir credenciales de usuario o de PostgreSQL en cuerpos. `organization_id` es el autorizado por Java. Python rechaza contexto ausente/inválido. `storage_key` se resuelve bajo raíz permitida y debe corresponder al comprobante y organización; no es una URL.
 
 ## API pública a completar
 

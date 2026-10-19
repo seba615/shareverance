@@ -11,16 +11,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.shareverance.dto.ClientCredentialsRequest;
 import com.shareverance.dto.LoginRequest;
-import com.shareverance.dto.ServiceTokenResponse;
 import com.shareverance.exception.BusinessRuleException;
-import com.shareverance.exception.OAuthTokenException;
 import com.shareverance.model.Category;
 import com.shareverance.model.Expense;
 import com.shareverance.model.MembershipRole;
@@ -38,10 +34,6 @@ import com.shareverance.service.AuthService;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private static final long TOKEN_LIFETIME_SECONDS = 3600;
-    private static final String ANALYTICS_READ_SCOPE = "analytics:read";
-    private static final String HISTORY_PATH_PATTERN = "/api/v1/expenses/organization/\\d+/history";
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserOrganizationRepository membershipRepository;
@@ -49,8 +41,6 @@ public class AuthServiceImpl implements AuthService {
     private final ExpenseRepository expenseRepository;
     private final CategoryRepository categoryRepository;
     private final SessionRepository sessionRepository;
-    private final String pythonClientId;
-    private final String pythonClientSecret;
     private final Map<String, AccessGrant> activeTokens = new ConcurrentHashMap<>();
 
     @Autowired
@@ -60,9 +50,7 @@ public class AuthServiceImpl implements AuthService {
                            OrganizationRepository organizationRepository,
                            ExpenseRepository expenseRepository,
                            CategoryRepository categoryRepository,
-                           SessionRepository sessionRepository,
-                           @Value("${security.clients.python-service.client-id:}") String pythonClientId,
-                           @Value("${security.clients.python-service.client-secret:}") String pythonClientSecret) {
+                           SessionRepository sessionRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.membershipRepository = membershipRepository;
@@ -70,16 +58,26 @@ public class AuthServiceImpl implements AuthService {
         this.expenseRepository = expenseRepository;
         this.categoryRepository = categoryRepository;
         this.sessionRepository = sessionRepository;
-        this.pythonClientId = pythonClientId;
-        this.pythonClientSecret = pythonClientSecret;
     }
 
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
-                           String pythonClientId,
-                           String pythonClientSecret) {
-        this(userRepository, passwordEncoder, null, null, null, null, null,
-                pythonClientId, pythonClientSecret);
+                           UserOrganizationRepository membershipRepository,
+                           OrganizationRepository organizationRepository,
+                           ExpenseRepository expenseRepository,
+                           CategoryRepository categoryRepository,
+                           SessionRepository sessionRepository,
+                           String ignoredClientId,
+                           String ignoredClientSecret) {
+        this(userRepository, passwordEncoder, membershipRepository, organizationRepository,
+                expenseRepository, categoryRepository, sessionRepository);
+    }
+
+    public AuthServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           String ignoredClientId,
+                           String ignoredClientSecret) {
+        this(userRepository, passwordEncoder, null, null, null, null, null);
     }
 
     @Override
@@ -114,7 +112,7 @@ public class AuthServiceImpl implements AuthService {
             sessionRepository.deleteExpired(Instant.now());
             sessionRepository.save(hashToken(generatedToken), user.getId(), expiresAt);
         }
-        activeTokens.put(generatedToken, new AccessGrant(expiresAtEpochMs, false, "", user.getId()));
+        activeTokens.put(generatedToken, new AccessGrant(expiresAtEpochMs, user.getId()));
 
         return new LoginResult(
                 generatedToken,
@@ -139,7 +137,7 @@ public class AuthServiceImpl implements AuthService {
         AccessGrant grant = activeTokens.get(token);
         Long userId;
         if (grant != null) {
-            userId = grant.serviceClient() || !validateToken(token) ? null : grant.userId();
+            userId = !validateToken(token) ? null : grant.userId();
         } else if (sessionRepository == null || token == null || token.isBlank()) {
             return null;
         } else {
@@ -165,39 +163,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public ServiceTokenResponse issueServiceToken(String grantType,
-                                                  ClientCredentialsRequest request,
-                                                  String requestedScope) {
-        if (!"client_credentials".equals(grantType)) {
-            throw new OAuthTokenException("unsupported_grant_type", 400);
-        }
-        if (request == null || request.clientId() == null || request.clientSecret() == null
-                || pythonClientId.isBlank() || pythonClientSecret.isBlank()
-                || !pythonClientId.equals(request.clientId())
-                || !MessageDigest.isEqual(
-                        pythonClientSecret.getBytes(StandardCharsets.UTF_8),
-                        request.clientSecret().getBytes(StandardCharsets.UTF_8))) {
-            throw new OAuthTokenException("invalid_client", 401);
-        }
-
-        String scope = requestedScope == null || requestedScope.isBlank()
-                ? ANALYTICS_READ_SCOPE
-                : requestedScope.trim();
-        if (!ANALYTICS_READ_SCOPE.equals(scope)) {
-            throw new OAuthTokenException("invalid_scope", 400);
-        }
-
-        long now = Instant.now().toEpochMilli();
-        activeTokens.entrySet().removeIf(entry -> entry.getValue().expiresAtEpochMs() <= now);
-        String accessToken = "svc_" + UUID.randomUUID().toString().replace("-", "")
-                + UUID.randomUUID().toString().replace("-", "");
-        long expiresAtEpochMs = now + TOKEN_LIFETIME_SECONDS * 1000;
-        activeTokens.put(accessToken, new AccessGrant(expiresAtEpochMs, true, scope, null));
-
-        return new ServiceTokenResponse(accessToken, "Bearer", TOKEN_LIFETIME_SECONDS, scope);
-    }
-
-    @Override
     public boolean validateToken(String token) {
         if (token == null || token.isBlank()) {
             return false;
@@ -210,10 +175,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (grant != null) {
-            return grant.serviceClient() || sessionRepository == null
+            return sessionRepository == null
                     || sessionRepository.findActiveUserId(hashToken(token), Instant.now()).isPresent();
         }
-        return sessionRepository != null && token != null
+        return sessionRepository != null
                 && sessionRepository.findActiveUserId(hashToken(token), Instant.now()).isPresent();
     }
 
@@ -226,11 +191,6 @@ public class AuthServiceImpl implements AuthService {
         }
         if (!validateToken(token)) {
             return false;
-        }
-        if (grant.serviceClient()) {
-            return ANALYTICS_READ_SCOPE.equals(grant.scope())
-                    && "GET".equalsIgnoreCase(method)
-                    && path.matches(HISTORY_PATH_PATTERN);
         }
         return authorizeUserRequest(grant.userId(), method, path);
     }
@@ -297,6 +257,10 @@ public class AuthServiceImpl implements AuthService {
                     (collection ? "GET".equalsIgnoreCase(method) :
                             "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method));
         }
+        if (path.matches("/api/v1/organizations/\\d+/predictions/monthly")) {
+            Long organizationId = Long.parseLong(path.split("/")[4]);
+            return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, organizationId);
+        }
         if (path.matches("/api/v1/organizations/\\d+")) {
             Long organizationId = lastId(path);
             if ("GET".equalsIgnoreCase(method)) {
@@ -336,7 +300,7 @@ public class AuthServiceImpl implements AuthService {
         if (path.matches("/api/v1/expenses/organization/\\d+")) {
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, lastId(path));
         }
-        if (path.matches("/api/v1/expenses/organization/\\d+/(history|page|calendar)")) {
+        if (path.matches("/api/v1/expenses/organization/\\d+/(page|calendar)")) {
             String[] pathParts = path.split("/");
             Long organizationId = Long.parseLong(pathParts[pathParts.length - 2]);
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, organizationId);
@@ -415,5 +379,5 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private record AccessGrant(long expiresAtEpochMs, boolean serviceClient, String scope, Long userId) {}
+    private record AccessGrant(long expiresAtEpochMs, Long userId) {}
 }
