@@ -235,4 +235,22 @@ class ExpenseServiceTest {
                 equalRequest("1.00",SplitMode.BETWEEN_TWO,java.util.List.of(2L))));
     }
 
+    @Test
+    void testOptimisticLockingConflictOnExpenseUpdate() {
+        var created = expenseService.createExpense(equalRequest("100.00", SplitMode.INDIVIDUAL, null));
+        assertEquals(1, created.expense().getVersion());
+
+        // Actualización con versión correcta debe incrementar la versión
+        var updated = expenseService.updateExpense(created.expense().getId(),
+                new com.shareverance.dto.ExpenseUpdateRequest(null, new BigDecimal("120.00"), null, "Actualizado", null, 1));
+        assertEquals(2, updated.expense().getVersion());
+        assertEquals(new BigDecimal("120.00"), updated.expense().getAmount());
+
+        // Intento concurrente con versión desactualizada (versión 1 cuando ya está en 2) debe lanzar 409 CONFLICT
+        var ex = assertThrows(org.springframework.web.server.ResponseStatusException.class, () ->
+                expenseService.updateExpense(created.expense().getId(),
+                        new com.shareverance.dto.ExpenseUpdateRequest(null, new BigDecimal("150.00"), null, "Conflicto", null, 1)));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Conflicto de concurrencia"));
+    }
 }

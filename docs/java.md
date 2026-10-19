@@ -62,3 +62,9 @@ Alta y edición validan importe positivo hasta 9.999.999.999,99 ARS, con hasta d
 Editar conserva los participantes históricos aunque luego se inactiven y no agrega miembros nuevos. Recalcula mediante el mismo algoritmo determinista; rechaza repartos vacíos o importes insuficientes. Se conservan las transacciones Spring de alta y edición y los repositorios JDBC; no cambia el esquema ni se incorpora versión optimista (E1.3).
 
 CUSTOM permanece como código preexistente del backend, fuera del alcance documentado del MVP y sin aceptación en esta entrega. No se agrega soporte, persistencia diferenciada ni recálculo proporcional para esa modalidad. Su presencia sigue siendo una brecha respecto del alcance; no se retira unilateralmente un modo del DTO compartido.
+
+## Implementación E1.3: versión optimista y último ADMIN
+
+Edición de gastos valida concurrencia mediante versión optimista. `expenses` cuenta con columna `version` (V6 Flyway, por defecto 1). Si la versión esperada provista en la solicitud no coincide con la almacenada, se interrumpe la transacción y se retorna HTTP 409 Conflict sin aplicar cambios parciales. El incremento de versión se ejecuta de forma condicional y atómica en el repositorio.
+
+Desactivación y revocación de rol ADMIN (`updateMemberRole` y `deactivateMembership`) se ejecutan transaccionalmente con bloqueo pesimista de fila (`FOR UPDATE`) sobre la membresía consultada y validan que la organización activa no quede sin al menos un ADMIN activo, impidiendo estados inconsistentes ante peticiones concurrentes.

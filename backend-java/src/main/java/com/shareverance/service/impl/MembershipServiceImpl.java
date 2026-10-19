@@ -88,20 +88,44 @@ public class MembershipServiceImpl implements MembershipService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public UserOrganization updateMemberRole(Long id, MembershipRole newRole) {
         if (newRole == null) {
             throw new BusinessRuleException("El nuevo rol no puede ser nulo");
         }
-        UserOrganization uo = requireActiveMembership(id);
+        UserOrganization uo = requireActiveMembershipForUpdate(id);
+        if (uo.getRole() == MembershipRole.ADMIN && newRole != MembershipRole.ADMIN) {
+            long activeAdmins = userOrganizationRepository.countActiveAdminsByOrganizationId(uo.getOrganizationId());
+            if (activeAdmins <= 1) {
+                throw new BusinessRuleException("No se puede revocar el rol al último ADMIN activo de la organización");
+            }
+        }
         uo.setRole(newRole);
         return userOrganizationRepository.save(uo);
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public UserOrganization deactivateMembership(Long id) {
-        UserOrganization uo = requireActiveMembership(id);
+        UserOrganization uo = requireActiveMembershipForUpdate(id);
+        if (uo.getRole() == MembershipRole.ADMIN) {
+            long activeAdmins = userOrganizationRepository.countActiveAdminsByOrganizationId(uo.getOrganizationId());
+            if (activeAdmins <= 1) {
+                throw new BusinessRuleException("No se puede desactivar al último ADMIN activo de la organización");
+            }
+        }
         uo.setIsActive(false);
         return userOrganizationRepository.save(uo);
+    }
+
+    private UserOrganization requireActiveMembershipForUpdate(Long id) {
+        UserOrganization membership = userOrganizationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membresía no encontrada con id: " + id));
+        requireActiveArsOrganization(membership.getOrganizationId());
+        if (!Boolean.TRUE.equals(membership.getIsActive())) {
+            throw new BusinessRuleException("La membresía está inactiva");
+        }
+        return membership;
     }
 
     private UserOrganization requireActiveMembership(Long id) {

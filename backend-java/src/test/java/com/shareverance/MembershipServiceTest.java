@@ -29,4 +29,23 @@ class MembershipServiceTest {
         assertThrows(BusinessRuleException.class, () ->
                 service.addMemberToOrganization(new MembershipRequest(3L, 1L, null)));
     }
+
+    @Test
+    void cannotDeactivateOrDemoteLastActiveAdmin() {
+        var memberships = new MockUserOrganizationRepository();
+        var users = new MockUserRepository();
+        var organizations = new MockOrganizationRepository();
+        var service = new MembershipServiceImpl(memberships, users, organizations);
+
+        // Org 1 tiene membership 1 (User 1, ADMIN) y membership 2 (User 2, USER)
+        var exDeactivate = assertThrows(BusinessRuleException.class, () -> service.deactivateMembership(1L));
+        org.junit.jupiter.api.Assertions.assertTrue(exDeactivate.getMessage().contains("último ADMIN activo"));
+
+        var exDemote = assertThrows(BusinessRuleException.class, () -> service.updateMemberRole(1L, com.shareverance.model.MembershipRole.USER));
+        org.junit.jupiter.api.Assertions.assertTrue(exDemote.getMessage().contains("último ADMIN activo"));
+
+        // Si agregamos un segundo ADMIN a Org 1, ahora sí se puede desactivar o cambiar de rol al primero
+        memberships.save(new com.shareverance.model.UserOrganization(null, 3L, 1L, com.shareverance.model.MembershipRole.ADMIN, java.time.LocalDateTime.now(), true));
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.updateMemberRole(1L, com.shareverance.model.MembershipRole.USER));
+    }
 }

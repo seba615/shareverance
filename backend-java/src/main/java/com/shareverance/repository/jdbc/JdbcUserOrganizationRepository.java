@@ -63,6 +63,26 @@ public class JdbcUserOrganizationRepository implements UserOrganizationRepositor
     }
 
     @Override
+    public Optional<UserOrganization> findByIdForUpdate(Long id) {
+        return jdbcTemplate.query("""
+                SELECT id, user_id, organization_id, role, joined_at, is_active
+                FROM user_organization
+                WHERE id = ?
+                FOR UPDATE
+                """, ROW_MAPPER, id).stream().findFirst();
+    }
+
+    @Override
+    public long countActiveAdminsByOrganizationId(Long organizationId) {
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM user_organization
+                WHERE organization_id = ? AND role = 'ADMIN' AND is_active = TRUE
+                """, Long.class, organizationId);
+        return count == null ? 0L : count;
+    }
+
+    @Override
     public Optional<UserOrganization> findByUserIdAndOrganizationId(Long userId, Long organizationId) {
         return jdbcTemplate.query("""
                 SELECT id, user_id, organization_id, role, joined_at, is_active
