@@ -60,6 +60,17 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.getExpensesByOrganization(organizationId));
     }
 
+    @GetMapping("/organization/{organizationId}/page")
+    public ResponseEntity<com.shareverance.dto.ExpensePageResponse> getPage(@PathVariable Long organizationId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = "ACTIVE") String state,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(expenseService.getExpensePage(organizationId,
+                new com.shareverance.dto.ExpenseFilter(fromDate, toDate, categoryId, state), page, size));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ExpenseDetailResponse> updateExpense(@PathVariable Long id, @RequestBody ExpenseUpdateRequest request) {
         return ResponseEntity.ok(expenseService.updateExpense(id, request));

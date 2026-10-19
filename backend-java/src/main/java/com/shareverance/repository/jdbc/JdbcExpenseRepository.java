@@ -124,6 +124,23 @@ public class JdbcExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public PageResult findPage(Long organizationId, com.shareverance.dto.ExpenseFilter filter, int page, int size) {
+        StringBuilder where = new StringBuilder(" FROM expenses WHERE organization_id = ?");
+        List<Object> args = new java.util.ArrayList<>();
+        args.add(organizationId);
+        if (filter.fromDate() != null) { where.append(" AND expense_date >= ?"); args.add(Date.valueOf(filter.fromDate())); }
+        if (filter.toDate() != null) { where.append(" AND expense_date <= ?"); args.add(Date.valueOf(filter.toDate())); }
+        if (filter.categoryId() != null) { where.append(" AND category_id = ?"); args.add(filter.categoryId()); }
+        if (!"ALL".equals(filter.state())) { where.append(" AND is_active = ?"); args.add("ACTIVE".equals(filter.state())); }
+        var totals = jdbcTemplate.queryForMap("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total" + where, args.toArray());
+        args.add(size);
+        args.add((long) page * size);
+        List<Expense> rows = jdbcTemplate.query("SELECT *" + where
+                + " ORDER BY expense_date DESC, id DESC LIMIT ? OFFSET ?", ROW_MAPPER, args.toArray());
+        return new PageResult(rows, ((Number) totals.get("count")).longValue(), (java.math.BigDecimal) totals.get("total"));
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM expenses WHERE id = ?)", Boolean.class, id));

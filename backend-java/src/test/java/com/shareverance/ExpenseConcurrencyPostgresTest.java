@@ -99,7 +99,7 @@ class ExpenseConcurrencyPostgresTest {
 
     long create() {
         return expenses.createExpense(new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal("1.00"),
-                LocalDate.now(),"Inicial",null,SplitMode.ALL_MEMBERS,null,null)).expense().getId();
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),"Inicial",null,SplitMode.ALL_MEMBERS,null,null)).expense().getId();
     }
     static void await(CountDownLatch latch) {
         try { assertTrue(latch.await(5, TimeUnit.SECONDS), "No se alcanzó el punto de sincronización"); }

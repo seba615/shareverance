@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
   ApiError,
   Category,
-  ExpenseDetailResponse,
   Organization,
   OrganizationType,
   SplitMode,
@@ -15,6 +14,7 @@ import {
   organizationApi,
 } from './api/java';
 
+import { ExpenseHistory } from './ExpenseHistory';
 import { createOrganizationLoader } from './organizationLoader';
 
 type AuthMode = 'login' | 'register';
@@ -51,12 +51,11 @@ export default function App() {
     organizationId: number;
     members: UserOrganization[];
     categories: Category[];
-    expenses: ExpenseDetailResponse[];
   } | null>(null);
   const activeData = organizationData?.organizationId === selectedOrganizationId ? organizationData : null;
   const members = activeData?.members ?? [];
   const categories = activeData?.categories ?? [];
-  const expenses = activeData?.expenses ?? [];
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [loadingOrgData, setLoadingOrgData] = useState(false);
 
   // Estados de formularios secundarios
@@ -70,8 +69,6 @@ export default function App() {
 
   const currentMembership = members.find(m => m.userId === user?.id && m.isActive);
   const isAdmin = currentMembership?.role === 'ADMIN';
-  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
-  const membershipMap = new Map(members.map(m => [m.id, m]));
 
   function getMemberLabel(m: UserOrganization): string {
     const isSelf = m.userId === user?.id;
@@ -81,14 +78,13 @@ export default function App() {
 
   const [organizationLoader] = useState(() => createOrganizationLoader({
     async fetchData(orgId: number) {
-      const [members, categories, expenses] = await Promise.all([
+      const [members, categories] = await Promise.all([
         membershipApi.listByOrganization(orgId),
         categoryApi.listByOrganization(orgId),
-        expenseApi.listByOrganization(orgId),
       ]);
-      return { members, categories, expenses };
+      return { members, categories };
     },
-    onData: (organizationId, data) => setOrganizationData({ organizationId, ...data }),
+    onData: (organizationId, data) => { setOrganizationData({ organizationId, ...data }); setHistoryRefresh(value => value + 1); },
     onError: cause => setError(messageFrom(cause)),
     onLoading: setLoadingOrgData,
   }));
@@ -543,7 +539,7 @@ export default function App() {
                   type="button"
                   onClick={() => { setActiveTab('expenses'); setError(''); }}
                 >
-                  Gastos ({expenses.length})
+                  Gastos
                 </button>
                 <button
                   className={`tab-btn${activeTab === 'members' ? ' active' : ''}`}
@@ -677,51 +673,8 @@ export default function App() {
                       </form>
                     )}
 
-                    {expenses.length === 0 ? (
-                      <p className="muted">No hay gastos registrados en esta organización.</p>
-                    ) : (
-                      <div className="table-wrapper">
-                        <table className="data-table">
-                          <thead>
-                            <tr>
-                              <th>Fecha</th>
-                              <th>Descripción</th>
-                              <th>Categoría</th>
-                              <th>Importe</th>
-                              <th>Modalidad</th>
-                              <th>Partes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {expenses.map(({ expense, splits }) => (
-                              <tr key={expense.id}>
-                                <td>{expense.expenseDate}</td>
-                                <td><strong>{expense.description}</strong></td>
-                                <td>
-                                  <span className="badge">
-                                    {categoryMap.get(expense.categoryId) ?? `Cat #${expense.categoryId}`}
-                                  </span>
-                                </td>
-                                <td>${expense.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                                <td>{expense.splitType}</td>
-                                <td>
-                                  <span
-                                    className="muted"
-                                    title={splits.map(s => {
-                                      const member = membershipMap.get(s.userOrganizationId);
-                                      const label = member ? getMemberLabel(member) : `M #${s.userOrganizationId}`;
-                                      return `${label}: $${s.amount.toFixed(2)}`;
-                                    }).join(', ')}
-                                  >
-                                    {splits.length} participante(s)
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    <ExpenseHistory key={selectedOrganization.id} organizationId={selectedOrganization.id}
+                      userId={user.id} isAdmin={isAdmin} members={members} categories={categories} refreshToken={historyRefresh} />
                   </div>
                 )}
 

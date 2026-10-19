@@ -54,7 +54,7 @@ class ExpenseServiceTest {
                 1L, // Paid by member 1
                 1L, // Category 1
                 new BigDecimal("100.00"),
-                LocalDate.now(),
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Factura de luz",
                 null,
                 SplitMode.ALL_MEMBERS,
@@ -80,7 +80,7 @@ class ExpenseServiceTest {
                 1L,
                 1L,
                 new BigDecimal("500.00"),
-                LocalDate.now(),
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Gasto individual",
                 null,
                 SplitMode.INDIVIDUAL,
@@ -105,7 +105,7 @@ class ExpenseServiceTest {
                 1L, // Pagado por miembro 1 (que corresponde al user 1)
                 1L,
                 new BigDecimal("200.00"),
-                LocalDate.now(),
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Intento no autorizado",
                 null,
                 SplitMode.INDIVIDUAL,
@@ -172,7 +172,7 @@ class ExpenseServiceTest {
                 1L,
                 1L,
                 new BigDecimal("12.00"),
-                LocalDate.now(),
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Prueba",
                 null,
                 SplitMode.INDIVIDUAL,
@@ -181,7 +181,7 @@ class ExpenseServiceTest {
         );
     }
     private ExpenseCreateRequest equalRequest(String amount, SplitMode mode, java.util.List<Long> ids) {
-        return new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal(amount),LocalDate.now(),
+        return new ExpenseCreateRequest(1L,1L,1L,1L,new BigDecimal(amount),LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
                 "Prueba reparto",null,mode,ids,null);
     }
 

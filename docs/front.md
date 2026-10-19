@@ -9,7 +9,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. ARS es la única moneda: no se ofrece un campo de selección y el cliente envía `ARS` al crear una organización.
 
-E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. No se implementaron edición de categorías, edición/anulación de gastos, detalle completo, filtros/paginación, calendario ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
+E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. No se implementaron edición de categorías, calendario ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
 
 ## Navegación y vistas requeridas
 
@@ -52,3 +52,9 @@ Preservar registro/login/recarga/logout y creación/selección. Recorrido manual
 ## Comprobación automatizada de selección
 
 `frontend/tests/organizationLoader.test.mjs`, mediante `npm test` en Node 24, ejercita el cargador real utilizado por App con respuestas controladas fuera de orden, errores tardíos, recargas, A→B→A y descarte tras cierre/desmontaje. No instala bibliotecas de pruebas adicionales. El build TypeScript/Vite comprueba la integración de tipos. El recorrido visual y la autorización integral con backend quedan pendientes de aceptación.
+
+## Historial, detalle y operaciones E2.2
+
+`ExpenseHistory.tsx` consulta la ruta paginada; la carga inicial de la organización deja de descargar todos los gastos. Permite desde/hasta inclusivos, categoría (incluidas inactivas históricas), estado vigente/anulado/todos y tamaños 10/20/50. Cambiar filtros reinicia la página y descarta respuestas previas. El total representa todos los gastos filtrados. Una organización nueva monta una instancia independiente; respuestas de detalles, páginas y operaciones anteriores se descartan al desmontar.
+
+El detalle muestra fecha, categoría, importe, autor, titular, estado, versión y todas las partes como participación, no deuda. No convierte receiptUrl en enlace público: el servicio de comprobantes privados sigue pendiente. Autor o ADMIN ven edición/anulación sólo para gastos vigentes. La edición conserva titular y participantes y puede conservar su categoría inactiva; solicita importe/fecha/descripción/categoría y envía la versión consultada. Ante 409 conserva el formulario local, bloquea el reenvío y ofrece recargar explícitamente. Anulación requiere confirmación y refresca el historial, sin reactivación. Los controles de la UI no sustituyen permisos Java.
