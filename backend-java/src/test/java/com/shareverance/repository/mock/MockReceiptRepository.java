@@ -66,11 +66,15 @@ public class MockReceiptRepository implements ReceiptRepository {
     }
 
     @Override
-    public void updateExpenseId(String receiptId, Long expenseId) {
+    public synchronized boolean updateExpenseId(String receiptId, Long expenseId, Long organizationId) {
         Receipt receipt = store.get(receiptId);
-        if (receipt != null) {
+        if (receipt != null && organizationId.equals(receipt.getOrganizationId())
+                && Boolean.TRUE.equals(receipt.getIsActive())
+                && (receipt.getExpenseId() == null || expenseId.equals(receipt.getExpenseId()))) {
             receipt.setExpenseId(expenseId);
+            return true;
         }
+        return false;
     }
 
     @Override

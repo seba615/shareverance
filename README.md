@@ -200,7 +200,7 @@ Se muestran campos principales, no todas las columnas técnicas. El modelo compl
 
 ## Operación y desarrollo
 
-Las instrucciones siguientes corresponden al entorno existente. Sus credenciales Python→Java permanecen necesarias hasta completar la migración a vistas. El volumen de comprobantes y las credenciales SQL Python de lectura deben agregarse durante esa implementación; no basta editar este README. El diagnóstico confirma infraestructura, no reglas de negocio ni seguridad.
+Compose configura credenciales SQL propias de lectura para Python y el volumen privado `receipts_data` (Java lectura/escritura, Python sólo lectura). Java almacena comprobantes mediante la API documentada en [contratos_api.md](docs/contratos_api.md); V8 incorpora sus metadatos y V9 protege la pertenencia del gasto a la misma organización. La vinculación con el formulario de gastos y el motor OCR siguen pendientes. El diagnóstico confirma infraestructura, no reglas de negocio ni seguridad.
 
 ## 1. Acceder directamente a los servicios
 

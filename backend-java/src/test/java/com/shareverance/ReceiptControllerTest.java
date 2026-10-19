@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -121,7 +123,11 @@ class ReceiptControllerTest {
         mockMvc.perform(get("/api/v1/organizations/1/receipts/rcpt-123")
                         .header("Authorization", "Bearer " + validToken))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", "inline; filename=\"ticket.png\""))
+                .andExpect(result -> {
+                    var disposition = ContentDisposition.parse(result.getResponse().getHeader("Content-Disposition"));
+                    assertEquals("inline", disposition.getType());
+                    assertEquals("ticket.png", disposition.getFilename());
+                })
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(header().string("Content-Length", "3"))
                 .andExpect(content().bytes(content));

@@ -269,3 +269,20 @@ Verificado E4.1:
 - Pruebas de Python: `uv run pytest` con 44 pruebas ejecutadas sin regresiones.
 - Validación de sintaxis Compose: `docker compose --env-file .env.example -f compose.yaml config --quiet` exitoso.
 - Verificación con `git diff --check` y enlaces Markdown locales. No se utilizaron ni alteraron la base ni los volúmenes de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Correcciones E4.1 del PR #42 — issue #43, 19/10/2026
+
+La revisión de `a24a8ab` detectó asociaciones comprobante/gasto entre organizaciones distintas, validación de píxeles posterior a la decodificación, seguimiento de enlaces simbólicos y archivos sin compensación ante fallo SQL. La suite completa revisada produjo 99 pruebas con un fallo y un error (conteo fijo de migraciones y gasto inexistente en el fixture), por lo que la afirmación anterior de 99 aprobadas no acredita esa ejecución con PostgreSQL.
+
+Implementado en la misma rama del PR #42:
+
+- V9 añade la FK compuesta organización/gasto; V8 publicada permanece intacta. Una asociación cruzada existente detiene y revierte V9 sin descartar datos. No se aplicó en desarrollo.
+- Asociación interna con autorización y UPDATE condicional para evitar sobreescrituras concurrentes. No se añade una ruta pública ni se integra todavía el vínculo al formulario de gastos.
+- Dimensiones leídas antes de decodificar, lectura acotada de bytes, nombre validado antes de escribir y cabecera de descarga codificada en UTF-8.
+- Rechazo de enlaces simbólicos en componentes y archivo final, con nueva comprobación al abrir la descarga. El volumen sigue bajo control de Java con Python en sólo lectura.
+- Compensación del archivo creado ante fallo SQL o rollback externo; fallos de limpieza registrados. La caída abrupta del proceso y la política de limpieza de temporales siguen requiriendo tratamiento operativo, sin purga automática.
+- Fixtures de gastos reales, comprobación de migraciones pendientes y regresiones de concurrencia, migración incremental V8→V9, permisos del rol Java, almacenamiento y límites de imagen.
+
+Seguimiento: issue #43 creado con la cuenta autenticada `chelofabian`, asignado a esa cuenta y vinculado al proyecto 3. Sin cambios de estado ni cierre. Revisión remota previa a la entrega: sólo PR #42 abierto, `origin/main` en `8312e65` y sin otra V9 en ramas remotas.
+
+Verificado: `mvn --batch-mode --no-transfer-progress clean test` en Docker Maven 3.9.11/Java 21 con PostgreSQL 17.11 y bases temporales vacías `shareverance_e12_equal_test_pr42_final` y `_analytics`: 111 pruebas aprobadas, cero fallos, errores u omisiones. `mvn --batch-mode --no-transfer-progress -Dtest=ReceiptServiceTest,ReceiptSafetyTest,ReceiptControllerTest -DargLine=-Xmx64m test`: 28 aprobadas, cero fallos/errores/omisiones, incluido PNG válido de 100 MP rechazado antes de decodificar. Compose (`docker compose --env-file .env.example -f compose.yaml config --quiet`), enlaces Markdown locales y `git diff --check`: correctos. Python no fue modificado ni reejecutado en esta corrección. No se alteraron datos ni volúmenes de desarrollo; aceptación y cierre manuales.

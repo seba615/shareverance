@@ -109,9 +109,13 @@ public class JdbcReceiptRepository implements ReceiptRepository {
     }
 
     @Override
-    public void updateExpenseId(String receiptId, Long expenseId) {
-        String sql = "UPDATE receipts SET expense_id = ? WHERE id = ?";
-        jdbcTemplate.update(sql, expenseId, receiptId);
+    public boolean updateExpenseId(String receiptId, Long expenseId, Long organizationId) {
+        return jdbcTemplate.update("""
+                UPDATE receipts r SET expense_id = e.id FROM expenses e
+                WHERE r.id = ? AND r.organization_id = ? AND r.is_active = TRUE
+                  AND e.id = ? AND e.organization_id = r.organization_id AND e.is_active = TRUE
+                  AND (r.expense_id IS NULL OR r.expense_id = e.id)
+                """, receiptId, organizationId, expenseId) == 1;
     }
 
     @Override

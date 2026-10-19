@@ -99,7 +99,8 @@ class AnalyticsViewsPostgresTest {
         assertEquals("Prueba 11",owner.queryForObject("SELECT description FROM expenses WHERE id=11",String.class));
         assertEquals(new BigDecimal("10.01"),owner.queryForObject("SELECT amount FROM expenses WHERE id=11",BigDecimal.class));
         assertEquals(0,owner.queryForObject("SELECT count(*) FROM analytics_month_coverage",Integer.class));
-        assertEquals(6,owner.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(0,Flyway.configure().dataSource(new DriverManagerDataSource(url,"e12","e12-local-test"))
+                .locations("classpath:db/migration").load().info().pending().length);
     }
 
     @Test void amountsAndParticipationsReconcileIncludingInactiveHistoricalMembers() throws Exception {

@@ -8,6 +8,8 @@ import com.shareverance.model.Receipt;
 import com.shareverance.model.User;
 import com.shareverance.model.UserOrganization;
 import com.shareverance.repository.mock.MockReceiptRepository;
+import com.shareverance.repository.ExpenseRepository;
+import com.shareverance.model.Expense;
 import com.shareverance.service.AuthService;
 import com.shareverance.service.impl.ReceiptServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,7 @@ class ReceiptServiceTest {
 
     private MockReceiptRepository receiptRepository;
     private AuthService authService;
+    private ExpenseRepository expenseRepository;
     private ReceiptServiceImpl receiptService;
 
     @TempDir
@@ -52,8 +55,15 @@ class ReceiptServiceTest {
     void setUp() throws IOException {
         receiptRepository = new MockReceiptRepository();
         authService = Mockito.mock(AuthService.class);
+        expenseRepository = Mockito.mock(ExpenseRepository.class);
+        for (long id : new long[]{50, 100, 200}) {
+            Expense expense = new Expense();
+            expense.setId(id); expense.setOrganizationId(10L); expense.setIsActive(true);
+            when(expenseRepository.findById(id)).thenReturn(java.util.Optional.of(expense));
+        }
         receiptService = new ReceiptServiceImpl(
                 receiptRepository,
+                expenseRepository,
                 authService,
                 tempStorageDir.toString(),
                 10 * 1024 * 1024,

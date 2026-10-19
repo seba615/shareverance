@@ -114,3 +114,9 @@ Se incorpora la infraestructura y los endpoints para el almacenamiento privado y
   - `GET /api/v1/organizations/{organizationId}/receipts/{receiptId}/metadata`: metadatos del comprobante.
   - `GET /api/v1/organizations/{organizationId}/receipts`: listado de comprobantes activos visibles para el usuario autenticado.
 - `AuthServiceImpl`: autorización de rutas `/api/v1/organizations/{id}/receipts/**` para miembros activos de la organización.
+
+Correcciones de aislamiento E4.1: V9 añade la FK `(organization_id, expense_id)` hacia `expenses` sin modificar V8. La asociación interna exige membresía activa, gasto activo de la misma organización y permiso del propietario de la carga o ADMIN; un UPDATE condicional impide sobrescribir otra asociación concurrente. Esta operación todavía no está integrada al alta/edición de gastos ni expuesta mediante una ruta pública.
+
+La carga limita los bytes realmente leídos, consulta dimensiones con `ImageReader` antes de decodificar y valida el nombre original (hasta 255 caracteres, sin controles) antes de escribir. Se rechazan enlaces simbólicos en los componentes del almacenamiento y se vuelve a validar al abrir la descarga, con `NOFOLLOW_LINKS` sobre el archivo final. El volumen debe permanecer bajo control de Java; Python conserva sólo lectura.
+
+El archivo UUID creado por una carga se elimina si falla el guardado SQL o si la transacción termina en rollback. Esto es compensación entre disco y SQL, no una transacción distribuida: una caída del proceso o un fallo al eliminar requiere revisión operativa. Los fallos de limpieza se registran sin exponer rutas al cliente; no se habilita una purga automática. `Content-Disposition` se construye con codificación UTF-8 del nombre.

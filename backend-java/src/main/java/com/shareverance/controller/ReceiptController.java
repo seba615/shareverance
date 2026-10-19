@@ -7,6 +7,7 @@ import com.shareverance.service.ReceiptService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -77,7 +78,8 @@ public class ReceiptController {
         Resource resource = receiptService.loadReceiptFile(organizationId, receiptId, userId);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + metadata.originalFilename() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(metadata.originalFilename(), java.nio.charset.StandardCharsets.UTF_8).build().toString())
                 .contentType(MediaType.parseMediaType(metadata.contentType()))
                 .contentLength(metadata.fileSizeBytes())
                 .body(resource);

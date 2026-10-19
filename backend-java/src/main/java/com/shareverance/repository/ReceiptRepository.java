@@ -11,6 +11,6 @@ public interface ReceiptRepository {
     Optional<Receipt> findByIdAndOrganizationId(String id, Long organizationId);
     List<Receipt> findByOrganizationId(Long organizationId);
     Optional<Receipt> findByExpenseId(Long expenseId);
-    void updateExpenseId(String receiptId, Long expenseId);
+    boolean updateExpenseId(String receiptId, Long expenseId, Long organizationId);
     void deactivateById(String id);
 }

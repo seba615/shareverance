@@ -177,15 +177,15 @@ Ejemplo de respuesta de subida (`201 CREATED`):
 
 Códigos de respuesta de comprobantes:
 * `201 CREATED`: comprobante almacenado correctamente en el volumen privado y registrado en base de datos.
-* `400 BAD REQUEST`: archivo vacío, imagen corrupta o dimensiones superiores a 50 megapíxeles.
+* `400 BAD REQUEST`: archivo vacío, imagen corrupta, dimensiones superiores a 50 megapíxeles o nombre original vacío, mayor a 255 caracteres o con controles.
 * `401 UNAUTHORIZED`: falta sesión válida o CSRF en mutación.
 * `403 FORBIDDEN`: el usuario no pertenece a la organización o no tiene permiso sobre un comprobante temporal ajeno.
-* `404 NOT FOUND`: comprobante inexistente o perteneciente a otra organización.
+* `404 NOT FOUND`: comprobante inexistente, perteneciente a otra organización o archivo no disponible por ruta insegura/enlace simbólico.
 * `413 PAYLOAD TOO LARGE`: archivo supera el límite de 10 MiB.
 * `415 UNSUPPORTED MEDIA TYPE`: el archivo no es JPEG ni PNG (validado por magic bytes).
 * `409 CONFLICT`: el comprobante ya se encuentra vinculado a otro gasto activo.
 
-El alta de gasto mantiene su ruta existente y puede recibir `receiptUrl` con la referencia al comprobante almacenado. La llamada interna OCR (E4.2) se integrará sobre `POST /internal/v1/ocr`.
+La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. El alta de gasto mantiene el campo `receiptUrl` preexistente, pero todavía no ejecuta la asociación interna de `receipts`: no basta enviar esa cadena para vincular el comprobante. El servicio interno de asociación exige un gasto activo de la misma organización y evita reemplazar vínculos concurrentes; su integración pública queda pendiente. El 409 corresponde a esa operación interna, sin endpoint público nuevo. La llamada interna OCR (E4.2) se integrará sobre `POST /internal/v1/ocr`.
 
 ## Resultados analíticos y predictivos
 
