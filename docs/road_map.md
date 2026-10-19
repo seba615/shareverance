@@ -162,3 +162,11 @@ Verificado:
 - Build de frontend: `docker compose -f compose.yaml -f compose.tools.yaml build frontend` completó `tsc --noEmit` y el build de Vite limpiamente sin errores de tipado ni advertencias de compilación.
 - Verificación de formato y sintaxis con `git diff --check`.
 - La entrega se identifica mediante el commit en la rama `feat/e2-1-miembros-categorias-carga-gastos`. Aceptación, merge y cierre de issue/tablero permanecen exclusivamente manuales conforme a `AGENTS.md`.
+
+### Ajustes del PR #32 — selección de organización y contratos, 19/10/2026
+
+Relacionado con #21 y PR #32. Rama publicada `feat/e2-1-miembros-categorias-carga-gastos`, base de estos ajustes `bed3405`. La cuenta autenticada es chelofabian; #21 conserva su asignación observada a seba615, sin cambios de estados ni reasignaciones. No se crea tarea duplicada ni se modifica historial publicado.
+
+Implementado: invalidación inmediata de solicitudes al cambiar de organización, datos etiquetados por organización, descarte de datos/errores/loading tardíos y protección de recargas posteriores a una escritura de una selección anterior. Se reinician pestaña, formularios y reparto; cierre de sesión/desmontaje invalida las respuestas. Se preservan las funciones existentes de E2.1 y no se modifican rutas ni código Java. README, alcance, frontend, Java y contratos documentan las rutas de miembros/reactivación, campos de presentación, compatibilidad por userId, email y roles, y límites de la entrega.
+
+Verificado: `npm test` en Node 24.21.0 dentro de Docker, siete pruebas aprobadas, cero fallos ni omisiones; casos de respuesta de A antes/después de B, errores tardíos, A→B→A, última recarga de la misma organización, logout/desmontaje y descarte de una recarga posterior a escritura en una selección antigua. Se ejecuta el cargador utilizado por App mediante promesas controladas, sin instalar dependencias de pruebas adicionales. `docker compose -f compose.yaml -f compose.tools.yaml build frontend` completó TypeScript y Vite correctamente. `git diff --check` y enlaces Markdown locales correctos. La evidencia de backend de la implementación anterior se mantiene separada: no se volvió a ejecutar Maven ni se probaron flujos completos en navegador en estos ajustes. No se alteraron base de datos ni migraciones. Aceptación e integración manuales.

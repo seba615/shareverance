@@ -15,8 +15,8 @@ Shareverance registra y distribuye gastos de hogares, consorcios y universidades
 | --- | --- | --- |
 | Registro, login, restauración y cierre de sesión | Acceso | Código existente |
 | Crear, listar y seleccionar organizaciones | Mis organizaciones | Java acepta solo ARS y lista organizaciones activas de membresías activas; aceptación integral pendiente |
-| Administrar miembros y categorías | Miembros / Categorías | API existente; completar reglas y vistas |
-| Cargar, editar y anular gastos | Formulario / Detalle | API existente; completar consistencia y frontend |
+| Administrar miembros y categorías | Miembros / Categorías | E2.1 incorpora vistas de miembros y alta/desactivación de categorías; edición de categorías y aceptación integral pendientes |
+| Cargar, editar y anular gastos | Formulario / Detalle | E2.1 incorpora alta manual/listado; edición/anulación y aceptación integral pendientes |
 | Consultar por período, categoría y estado | Historial paginado | Listado API existente; filtros y paginación pendientes |
 | Consultar gastos por fecha | Calendario | Pendiente |
 | Precargar fecha, importe y descripción | Carga con comprobante | OCR y almacenamiento pendientes |
@@ -29,7 +29,7 @@ Quedan fuera fondos comunes, aportes de caja, pagos parciales, compensaciones, l
 ## Organizaciones y miembros
 
 - ARS es la única moneda. El calendario del servidor utiliza `America/Argentina/Buenos_Aires`; no requiere columna timezone por organización.
-- El creador de una organización obtiene ADMIN. El ADMIN incorpora usuarios existentes mediante email exacto, sin habilitar un directorio global de personas.
+- El creador de una organización obtiene ADMIN. El ADMIN incorpora usuarios existentes mediante email exacto, sin habilitar un directorio global de personas. Una membresía desactivada puede reincorporarse conservando su ID e historial, o reactivarse desde la administración de miembros; requiere cuenta y organización activas. Esta reactivación de membresía no permite reactivar gastos anulados.
 - Solo ADMIN administra miembros, roles, configuración y categorías. Ninguna operación puede dejar a una organización activa sin ADMIN activo.
 - Usuarios, membresías y organizaciones inactivos no pueden operar. Desactivar preserva los registros históricos.
 - Las categorías inactivas no se eligen en altas nuevas, pero conservan nombre y asociación histórica.

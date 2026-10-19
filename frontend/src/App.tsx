@@ -15,6 +15,8 @@ import {
   organizationApi,
 } from './api/java';
 
+import { createOrganizationLoader } from './organizationLoader';
+
 type AuthMode = 'login' | 'register';
 type OrgTab = 'expenses' | 'members' | 'categories';
 
@@ -45,9 +47,16 @@ export default function App() {
 
   // Estados de datos de la organización activa
   const [activeTab, setActiveTab] = useState<OrgTab>('expenses');
-  const [members, setMembers] = useState<UserOrganization[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseDetailResponse[]>([]);
+  const [organizationData, setOrganizationData] = useState<{
+    organizationId: number;
+    members: UserOrganization[];
+    categories: Category[];
+    expenses: ExpenseDetailResponse[];
+  } | null>(null);
+  const activeData = organizationData?.organizationId === selectedOrganizationId ? organizationData : null;
+  const members = activeData?.members ?? [];
+  const categories = activeData?.categories ?? [];
+  const expenses = activeData?.expenses ?? [];
   const [loadingOrgData, setLoadingOrgData] = useState(false);
 
   // Estados de formularios secundarios
@@ -70,40 +79,47 @@ export default function App() {
     return `${name}${isSelf ? ' (Vos)' : ''}`;
   }
 
-  async function loadOrganizationData(orgId: number) {
-    setLoadingOrgData(true);
-    try {
-      const [membersData, categoriesData, expensesData] = await Promise.all([
+  const [organizationLoader] = useState(() => createOrganizationLoader({
+    async fetchData(orgId: number) {
+      const [members, categories, expenses] = await Promise.all([
         membershipApi.listByOrganization(orgId),
         categoryApi.listByOrganization(orgId),
         expenseApi.listByOrganization(orgId),
       ]);
-      setMembers(membersData);
-      setCategories(categoriesData);
-      setExpenses(expensesData);
-    } catch (cause) {
-      setError(messageFrom(cause));
-    } finally {
-      setLoadingOrgData(false);
-    }
+      return { members, categories, expenses };
+    },
+    onData: (organizationId, data) => setOrganizationData({ organizationId, ...data }),
+    onError: cause => setError(messageFrom(cause)),
+    onLoading: setLoadingOrgData,
+  }));
+  const loadOrganizationData = organizationLoader.load;
+
+  function selectOrganization(organizationId: number | null) {
+    if (organizationId === selectedOrganizationId) return;
+    // Invalidar inmediatamente: no esperar al siguiente efecto de React.
+    organizationLoader.select(organizationId);
+    setSelectedOrganizationId(organizationId);
+    setOrganizationData(null);
+    setLoadingOrgData(organizationId !== null);
+    setError('');
+    setShowAddMember(false);
+    setShowAddCategory(false);
+    setShowAddExpense(false);
+    setSelectedMemberIds([]);
+    setSplitMode('INDIVIDUAL');
+    setActiveTab('expenses');
   }
 
   useEffect(() => {
-    if (selectedOrganizationId) {
-      setShowAddMember(false);
-      setShowAddCategory(false);
-      setShowAddExpense(false);
-      void loadOrganizationData(selectedOrganizationId);
-    } else {
-      setMembers([]);
-      setCategories([]);
-      setExpenses([]);
-    }
-  }, [selectedOrganizationId]);
+    organizationLoader.select(selectedOrganizationId);
+    if (selectedOrganizationId !== null) void loadOrganizationData(selectedOrganizationId);
+    return () => organizationLoader.select(null);
+  }, [selectedOrganizationId, organizationLoader]);
 
   async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     const form = new FormData(event.currentTarget);
@@ -111,10 +127,11 @@ export default function App() {
     const role = (String(form.get('role') ?? 'USER')) as 'ADMIN' | 'USER';
     try {
       await membershipApi.addMember({ organizationId: selectedOrganizationId, email, role });
+      if (!isCurrentOrganization()) return;
       setShowAddMember(false);
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -122,14 +139,16 @@ export default function App() {
 
   async function handleToggleRole(m: UserOrganization) {
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     const newRole = m.role === 'ADMIN' ? 'USER' : 'ADMIN';
     try {
       await membershipApi.updateRole(m.id, newRole);
+      if (!isCurrentOrganization()) return;
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -137,13 +156,15 @@ export default function App() {
 
   async function handleDeactivateMember(memberId: number) {
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     try {
       await membershipApi.deactivate(memberId);
+      if (!isCurrentOrganization()) return;
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -151,13 +172,15 @@ export default function App() {
 
   async function handleReactivateMember(memberId: number) {
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     try {
       await membershipApi.reactivate(memberId);
+      if (!isCurrentOrganization()) return;
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -166,6 +189,7 @@ export default function App() {
   async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     const form = new FormData(event.currentTarget);
@@ -173,10 +197,11 @@ export default function App() {
     const description = String(form.get('description') ?? '').trim() || undefined;
     try {
       await categoryApi.create(selectedOrganizationId, { name, description });
+      if (!isCurrentOrganization()) return;
       setShowAddCategory(false);
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -184,13 +209,15 @@ export default function App() {
 
   async function handleDeactivateCategory(categoryId: number) {
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     try {
       await categoryApi.deactivate(categoryId);
+      if (!isCurrentOrganization()) return;
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -199,6 +226,7 @@ export default function App() {
   async function handleCreateExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedOrganizationId) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
     const form = new FormData(event.currentTarget);
@@ -221,11 +249,12 @@ export default function App() {
         splitMode,
         splitMemberIds: splitMode === 'SPECIFIC_GROUP' ? selectedMemberIds : undefined,
       });
+      if (!isCurrentOrganization()) return;
       setShowAddExpense(false);
       setSelectedMemberIds([]);
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
-      setError(messageFrom(cause));
+      if (isCurrentOrganization()) setError(messageFrom(cause));
     } finally {
       setBusy(false);
     }
@@ -242,7 +271,7 @@ export default function App() {
         if (mounted) {
           setUser(restoredUser);
           setOrganizations(memberships);
-          setSelectedOrganizationId(memberships[0]?.id ?? null);
+          selectOrganization(memberships[0]?.id ?? null);
         }
       } catch (cause) {
         if (mounted && !(cause instanceof ApiError && cause.status === 401)) {
@@ -282,7 +311,7 @@ export default function App() {
       const memberships = await organizationApi.list();
       setUser(currentUser);
       setOrganizations(memberships);
-      setSelectedOrganizationId(memberships[0]?.id ?? null);
+      selectOrganization(memberships[0]?.id ?? null);
     } catch (cause) {
       setError(messageFrom(cause));
     } finally {
@@ -303,7 +332,7 @@ export default function App() {
         currency: 'ARS',
       });
       setOrganizations((current) => [...current, organization]);
-      setSelectedOrganizationId(organization.id);
+      selectOrganization(organization.id);
       setCreatingOrganization(false);
     } catch (cause) {
       setError(messageFrom(cause));
@@ -319,7 +348,7 @@ export default function App() {
       await authApi.logout();
       setUser(null);
       setOrganizations([]);
-      setSelectedOrganizationId(null);
+      selectOrganization(null);
       setAuthMode('login');
     } catch (cause) {
       setError(messageFrom(cause));
@@ -482,7 +511,7 @@ export default function App() {
                 className={`organization-card${organization.id === selectedOrganizationId ? ' selected' : ''}`}
                 key={organization.id}
                 type="button"
-                onClick={() => setSelectedOrganizationId(organization.id)}
+                onClick={() => selectOrganization(organization.id)}
                 aria-pressed={organization.id === selectedOrganizationId}
               >
                 <span className="organization-icon" aria-hidden="true">
