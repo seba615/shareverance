@@ -23,7 +23,7 @@ Extraer únicamente fecha, importe ARS y descripción. No proveedor, razón soci
 
 ## Volumen y validación
 
-Un volumen persistente compartido de Compose montado en `/data/receipts`: Java lectura/escritura, Python solo lectura. Configuración pendiente de incorporar. Una imagen hasta 10 MiB; JPEG/PNG válidos por decodificación y contenido, no solo extensión. El límite de píxeles se debe fijar antes de habilitar carga. Rechazar enlaces simbólicos o referencias que permitan escapar del directorio y evitar acceso a archivos de otra organización. No aceptar nombres de archivo aportados como rutas.
+Un volumen persistente compartido de Compose (`receipts_data`) montado en `/data/receipts`: Java lectura/escritura, Python solo lectura (incorporado en E4.1). Una imagen hasta 10 MiB; JPEG/PNG válidos por decodificación y contenido, no solo extensión. Java comprueba el límite de 50 megapíxeles leyendo dimensiones antes de decodificar y limita los bytes realmente leídos. Rechaza enlaces simbólicos en los componentes de la ruta y referencias fuera del directorio de la organización; revalida al abrir la descarga. No acepta nombres de archivo aportados como rutas. Esta infraestructura no implementa todavía el motor OCR ni su integración.
 
 El servidor conserva referencia y organización; la ruta relativa incluye un identificador generado y no datos personales. No permitir que el front invoque Python o elija rutas. Un contenedor recreado no debe borrar imágenes.
 

@@ -241,3 +241,48 @@ Verificado E3.2:
 - Servicio Python (`pytest` con Python 3.13.16 y PostgreSQL 17.11 temporal con rol `shareverance_python`): 44 pruebas aprobadas, 0 fallos, 0 omitidas (`test_prediction_service.py`, `test_predictions_api.py`, `test_validation.py`, `test_views_repository.py`), verificando autenticación Bearer (`401`/`403`/`200`), rotación de secreto (`PYTHON_CLIENT_SECRET_PREVIOUS`), retiro del GET de callback (`404`), armado de serie continua con ceros explícitos y limpieza efectiva de `shareverance.organization_id` tras `COMMIT`/`ROLLBACK` en PostgreSQL real.
 - Backend Java (`mvn -B test` en Maven 3.9.11/Java 21 con PostgreSQL 17.11 temporal en `shareverance_e12_equal_test` y `shareverance_e12_equal_test_e31_analytics`): 76 pruebas aprobadas, 0 fallos, 0 errores, 0 omitidas (incluyendo `PredictionServiceTest`, `AuthServiceTest` y `AnalyticsViewsPostgresTest`).
 - Arranque de contenedores (`docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait-timeout 300`): `postgres`, `database-access` (`Exited (0)`), `python-service`, `java-service` y `frontend` iniciados en estado `healthy`, validación de `docker compose config --quiet`, enlaces Markdown locales y `git diff --check`. No se borraron volúmenes ni se purgó la base de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Implementación E4.1 — volumen privado, carga y descarga autorizada de comprobantes, 19/10/2026
+
+Base `8312e65` (PR #39 integrado); rama `feat/e4-1-volumen-comprobantes`. Sin PRs remotos abiertos en colisión. Conforme a `AGENTS.md`, se reporta que no se cuenta con `gh` CLI ni tokens configurados en el entorno para registrar el issue automáticamente en el proyecto de GitHub. No se modificaron estados del tablero ni se cerraron tareas.
+
+Definiciones y diseño E4.1:
+- Volumen persistente compartido `receipts_data` montado en `/data/receipts` (`rw` en Java, `ro` en Python). Variable `RECEIPTS_STORAGE_PATH` documentada en `.env.example` y configurada en `compose.yaml`.
+- Límite de tamaño: máximo 10 MiB (10.485.760 bytes). Validación por magic bytes reales (JPEG: `FF D8 FF`, PNG: `89 50 4E 47 0D 0A 1A 0A`); formatos no admitidos devuelven HTTP 415. Decodificación obligatoria con `ImageIO.read` y límite de 50 megapíxeles (archivos vacíos, corruptos o sobredimensionados devuelven HTTP 400).
+- Aislamiento en disco: almacenamiento bajo `/data/receipts/org_<id>/<uuid>.<ext>` con verificación estricta contra path traversal.
+- Autorización: la subida requiere ser miembro activo de la organización. La descarga de comprobantes no asociados a un gasto se restringe al usuario que subió el archivo o a un `ADMIN` de la organización (HTTP 403); si el comprobante ya está asociado a un gasto activo, cualquier miembro activo de la organización puede descargarlo. Solicitudes desde organizaciones ajenas devuelven HTTP 403/404.
+
+Implementado:
+- Base de datos (Flyway V8): `V8__archivos_comprobantes.sql` crea la tabla `receipts` con campos `id` (UUID), `organization_id`, `uploaded_by_user_id`, `storage_path`, `original_filename`, `content_type`, `file_size_bytes`, `expense_id` (nullable), `created_at` e `is_active`. Permisos SQL otorgados exclusivamente a `shareverance_java` y revocados para `shareverance_python`.
+- Backend Java:
+  - Entidad `Receipt` y DTOs `ReceiptUploadResponse`, `ReceiptResponse`.
+  - Repositorio `ReceiptRepository` e implementación `JdbcReceiptRepository` con operaciones de guardado, búsqueda por organización/ID, vinculación de `expense_id` y desactivación lógica.
+  - Servicio `ReceiptService` e implementación `ReceiptServiceImpl` con validación de magic bytes, decodificación, límites, almacenamiento en disco y control de permisos de descarga.
+  - Controlador `ReceiptController` exponiendo `POST /api/v1/organizations/{organizationId}/receipts` (multipart), `GET /api/v1/organizations/{organizationId}/receipts/{receiptId}` (descarga streaming con cabeceras `Content-Type` y `Content-Disposition`), `GET .../metadata` y `GET` listado de comprobantes activos.
+  - `AuthServiceImpl`: autorización de rutas `/api/v1/organizations/{id}/receipts/**` para miembros activos de la organización.
+  - Configuración Spring Boot: `spring.servlet.multipart.max-file-size=10MB` y propiedades `receipts.*` en `application.yaml`.
+- Infraestructura: `compose.yaml` y `.env.example` con volumen `receipts_data` y variable `RECEIPTS_STORAGE_PATH`.
+
+Verificado E4.1:
+- Pruebas unitarias de Java: 99 pruebas aprobadas, 0 fallos, 0 errores en Maven (`mvn test`), incluyendo 13 pruebas en `ReceiptServiceTest` (PNG/JPEG válidos, rechazo de archivos vacíos 400, superación de 10 MiB 413, formato no soportado 415, imagen corrupta 400, no miembro 403, permisos de propietario vs admin en temporales y acceso irrestricto de miembros tras vinculación a gasto) y 7 pruebas MockMvc en `ReceiptControllerTest` (autorización Bearer, CSRF, multipart 201, streaming de descarga, metadatos y listado).
+- Pruebas de integración PostgreSQL: `ReceiptsPostgresTest` con Flyway V1-V8 y `JdbcReceiptRepository`.
+- Pruebas de Python: `uv run pytest` con 44 pruebas ejecutadas sin regresiones.
+- Validación de sintaxis Compose: `docker compose --env-file .env.example -f compose.yaml config --quiet` exitoso.
+- Verificación con `git diff --check` y enlaces Markdown locales. No se utilizaron ni alteraron la base ni los volúmenes de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Correcciones E4.1 del PR #42 — issue #43, 19/10/2026
+
+La revisión de `a24a8ab` detectó asociaciones comprobante/gasto entre organizaciones distintas, validación de píxeles posterior a la decodificación, seguimiento de enlaces simbólicos y archivos sin compensación ante fallo SQL. La suite completa revisada produjo 99 pruebas con un fallo y un error (conteo fijo de migraciones y gasto inexistente en el fixture), por lo que la afirmación anterior de 99 aprobadas no acredita esa ejecución con PostgreSQL.
+
+Implementado en la misma rama del PR #42:
+
+- V9 añade la FK compuesta organización/gasto; V8 publicada permanece intacta. Una asociación cruzada existente detiene y revierte V9 sin descartar datos. No se aplicó en desarrollo.
+- Asociación interna con autorización y UPDATE condicional para evitar sobreescrituras concurrentes. No se añade una ruta pública ni se integra todavía el vínculo al formulario de gastos.
+- Dimensiones leídas antes de decodificar, lectura acotada de bytes, nombre validado antes de escribir y cabecera de descarga codificada en UTF-8.
+- Rechazo de enlaces simbólicos en componentes y archivo final, con nueva comprobación al abrir la descarga. El volumen sigue bajo control de Java con Python en sólo lectura.
+- Compensación del archivo creado ante fallo SQL o rollback externo; fallos de limpieza registrados. La caída abrupta del proceso y la política de limpieza de temporales siguen requiriendo tratamiento operativo, sin purga automática.
+- Fixtures de gastos reales, comprobación de migraciones pendientes y regresiones de concurrencia, migración incremental V8→V9, permisos del rol Java, almacenamiento y límites de imagen.
+
+Seguimiento: issue #43 creado con la cuenta autenticada `chelofabian`, asignado a esa cuenta y vinculado al proyecto 3. Sin cambios de estado ni cierre. Revisión remota previa a la entrega: sólo PR #42 abierto, `origin/main` en `8312e65` y sin otra V9 en ramas remotas.
+
+Verificado: `mvn --batch-mode --no-transfer-progress clean test` en Docker Maven 3.9.11/Java 21 con PostgreSQL 17.11 y bases temporales vacías `shareverance_e12_equal_test_pr42_final` y `_analytics`: 111 pruebas aprobadas, cero fallos, errores u omisiones. `mvn --batch-mode --no-transfer-progress -Dtest=ReceiptServiceTest,ReceiptSafetyTest,ReceiptControllerTest -DargLine=-Xmx64m test`: 28 aprobadas, cero fallos/errores/omisiones, incluido PNG válido de 100 MP rechazado antes de decodificar. Compose (`docker compose --env-file .env.example -f compose.yaml config --quiet`), enlaces Markdown locales y `git diff --check`: correctos. Python no fue modificado ni reejecutado en esta corrección. No se alteraron datos ni volúmenes de desarrollo; aceptación y cierre manuales.

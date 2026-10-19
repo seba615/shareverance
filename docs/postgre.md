@@ -25,6 +25,10 @@ Las claves compuestas existentes protegen pertenencia de categorías, titulares 
 
 ## Evolución requerida
 
+E4.1 incorpora V8 (`receipts`, metadatos privados de comprobantes) y V9 (FK compuesta de organización/gasto). Java tiene permisos sobre `receipts`; Python no tiene SELECT sobre esta tabla. V8 se conserva con su checksum publicado. V9 valida también filas existentes: si encuentra una asociación entre organizaciones distintas, la migración falla y revierte sin borrar ni corregir datos automáticamente. Se debe investigar y corregir ese vínculo antes de reintentar.
+
+La asociación JDBC comprueba organización, estados activos y vínculo previo en un único UPDATE condicional. Dos asociaciones diferentes concurrentes no pueden sobrescribirse. La referencia `receipt_url` preexistente del gasto no enlaza por sí sola los metadatos de `receipts`; integrar ese flujo sigue pendiente. Las pruebas PostgreSQL cubren migración incremental V8→V9 con datos válidos e inválidos, restricciones, rol Java, asociación concurrente y compensación de archivos ante fallo SQL/rollback.
+
 Nuevas migraciones para restricciones adicionales necesarias, vistas, roles y metadatos de cobertura/adjuntos cuando se concrete su diseño. Comprobar migración desde base existente con datos, no únicamente desde una base vacía. La suma de partes requiere operación transaccional; una FK no garantiza esa igualdad.
 
 ARS única y calendario en configuración de servidor, sin reintroducir timezone por organización. Anulación/desactivación lógica; no purgar datos como mantenimiento. Evitar que cambios en membresías alteren distribuciones históricas.

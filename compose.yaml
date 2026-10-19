@@ -36,6 +36,9 @@ services:
       PYTHON_DB_PASSWORD: ${PYTHON_DB_PASSWORD:-shareverance_python_sql_local_only}
       PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
       PYTHON_CLIENT_SECRET_PREVIOUS: ${PYTHON_CLIENT_SECRET_PREVIOUS:-}
+      RECEIPTS_STORAGE_PATH: ${RECEIPTS_STORAGE_PATH:-/data/receipts}
+    volumes:
+      - receipts_data:/data/receipts:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,6 +62,9 @@ services:
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Copiar .env.example a .env}
       PYTHON_SERVICE_URL: http://python-service:8000
       PYTHON_CLIENT_SECRET: ${PYTHON_CLIENT_SECRET:?Definir PYTHON_CLIENT_SECRET en .env}
+      RECEIPTS_STORAGE_PATH: ${RECEIPTS_STORAGE_PATH:-/data/receipts}
+    volumes:
+      - receipts_data:/data/receipts
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,3 +92,4 @@ services:
       retries: 12
 volumes:
   postgres_data:
+  receipts_data:
