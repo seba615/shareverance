@@ -157,6 +157,8 @@ export interface UserOrganization {
   role: MembershipRole;
   joinedAt: string;
   isActive: boolean;
+  userName?: string | null;
+  userEmail?: string | null;
 }
 
 export interface AddMemberRequest {

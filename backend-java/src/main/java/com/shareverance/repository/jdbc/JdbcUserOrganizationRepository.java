@@ -14,14 +14,26 @@ import java.util.Optional;
 @Repository
 public class JdbcUserOrganizationRepository implements UserOrganizationRepository {
 
-    private static final RowMapper<UserOrganization> ROW_MAPPER = (rs, rowNum) -> new UserOrganization(
-            rs.getLong("id"),
-            rs.getLong("user_id"),
-            rs.getLong("organization_id"),
-            MembershipRole.valueOf(rs.getString("role")),
-            rs.getTimestamp("joined_at").toLocalDateTime(),
-            rs.getBoolean("is_active")
-    );
+    private static final RowMapper<UserOrganization> ROW_MAPPER = (rs, rowNum) -> {
+        String userName = null;
+        String userEmail = null;
+        try {
+            userName = rs.getString("full_name");
+            userEmail = rs.getString("email");
+        } catch (Exception ignored) {
+            // columnas no disponibles en consultas sin join
+        }
+        return new UserOrganization(
+                rs.getLong("id"),
+                rs.getLong("user_id"),
+                rs.getLong("organization_id"),
+                MembershipRole.valueOf(rs.getString("role")),
+                rs.getTimestamp("joined_at").toLocalDateTime(),
+                rs.getBoolean("is_active"),
+                userName,
+                userEmail
+        );
+    };
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -56,9 +68,11 @@ public class JdbcUserOrganizationRepository implements UserOrganizationRepositor
     @Override
     public Optional<UserOrganization> findById(Long id) {
         return jdbcTemplate.query("""
-                SELECT id, user_id, organization_id, role, joined_at, is_active
-                FROM user_organization
-                WHERE id = ?
+                SELECT uo.id, uo.user_id, uo.organization_id, uo.role, uo.joined_at, uo.is_active,
+                       u.full_name, u.email
+                FROM user_organization uo
+                LEFT JOIN users u ON u.id = uo.user_id
+                WHERE uo.id = ?
                 """, ROW_MAPPER, id).stream().findFirst();
     }
 
@@ -85,29 +99,35 @@ public class JdbcUserOrganizationRepository implements UserOrganizationRepositor
     @Override
     public Optional<UserOrganization> findByUserIdAndOrganizationId(Long userId, Long organizationId) {
         return jdbcTemplate.query("""
-                SELECT id, user_id, organization_id, role, joined_at, is_active
-                FROM user_organization
-                WHERE user_id = ? AND organization_id = ?
+                SELECT uo.id, uo.user_id, uo.organization_id, uo.role, uo.joined_at, uo.is_active,
+                       u.full_name, u.email
+                FROM user_organization uo
+                LEFT JOIN users u ON u.id = uo.user_id
+                WHERE uo.user_id = ? AND uo.organization_id = ?
                 """, ROW_MAPPER, userId, organizationId).stream().findFirst();
     }
 
     @Override
     public List<UserOrganization> findByOrganizationId(Long organizationId) {
         return jdbcTemplate.query("""
-                SELECT id, user_id, organization_id, role, joined_at, is_active
-                FROM user_organization
-                WHERE organization_id = ?
-                ORDER BY id
+                SELECT uo.id, uo.user_id, uo.organization_id, uo.role, uo.joined_at, uo.is_active,
+                       u.full_name, u.email
+                FROM user_organization uo
+                LEFT JOIN users u ON u.id = uo.user_id
+                WHERE uo.organization_id = ?
+                ORDER BY uo.id
                 """, ROW_MAPPER, organizationId);
     }
 
     @Override
     public List<UserOrganization> findByUserId(Long userId) {
         return jdbcTemplate.query("""
-                SELECT id, user_id, organization_id, role, joined_at, is_active
-                FROM user_organization
-                WHERE user_id = ?
-                ORDER BY id
+                SELECT uo.id, uo.user_id, uo.organization_id, uo.role, uo.joined_at, uo.is_active,
+                       u.full_name, u.email
+                FROM user_organization uo
+                LEFT JOIN users u ON u.id = uo.user_id
+                WHERE uo.user_id = ?
+                ORDER BY uo.id
                 """, ROW_MAPPER, userId);
     }
 

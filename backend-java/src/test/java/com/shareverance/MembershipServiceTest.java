@@ -1,7 +1,6 @@
 package com.shareverance;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.junit.jupiter.api.Test;
 
 import com.shareverance.dto.MembershipRequest;
@@ -62,6 +61,8 @@ class MembershipServiceTest {
         org.junit.jupiter.api.Assertions.assertNotNull(created.getId());
         org.junit.jupiter.api.Assertions.assertEquals(3L, created.getUserId());
         org.junit.jupiter.api.Assertions.assertEquals(1L, created.getOrganizationId());
+        org.junit.jupiter.api.Assertions.assertEquals("María Gómez", created.getUserName());
+        org.junit.jupiter.api.Assertions.assertEquals("maria@gomez.com", created.getUserEmail());
 
         // Intentar agregar email inexistente lanza ResourceNotFoundException
         org.junit.jupiter.api.Assertions.assertThrows(com.shareverance.exception.ResourceNotFoundException.class, () ->

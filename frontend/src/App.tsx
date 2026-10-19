@@ -62,6 +62,13 @@ export default function App() {
   const currentMembership = members.find(m => m.userId === user?.id && m.isActive);
   const isAdmin = currentMembership?.role === 'ADMIN';
   const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+  const membershipMap = new Map(members.map(m => [m.id, m]));
+
+  function getMemberLabel(m: UserOrganization): string {
+    const isSelf = m.userId === user?.id;
+    const name = m.userName ? m.userName : `Usuario #${m.userId}`;
+    return `${name}${isSelf ? ' (Vos)' : ''}`;
+  }
 
   async function loadOrganizationData(orgId: number) {
     setLoadingOrgData(true);
@@ -577,7 +584,7 @@ export default function App() {
                               <select name="paidByMembershipId" defaultValue={currentMembership?.id ?? ''} required>
                                 {members.filter(m => m.isActive).map(m => (
                                   <option key={m.id} value={m.id}>
-                                    Miembro #{m.id} {m.userId === user.id ? '(Vos)' : `(Usuario #${m.userId})`} - {m.role}
+                                    {getMemberLabel(m)} ({m.role})
                                   </option>
                                 ))}
                               </select>
@@ -614,7 +621,7 @@ export default function App() {
                                       }
                                     }}
                                   />
-                                  <span>Miembro #{m.id} {m.userId === user.id ? '(Vos)' : `(Usuario #${m.userId})`}</span>
+                                  <span>{getMemberLabel(m)}</span>
                                 </label>
                               ))}
                             </div>
@@ -655,7 +662,14 @@ export default function App() {
                                 <td>${expense.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                 <td>{expense.splitType}</td>
                                 <td>
-                                  <span className="muted" title={splits.map(s => `M #${s.userOrganizationId}: $${s.amount}`).join(', ')}>
+                                  <span
+                                    className="muted"
+                                    title={splits.map(s => {
+                                      const member = membershipMap.get(s.userOrganizationId);
+                                      const label = member ? getMemberLabel(member) : `M #${s.userOrganizationId}`;
+                                      return `${label}: $${s.amount.toFixed(2)}`;
+                                    }).join(', ')}
+                                  >
                                     {splits.length} participante(s)
                                   </span>
                                 </td>
@@ -710,7 +724,7 @@ export default function App() {
                         <thead>
                           <tr>
                             <th>ID Membresía</th>
-                            <th>ID Usuario</th>
+                            <th>Miembro</th>
                             <th>Rol</th>
                             <th>Estado</th>
                             {isAdmin && <th>Acciones</th>}
@@ -720,7 +734,14 @@ export default function App() {
                           {members.map(m => (
                             <tr key={m.id} className={!m.isActive ? 'row-inactive' : ''}>
                               <td>#{m.id}</td>
-                              <td>Usuario #{m.userId} {m.userId === user.id ? ' (Vos)' : ''}</td>
+                              <td>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <strong style={{ color: '#172b4d' }}>{getMemberLabel(m)}</strong>
+                                  <span style={{ fontSize: '0.8rem', color: '#62728f' }}>
+                                    {m.userEmail ? m.userEmail : `Usuario #${m.userId}`}
+                                  </span>
+                                </div>
+                              </td>
                               <td>
                                 <span className={`badge ${m.role === 'ADMIN' ? 'badge-admin' : ''}`}>
                                   {m.role}

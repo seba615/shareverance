@@ -64,10 +64,15 @@ public class MembershipServiceImpl implements MembershipService {
                 request.organizationId(),
                 role,
                 LocalDateTime.now(),
-                true
+                true,
+                user.getFullName(),
+                user.getEmail()
         );
 
-        return userOrganizationRepository.save(uo);
+        UserOrganization saved = userOrganizationRepository.save(uo);
+        saved.setUserName(user.getFullName());
+        saved.setUserEmail(user.getEmail());
+        return saved;
     }
 
     @Override

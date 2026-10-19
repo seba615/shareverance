@@ -9,16 +9,24 @@ public class UserOrganization {
     private MembershipRole role;
     private LocalDateTime joinedAt;
     private Boolean isActive;
+    private String userName;
+    private String userEmail;
 
     public UserOrganization() {}
 
     public UserOrganization(Long id, Long userId, Long organizationId, MembershipRole role, LocalDateTime joinedAt, Boolean isActive) {
+        this(id, userId, organizationId, role, joinedAt, isActive, null, null);
+    }
+
+    public UserOrganization(Long id, Long userId, Long organizationId, MembershipRole role, LocalDateTime joinedAt, Boolean isActive, String userName, String userEmail) {
         this.id = id;
         this.userId = userId;
         this.organizationId = organizationId;
         this.role = role;
         this.joinedAt = joinedAt;
         this.isActive = isActive;
+        this.userName = userName;
+        this.userEmail = userEmail;
     }
 
     public Long getId() { return id; }
@@ -38,5 +46,11 @@ public class UserOrganization {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public String getUserName() { return userName; }
+    public void setUserName(String userName) { this.userName = userName; }
+
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
 }
 
