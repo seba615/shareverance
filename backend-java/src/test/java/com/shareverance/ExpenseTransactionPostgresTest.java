@@ -133,4 +133,41 @@ class ExpenseTransactionPostgresTest {
         assertEquals(new BigDecimal("2.01"),jdbc.queryForObject("SELECT amount FROM expense_splits",BigDecimal.class));
     }
 
+    @Test void optimisticLockingThrows409ConflictOnConcurrentUpdateInPostgres() {
+        var saved = service.createExpense(request());
+        assertEquals(1, saved.expense().getVersion());
+
+        // Primer update exitoso con version 1 -> pasa a version 2
+        var updated = service.updateExpense(saved.expense().getId(),
+                new ExpenseUpdateRequest(null, new BigDecimal("2.50"), null, "Primera edición", null, 1));
+        assertEquals(2, updated.expense().getVersion());
+        assertEquals(2, jdbc.queryForObject("SELECT version FROM expenses WHERE id = ?", Integer.class, saved.expense().getId()));
+
+        // Segundo update concurrente con version desactualizada 1 -> lanza 409 Conflict y no aplica cambios parciales
+        var ex = assertThrows(org.springframework.web.server.ResponseStatusException.class, () ->
+                service.updateExpense(saved.expense().getId(),
+                        new ExpenseUpdateRequest(null, new BigDecimal("5.00"), null, "Segunda edición concurrente", null, 1)));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals(new BigDecimal("2.50"), jdbc.queryForObject("SELECT amount FROM expenses WHERE id = ?", BigDecimal.class, saved.expense().getId()));
+        assertEquals("Primera edición", jdbc.queryForObject("SELECT description FROM expenses WHERE id = ?", String.class, saved.expense().getId()));
+        assertEquals(2, jdbc.queryForObject("SELECT version FROM expenses WHERE id = ?", Integer.class, saved.expense().getId()));
+    }
+
+    @Test void protectsLastActiveAdminFromDeactivationAndDemotionInPostgres() {
+        var membershipService = new com.shareverance.service.impl.MembershipServiceImpl(
+                context.getBean(com.shareverance.repository.UserOrganizationRepository.class),
+                context.getBean(com.shareverance.repository.UserRepository.class),
+                context.getBean(com.shareverance.repository.OrganizationRepository.class));
+
+        // En org 1 sólo hay 1 admin (membership 1). Intentar desactivarlo debe fallar:
+        assertThrows(com.shareverance.exception.BusinessRuleException.class, () ->
+                membershipService.deactivateMembership(1L));
+        assertTrue(jdbc.queryForObject("SELECT is_active FROM user_organization WHERE id = 1", Boolean.class));
+
+        // Intentar cambiar de rol a USER debe fallar:
+        assertThrows(com.shareverance.exception.BusinessRuleException.class, () ->
+                membershipService.updateMemberRole(1L, com.shareverance.model.MembershipRole.USER));
+        assertEquals("ADMIN", jdbc.queryForObject("SELECT role FROM user_organization WHERE id = 1", String.class));
+    }
+
 }

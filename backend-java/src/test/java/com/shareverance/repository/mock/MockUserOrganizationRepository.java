@@ -52,6 +52,20 @@ public class MockUserOrganizationRepository implements UserOrganizationRepositor
     }
 
     @Override
+    public Optional<UserOrganization> findByIdForUpdate(Long id) {
+        return findById(id);
+    }
+
+    @Override
+    public long countActiveAdminsByOrganizationId(Long organizationId) {
+        return store.values().stream()
+                .filter(uo -> uo.getOrganizationId().equals(organizationId))
+                .filter(uo -> uo.getRole() == MembershipRole.ADMIN)
+                .filter(uo -> Boolean.TRUE.equals(uo.getIsActive()))
+                .count();
+    }
+
+    @Override
     public Optional<UserOrganization> findByUserIdAndOrganizationId(Long userId, Long organizationId) {
         return store.values().stream()
                 .filter(uo -> uo.getUserId().equals(userId) && uo.getOrganizationId().equals(organizationId))

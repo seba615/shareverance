@@ -8,6 +8,12 @@ public record ExpenseUpdateRequest(
     BigDecimal amount,
     LocalDate expenseDate,
     String description,
-    String receiptUrl
-) {}
+    String receiptUrl,
+    Integer version
+) {
+    public ExpenseUpdateRequest(Long categoryId, BigDecimal amount, LocalDate expenseDate,
+                                String description, String receiptUrl) {
+        this(categoryId, amount, expenseDate, description, receiptUrl, null);
+    }
+}
 

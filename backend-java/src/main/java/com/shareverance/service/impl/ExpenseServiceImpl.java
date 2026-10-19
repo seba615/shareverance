@@ -340,6 +340,12 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.setReceiptUrl(request.receiptUrl());
         }
 
+        if (request.version() != null && !request.version().equals(expense.getVersion())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "Conflicto de concurrencia: el gasto fue modificado por otra transacción");
+        }
+
         if (request.amount() != null) {
             BigDecimal newAmount = validateAmount(request.amount());
             List<ExpenseSplit> existingSplits = expenseSplitRepository.findByExpenseId(id);
@@ -354,7 +360,15 @@ public class ExpenseServiceImpl implements ExpenseService {
             }
         }
 
-        Expense updated = expenseRepository.save(expense);
+        Expense updated;
+        if (request.version() != null) {
+            updated = expenseRepository.updateWithOptimisticLocking(expense, request.version())
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.CONFLICT,
+                            "Conflicto de concurrencia: el gasto fue modificado por otra transacción"));
+        } else {
+            updated = expenseRepository.save(expense);
+        }
         List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(id);
         return new ExpenseDetailResponse(updated, splits);
     }

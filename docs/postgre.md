@@ -7,7 +7,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado persistido
 
-PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions. No renumerar versiones ni modificar SQL aplicado.
+PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses. No renumerar versiones ni modificar SQL aplicado.
 
 | Tabla | Responsabilidad |
 | --- | --- |
@@ -58,3 +58,7 @@ Migraciones limpias e incrementales, FK de tenant cruzado, importes/roles invál
 ## Verificación E1.2: gasto y partes
 
 E1.2 individual/iguales utiliza el esquema vigente (V1, V2, V3 y V5), sin migraciones nuevas ni cambios en restricciones. Las pruebas de integración usan PostgreSQL 17.11 exclusivo y verifican rollback si falla una parte en alta o edición, y si falla el guardado final del gasto después de actualizar partes. No prueban concurrencia E1.3 ni constituyen aceptación integral. La base y el volumen de desarrollo quedan fuera de estas pruebas.
+
+## Verificación E1.3: versión optimista y último ADMIN
+
+E1.3 incorpora la migración Flyway V6 (`version INT NOT NULL DEFAULT 1` en `expenses`). Se valida mediante pruebas de integración con PostgreSQL 17.11 exclusivo (`ExpenseTransactionPostgresTest`), verificando la respuesta HTTP 409 Conflict ante versiones desactualizadas sin alteraciones parciales en base de datos, y el rechazo transaccional con `FOR UPDATE` ante intentos de desactivar o revocar el rol al último ADMIN activo de la organización.

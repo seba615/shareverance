@@ -17,12 +17,20 @@ public class Expense {
     private String splitType = "EQUAL";
     private LocalDateTime createdAt;
     private Boolean isActive;
+    private Integer version = 1;
 
     public Expense() {}
 
     public Expense(Long id, Long organizationId, Long createdByUserId, Long paidByMembershipId, Long categoryId,
                    BigDecimal amount, LocalDate expenseDate, String description, String receiptUrl,
                    LocalDateTime createdAt, Boolean isActive) {
+        this(id, organizationId, createdByUserId, paidByMembershipId, categoryId, amount, expenseDate,
+                description, receiptUrl, createdAt, isActive, 1);
+    }
+
+    public Expense(Long id, Long organizationId, Long createdByUserId, Long paidByMembershipId, Long categoryId,
+                   BigDecimal amount, LocalDate expenseDate, String description, String receiptUrl,
+                   LocalDateTime createdAt, Boolean isActive, Integer version) {
         this.id = id;
         this.organizationId = organizationId;
         this.createdByUserId = createdByUserId;
@@ -34,6 +42,7 @@ public class Expense {
         this.receiptUrl = receiptUrl;
         this.createdAt = createdAt;
         this.isActive = isActive;
+        this.version = version;
     }
 
     public Long getId() { return id; }
@@ -71,4 +80,7 @@ public class Expense {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }

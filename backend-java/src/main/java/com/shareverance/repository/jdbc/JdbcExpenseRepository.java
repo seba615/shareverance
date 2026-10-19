@@ -26,7 +26,8 @@ public class JdbcExpenseRepository implements ExpenseRepository {
                 rs.getString("description"),
                 rs.getString("receipt_url"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
-                rs.getBoolean("is_active")
+                rs.getBoolean("is_active"),
+                rs.getInt("version")
         );
         expense.setSplitType(rs.getString("split_type"));
         return expense;
@@ -44,26 +45,26 @@ public class JdbcExpenseRepository implements ExpenseRepository {
             return jdbcTemplate.queryForObject("""
                     INSERT INTO expenses (
                         organization_id, created_by_user_id, paid_by_membership_id, category_id,
-                        amount, expense_date, description, receipt_url, split_type, created_at, is_active
+                        amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, TRUE))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, TRUE), COALESCE(?, 1))
                     RETURNING id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
-                              amount, expense_date, description, receipt_url, split_type, created_at, is_active
+                              amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                     """, ROW_MAPPER,
                     expense.getOrganizationId(), expense.getCreatedByUserId(), expense.getPaidByMembershipId(),
                     expense.getCategoryId(), expense.getAmount(), Date.valueOf(expense.getExpenseDate()),
                     expense.getDescription(), expense.getReceiptUrl(), expense.getSplitType(),
-                    timestamp(expense.getCreatedAt()), expense.getIsActive());
+                    timestamp(expense.getCreatedAt()), expense.getIsActive(), expense.getVersion());
         }
 
         return jdbcTemplate.queryForObject("""
                 UPDATE expenses
                 SET organization_id = ?, created_by_user_id = ?, paid_by_membership_id = ?, category_id = ?,
                     amount = ?, expense_date = ?, description = ?, receipt_url = ?, split_type = ?,
-                    created_at = ?, is_active = ?
+                    created_at = ?, is_active = ?, version = version + 1
                 WHERE id = ?
                 RETURNING id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
-                          amount, expense_date, description, receipt_url, split_type, created_at, is_active
+                          amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                 """, ROW_MAPPER,
                 expense.getOrganizationId(), expense.getCreatedByUserId(), expense.getPaidByMembershipId(),
                 expense.getCategoryId(), expense.getAmount(), Date.valueOf(expense.getExpenseDate()),
@@ -72,10 +73,29 @@ public class JdbcExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public Optional<Expense> updateWithOptimisticLocking(Expense expense, Integer expectedVersion) {
+        List<Expense> updated = jdbcTemplate.query("""
+                UPDATE expenses
+                SET organization_id = ?, created_by_user_id = ?, paid_by_membership_id = ?, category_id = ?,
+                    amount = ?, expense_date = ?, description = ?, receipt_url = ?, split_type = ?,
+                    created_at = ?, is_active = ?, version = version + 1
+                WHERE id = ? AND version = ?
+                RETURNING id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
+                          amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
+                """, ROW_MAPPER,
+                expense.getOrganizationId(), expense.getCreatedByUserId(), expense.getPaidByMembershipId(),
+                expense.getCategoryId(), expense.getAmount(), Date.valueOf(expense.getExpenseDate()),
+                expense.getDescription(), expense.getReceiptUrl(), expense.getSplitType(),
+                timestamp(expense.getCreatedAt()), expense.getIsActive(),
+                expense.getId(), expectedVersion);
+        return updated.stream().findFirst();
+    }
+
+    @Override
     public Optional<Expense> findById(Long id) {
         return jdbcTemplate.query("""
                 SELECT id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
-                       amount, expense_date, description, receipt_url, split_type, created_at, is_active
+                       amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                 FROM expenses
                 WHERE id = ?
                 """, ROW_MAPPER, id).stream().findFirst();
@@ -85,7 +105,7 @@ public class JdbcExpenseRepository implements ExpenseRepository {
     public List<Expense> findByOrganizationId(Long organizationId) {
         return jdbcTemplate.query("""
                 SELECT id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
-                       amount, expense_date, description, receipt_url, split_type, created_at, is_active
+                       amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                 FROM expenses
                 WHERE organization_id = ?
                 ORDER BY id

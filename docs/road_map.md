@@ -113,3 +113,19 @@ Implementado: validación exacta de importes y límites en alta y edición, repa
 Revisión documental E1.1: PR #25 integrado en `7733612` (implementación `67cff98`), relacionado con #24. Sus cambios incluyeron README y documentos, pero el registro inicial aún decía «sin commit ni PR»; esta evidencia actualiza esa referencia histórica sin alterar estados ni acreditar aceptación integral.
 
 Verificado E1.2: suite `mvn --batch-mode --no-transfer-progress clean test`, ejecutada en Docker con Maven 3.9.11/Java 21 y `E12_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_e12_equal_test`: 41 pruebas aprobadas, sin fallos, errores ni omisiones (35 unitarias y 6 con PostgreSQL 17.11 temporal). Casos: centavos por ID ante órdenes distintos, límite monetario y precisión, IDs inválidos, cuentas/membresías inactivas, rollback tras segunda inserción/actualización de parte y tras fallo del gasto final, edición individual, rechazo de importe insuficiente y conservación de miembros históricos inactivos sin incorporar un miembro nuevo. No se ejecutó aceptación HTTP/UI ni concurrencia E1.3. Base de desarrollo y sus volúmenes sin utilizar. `git diff --check` y enlaces Markdown locales correctos. Consulta remota final: origin/main sigue en 7733612, sin PR abiertos. La entrega se identifica mediante el commit de la rama `codex/e1-2-individual-iguales`; no se modificaron estados del tablero ni se cerró #27. Aceptación y cierre manuales.
+
+### Evidencia E1.3 — versión optimista y último ADMIN, 18/10/2026
+
+Implementación en rama `feat/e1-3-concurrencia-version-admin`, base `2119011` (`origin/main`). Relacionado con [#29](https://github.com/seba615/shareverance/issues/29), asignado a la cuenta autenticada `seba615` y vinculado al proyecto de GitHub #3. Sin PRs remotos abiertos en colisión.
+
+Implementado:
+- Migración Flyway V6 (`V6__version_optimista_gastos.sql`) agregando columna `version INT NOT NULL DEFAULT 1` a `expenses`.
+- Campo `version` en `Expense` y `ExpenseUpdateRequest`.
+- Actualización atómica y condicional en `ExpenseRepository` / `JdbcExpenseRepository` (`updateWithOptimisticLocking`).
+- Validación en `ExpenseServiceImpl.updateExpense`: si la versión provista no coincide con la actual o falla la actualización optimista, se lanza `ResponseStatusException(HttpStatus.CONFLICT, ...)` devolviendo HTTP 409 Conflict sin aplicar cambios parciales.
+- Protección del último ADMIN activo en `MembershipServiceImpl` (`updateMemberRole` y `deactivateMembership`): operaciones transaccionales con bloqueo de fila `FOR UPDATE` y validación de cantidad de administradores activos (`countActiveAdminsByOrganizationId`).
+
+Verificado E1.3:
+- Suite `mvn --batch-mode --no-transfer-progress clean test` en contenedor Maven 3.9.11/Java 21 contra PostgreSQL 17.11 aislado (`shareverance_e12_equal_test`): 45 pruebas aprobadas, 0 fallos, 0 errores, 0 skipped.
+- Casos E1.3 validados: conflicto optimista 409 Conflict y preservación de datos ante colisión, incremento correlativo de versión, y rechazo de degradación o desactivación del último ADMIN tanto en mocks unitarios como con PostgreSQL real y Flyway V1-V6.
+- Verificación de build de frontend con Vite/Docker Compose completado sin errores.

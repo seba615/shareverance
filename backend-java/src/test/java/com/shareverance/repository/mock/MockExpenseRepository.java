@@ -85,6 +85,17 @@ public class MockExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public Optional<Expense> updateWithOptimisticLocking(Expense expense, Integer expectedVersion) {
+        Expense existing = store.get(expense.getId());
+        if (existing == null || !existing.getVersion().equals(expectedVersion)) {
+            return Optional.empty();
+        }
+        expense.setVersion(existing.getVersion() + 1);
+        store.put(expense.getId(), expense);
+        return Optional.of(expense);
+    }
+
+    @Override
     public Optional<Expense> findById(Long id) {
         return Optional.ofNullable(store.get(id));
     }
