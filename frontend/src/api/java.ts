@@ -310,6 +310,17 @@ export interface ExpensePage {
   totalPages: number;
   totalAmount: number;
 }
+export interface ExpenseCalendarDay {
+  date: string;
+  totalAmount: number;
+  expenseCount: number;
+}
+export interface ExpenseCalendar {
+  month: string;
+  totalAmount: number;
+  totalExpenses: number;
+  days: ExpenseCalendarDay[];
+}
 export const expenseHistoryApi = {
   page(organizationId: number, filter: ExpenseFilter, page: number, size: number): Promise<ExpensePage> {
     const query = new URLSearchParams({ state: filter.state, page: String(page), size: String(size) });
@@ -317,6 +328,10 @@ export const expenseHistoryApi = {
     if (filter.toDate) query.set('toDate', filter.toDate);
     if (filter.categoryId) query.set('categoryId', filter.categoryId);
     return request<ExpensePage>(`/api/v1/expenses/organization/${organizationId}/page?${query}`);
+  },
+  calendar(organizationId: number, month: string): Promise<ExpenseCalendar> {
+    const query = new URLSearchParams({ month });
+    return request<ExpenseCalendar>(`/api/v1/expenses/organization/${organizationId}/calendar?${query}`);
   },
   detail(id: number): Promise<ExpenseDetailResponse> { return request(`/api/v1/expenses/${id}`); },
   update(id: number, payload: { categoryId: number; amount: string; expenseDate: string; description: string; version: number }): Promise<ExpenseDetailResponse> {

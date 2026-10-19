@@ -313,6 +313,36 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public com.shareverance.dto.ExpenseCalendarResponse getExpenseCalendar(Long organizationId, String month) {
+        requireActiveArsOrganization(organizationId);
+        java.time.YearMonth currentMonth = java.time.YearMonth.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+        java.time.YearMonth targetMonth;
+        if (month == null || month.isBlank()) {
+            targetMonth = currentMonth;
+        } else {
+            try {
+                targetMonth = java.time.YearMonth.parse(month.trim());
+            } catch (java.time.format.DateTimeParseException ex) {
+                throw new BusinessRuleException("Formato de mes inválido (use YYYY-MM)");
+            }
+        }
+        if (targetMonth.isAfter(currentMonth)) {
+            throw new BusinessRuleException("No se pueden consultar meses futuros en el calendario");
+        }
+        var days = expenseRepository.findCalendarDays(
+                organizationId, targetMonth.atDay(1), targetMonth.atEndOfMonth());
+        BigDecimal totalAmount = days.stream()
+                .map(com.shareverance.dto.ExpenseCalendarDayResponse::totalAmount)
+                .reduce(new BigDecimal("0.00"), BigDecimal::add);
+        long totalExpenses = days.stream()
+                .mapToLong(com.shareverance.dto.ExpenseCalendarDayResponse::expenseCount)
+                .sum();
+        return new com.shareverance.dto.ExpenseCalendarResponse(
+                targetMonth.toString(), totalAmount, totalExpenses, days);
+    }
+
+    @Override
     public ExpenseDetailResponse getExpenseById(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));

@@ -135,4 +135,34 @@ class ExpenseHistoryPostgresTest {
         assertThrows(BusinessRuleException.class,()->service.updateExpense(id,new ExpenseUpdateRequest(null,null,today.plusDays(1),null,null,1)));
         assertEquals(1,service.getExpenseById(id).expense().getVersion());
     }
+    @Test void calendarAggregatesByDayExcludesAnnulledAndDoesNotDuplicateSplits() throws Exception {
+        YearMonth ym=YearMonth.from(today);
+        LocalDate d1=ym.atDay(1);
+        LocalDate d2=today.getDayOfMonth()>1?ym.atDay(today.getDayOfMonth()):d1;
+        long active1=create(1,1,1,"10.50",d1);
+        create(1,1,1,"20.25",d1);
+        long annulled=create(1,1,1,"99.00",d1);
+        service.deactivateExpense(annulled);
+        create(2,3,3,"500.00",d1);
+        create(1,1,1,"7.00",ym.minusMonths(1).atDay(10));
+        var cal=service.getExpenseCalendar(1L,ym.toString());
+        assertEquals(ym.toString(),cal.month());
+        assertEquals(new BigDecimal("30.75"),cal.totalAmount());
+        assertEquals(2L,cal.totalExpenses());
+        assertEquals(1,cal.days().size());
+        assertEquals(d1,cal.days().get(0).date());
+        assertEquals(new BigDecimal("30.75"),cal.days().get(0).totalAmount());
+        assertEquals(2L,cal.days().get(0).expenseCount());
+        service.updateExpense(active1,new ExpenseUpdateRequest(null,new BigDecimal("15.00"),d2,"Movido",null,1));
+        var updatedCal=service.getExpenseCalendar(1L,null);
+        assertEquals(new BigDecimal("35.25"),updatedCal.totalAmount());
+        mvc.perform(get("/api/v1/expenses/organization/1/calendar")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/expenses/organization/2/calendar").header("Authorization","Bearer "+userToken)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/expenses/organization/1/calendar?month=bad").header("Authorization","Bearer "+userToken)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/expenses/organization/1/calendar?month="+ym.plusMonths(1)).header("Authorization","Bearer "+userToken)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/expenses/organization/1/calendar?month="+ym).header("Authorization","Bearer "+userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.month").value(ym.toString()))
+                .andExpect(jsonPath("$.totalExpenses").value(2));
+    }
 }

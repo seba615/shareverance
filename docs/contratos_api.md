@@ -76,6 +76,22 @@ Los parámetros inválidos devuelven 400, la falta de sesión 401 y otra organiz
 
 GET `/api/v1/expenses/{id}` conserva su respuesta de detalle y permite consultar anulados del ámbito autorizado. PUT conserva la versión positiva obligatoria de E1.3; no acepta cambio de titular ni de participantes. La categoría actual puede mantenerse si quedó inactiva, pero no puede elegirse otra categoría inactiva. Descripción no vacía de hasta 500 caracteres; fecha no futura según Buenos Aires; las validaciones monetarias se mantienen. DELETE conserva el contrato de E1.3 y no incorpora reactivación. La UI exige confirmación antes de anular y, ante 409, ofrece recarga explícita sin reintentar ni sustituir automáticamente la versión local.
 
+## Calendario E2.3: resumen mensual y consulta por fecha
+
+Se añade `GET /api/v1/expenses/organization/{organizationId}/calendar?month=YYYY-MM`, protegido por sesión activa y membresía activa en la organización.
+
+| Parámetro | Semántica |
+| --- | --- |
+| month | Mes ISO `YYYY-MM` opcional; si se omite se usa el mes actual en `America/Argentina/Buenos_Aires`. No se admiten meses futuros |
+
+Respuesta 200 (`ExpenseCalendarResponse`):
+- `month`: cadena `YYYY-MM` consultada.
+- `totalAmount`: suma total en ARS de los gastos vigentes (`is_active = TRUE`) del mes.
+- `totalExpenses`: cantidad total de gastos vigentes del mes.
+- `days`: lista ordenada ascendentemente por fecha con los días del mes que registran gastos vigentes (`date`, `totalAmount`, `expenseCount`). Los días sin gastos vigentes no se incluyen en el arreglo `days` (el frontend los representa con total `0`).
+
+Formato de mes inválido o mes futuro devuelve 400; sin sesión devuelve 401; usuario sin membresía activa en la organización devuelve 403. Para listar los gastos vigentes de una fecha seleccionada en el calendario, React consume `GET /api/v1/expenses/organization/{organizationId}/page?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD&state=ACTIVE&page=0&size=20` y reutiliza `GET / PUT / DELETE /api/v1/expenses/{id}` para detalle, edición con versión optimista y anulación.
+
 ## Gastos E1.3: versión y concurrencia
 
 `GET /api/v1/expenses/{id}` y el listado devuelven `expense.version` dentro del detalle. Cada gasto nuevo comienza en 1. `PUT /api/v1/expenses/{id}` requiere `version` como entero positivo, con el valor obtenido en la última consulta. Omitirlo, enviar null, cero o negativo devuelve HTTP 400. No existe guardado alternativo sin control optimista. Una versión desactualizada, incluso por una anulación concurrente, devuelve 409 sin cambios parciales. Un PUT exitoso devuelve el detalle con la versión incrementada.

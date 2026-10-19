@@ -141,6 +141,27 @@ public class JdbcExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public List<com.shareverance.dto.ExpenseCalendarDayResponse> findCalendarDays(
+            Long organizationId, java.time.LocalDate fromDate, java.time.LocalDate toDate) {
+        return jdbcTemplate.query("""
+                SELECT expense_date, COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS expense_count
+                FROM expenses
+                WHERE organization_id = ?
+                  AND is_active = TRUE
+                  AND expense_date >= ?
+                  AND expense_date <= ?
+                GROUP BY expense_date
+                ORDER BY expense_date ASC
+                """,
+                (rs, rowNum) -> new com.shareverance.dto.ExpenseCalendarDayResponse(
+                        rs.getDate("expense_date").toLocalDate(),
+                        rs.getBigDecimal("total_amount"),
+                        rs.getLong("expense_count")
+                ),
+                organizationId, Date.valueOf(fromDate), Date.valueOf(toDate));
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM expenses WHERE id = ?)", Boolean.class, id));

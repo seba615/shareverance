@@ -9,7 +9,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. ARS es la única moneda: no se ofrece un campo de selección y el cliente envía `ARS` al crear una organización.
 
-E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. No se implementaron edición de categorías, calendario ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
+E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. E2.3 incorpora en la pestaña Gastos el selector alternable entre Historial y Calendario mensual navegable con totales diarios y detalle por fecha. No se implementaron edición de categorías ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
 
 ## Navegación y vistas requeridas
 
@@ -27,7 +27,7 @@ E2.1 agrega pestañas de gastos, miembros y categorías en la organización acti
 | Panel | Total mensual, comparación, evolución y categorías; tablas equivalentes |
 | Predicción | Próximo mes, total/categorías, método y estado de suficiencia |
 
-Calendario incluido; diseño propuesto: mes navegable, total por día y lista al seleccionar fecha. Precisar si se requiere otra granularidad antes de construirlo. No incorpora gastos futuros ni recurrencias. Controles de ADMIN ocultos para USER, pero la seguridad efectiva pertenece al servidor.
+Calendario incluido: vista alternable dentro de la pestaña Gastos con mes navegable (anterior, actual, siguiente sin meses futuros en `America/Argentina/Buenos_Aires`), total diario de gastos vigentes y lista paginada al seleccionar fecha. No incorpora gastos futuros ni recurrencias. Controles de ADMIN ocultos para USER, pero la seguridad efectiva pertenece al servidor.
 
 ## Formularios
 
@@ -51,10 +51,16 @@ Preservar registro/login/recarga/logout y creación/selección. Recorrido manual
 
 ## Comprobación automatizada de selección
 
-`frontend/tests/organizationLoader.test.mjs`, mediante `npm test` en Node 24, ejercita el cargador real utilizado por App con respuestas controladas fuera de orden, errores tardíos, recargas, A→B→A y descarte tras cierre/desmontaje. No instala bibliotecas de pruebas adicionales. El build TypeScript/Vite comprueba la integración de tipos. El recorrido visual y la autorización integral con backend quedan pendientes de aceptación.
+`frontend/tests/organizationLoader.test.mjs` y `frontend/tests/calendarModel.test.mjs`, mediante `npm test` en Node 24, ejercitan el cargador real utilizado por App (respuestas fuera de orden, errores tardíos, recargas, A→B→A y descarte tras cierre/desmontaje) y el modelo de calendario (huso `America/Argentina/Buenos_Aires`, navegación mensual sin meses futuros, grilla con inicio en lunes y totales por fecha). No instalan bibliotecas de pruebas adicionales. El build TypeScript/Vite comprueba la integración de tipos. El recorrido visual y la autorización integral con backend quedan pendientes de aceptación.
 
 ## Historial, detalle y operaciones E2.2
 
 `ExpenseHistory.tsx` consulta la ruta paginada; la carga inicial de la organización deja de descargar todos los gastos. Permite desde/hasta inclusivos, categoría (incluidas inactivas históricas), estado vigente/anulado/todos y tamaños 10/20/50. Cambiar filtros reinicia la página y descarta respuestas previas. El total representa todos los gastos filtrados. Una organización nueva monta una instancia independiente; respuestas de detalles, páginas y operaciones anteriores se descartan al desmontar.
 
 El detalle muestra fecha, categoría, importe, autor, titular, estado, versión y todas las partes como participación, no deuda. No convierte receiptUrl en enlace público: el servicio de comprobantes privados sigue pendiente. Autor o ADMIN ven edición/anulación sólo para gastos vigentes. La edición conserva titular y participantes y puede conservar su categoría inactiva; solicita importe/fecha/descripción/categoría y envía la versión consultada. Ante 409 conserva el formulario local, bloquea el reenvío y ofrece recargar explícitamente. Anulación requiere confirmación y refresca el historial, sin reactivación. Los controles de la UI no sustituyen permisos Java.
+
+## Calendario con detalle por fecha E2.3
+
+`App.tsx` incorpora un selector alternable (`Historial` / `Calendario`) dentro de la pestaña `Gastos`. `ExpenseCalendar.tsx` y `calendarModel.ts` operan sobre el calendario `America/Argentina/Buenos_Aires`, consultan `GET /api/v1/expenses/organization/{organizationId}/calendar?month=YYYY-MM` para obtener el total mensual, cantidad de gastos vigentes y desglose diario (`date`, `totalAmount`, `expenseCount`), y bloquean la navegación a meses o fechas futuras.
+
+Al seleccionar un día no futuro del mes, `ExpenseCalendar.tsx` consulta `GET /api/v1/expenses/organization/{organizationId}/page` con `fromDate=YYYY-MM-DD`, `toDate=YYYY-MM-DD` y `state=ACTIVE`, mostrando los gastos vigentes de esa fecha con paginación y permitiendo abrir el detalle completo (`GET /api/v1/expenses/{id}`), editar con versión optimista (`PUT /api/v1/expenses/{id}`) o anular con confirmación (`DELETE /api/v1/expenses/{id}`) según permisos de autor o ADMIN. Cualquier alta, edición o anulación recarga tanto los totales mensuales del calendario como el listado del día seleccionado; cambios de organización, mes, día o desmontaje descartan respuestas tardías.
