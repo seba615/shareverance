@@ -129,6 +129,24 @@ public class MockExpenseRepository implements ExpenseRepository {
     }
 
     @Override
+    public List<com.shareverance.dto.ExpenseCalendarDayResponse> findCalendarDays(
+            Long organizationId, LocalDate fromDate, LocalDate toDate) {
+        return findByOrganizationId(organizationId).stream()
+                .filter(e -> Boolean.TRUE.equals(e.getIsActive()))
+                .filter(e -> !e.getExpenseDate().isBefore(fromDate) && !e.getExpenseDate().isAfter(toDate))
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Expense::getExpenseDate,
+                        java.util.TreeMap::new,
+                        java.util.stream.Collectors.toList()))
+                .entrySet().stream()
+                .map(entry -> new com.shareverance.dto.ExpenseCalendarDayResponse(
+                        entry.getKey(),
+                        entry.getValue().stream().map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        entry.getValue().size()))
+                .toList();
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return store.containsKey(id);
     }

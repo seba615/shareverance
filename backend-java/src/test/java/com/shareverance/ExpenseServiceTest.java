@@ -253,4 +253,22 @@ class ExpenseServiceTest {
         assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
         assertTrue(ex.getReason().contains("Conflicto de concurrencia"));
     }
+
+    @Test
+    void testGetExpenseCalendarAggregatesActiveExpensesAndRejectsInvalidOrFutureMonth() {
+        var calendar = expenseService.getExpenseCalendar(1L, "2026-09");
+        assertEquals("2026-09", calendar.month());
+        assertEquals(new BigDecimal("175000.00").setScale(2), calendar.totalAmount().setScale(2));
+        assertEquals(2L, calendar.totalExpenses());
+        assertEquals(2, calendar.days().size());
+        assertEquals(LocalDate.of(2026, 9, 15), calendar.days().get(0).date());
+        assertEquals(LocalDate.of(2026, 9, 18), calendar.days().get(1).date());
+
+        java.time.YearMonth currentMonth = java.time.YearMonth.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+        var currentCalendar = expenseService.getExpenseCalendar(1L, null);
+        assertEquals(currentMonth.toString(), currentCalendar.month());
+
+        assertThrows(BusinessRuleException.class, () -> expenseService.getExpenseCalendar(1L, "2026-13"));
+        assertThrows(BusinessRuleException.class, () -> expenseService.getExpenseCalendar(1L, currentMonth.plusMonths(1).toString()));
+    }
 }

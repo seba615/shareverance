@@ -14,11 +14,14 @@ import {
   organizationApi,
 } from './api/java';
 
+import { ExpenseCalendarView } from './ExpenseCalendar';
 import { ExpenseHistory } from './ExpenseHistory';
+import { buenosAiresToday } from './calendarModel';
 import { createOrganizationLoader } from './organizationLoader';
 
 type AuthMode = 'login' | 'register';
 type OrgTab = 'expenses' | 'members' | 'categories';
+type ExpenseViewMode = 'history' | 'calendar';
 
 const organizationTypeLabels: Record<OrganizationType, string> = {
   HOUSEHOLD: 'Hogar',
@@ -47,6 +50,7 @@ export default function App() {
 
   // Estados de datos de la organización activa
   const [activeTab, setActiveTab] = useState<OrgTab>('expenses');
+  const [expenseView, setExpenseView] = useState<ExpenseViewMode>('history');
   const [organizationData, setOrganizationData] = useState<{
     organizationId: number;
     members: UserOrganization[];
@@ -565,7 +569,27 @@ export default function App() {
                 {activeTab === 'expenses' && (
                   <div className="tab-pane">
                     <div className="tab-pane-header">
-                      <h3>Gastos de la organización</h3>
+                      <div className="expense-header-controls">
+                        <h3>Gastos de la organización</h3>
+                        <div className="view-switch" role="group" aria-label="Vista de gastos">
+                          <button
+                            className={`view-switch-btn${expenseView === 'history' ? ' active' : ''}`}
+                            type="button"
+                            aria-pressed={expenseView === 'history'}
+                            onClick={() => { setExpenseView('history'); setError(''); }}
+                          >
+                            Historial
+                          </button>
+                          <button
+                            className={`view-switch-btn${expenseView === 'calendar' ? ' active' : ''}`}
+                            type="button"
+                            aria-pressed={expenseView === 'calendar'}
+                            onClick={() => { setExpenseView('calendar'); setError(''); }}
+                          >
+                            Calendario
+                          </button>
+                        </div>
+                      </div>
                       <button
                         className="primary-button"
                         type="button"
@@ -602,8 +626,8 @@ export default function App() {
                             <input
                               name="expenseDate"
                               type="date"
-                              max={new Date().toISOString().split('T')[0]}
-                              defaultValue={new Date().toISOString().split('T')[0]}
+                              max={buenosAiresToday()}
+                              defaultValue={buenosAiresToday()}
                               required
                             />
                           </label>
@@ -673,8 +697,27 @@ export default function App() {
                       </form>
                     )}
 
-                    <ExpenseHistory key={selectedOrganization.id} organizationId={selectedOrganization.id}
-                      userId={user.id} isAdmin={isAdmin} members={members} categories={categories} refreshToken={historyRefresh} />
+                    {expenseView === 'history' ? (
+                      <ExpenseHistory
+                        key={`history-${selectedOrganization.id}`}
+                        organizationId={selectedOrganization.id}
+                        userId={user.id}
+                        isAdmin={isAdmin}
+                        members={members}
+                        categories={categories}
+                        refreshToken={historyRefresh}
+                      />
+                    ) : (
+                      <ExpenseCalendarView
+                        key={`calendar-${selectedOrganization.id}`}
+                        organizationId={selectedOrganization.id}
+                        userId={user.id}
+                        isAdmin={isAdmin}
+                        members={members}
+                        categories={categories}
+                        refreshToken={historyRefresh}
+                      />
+                    )}
                   </div>
                 )}
 

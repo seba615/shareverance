@@ -25,7 +25,7 @@ React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker
 
 Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java y devuelve predicciones simuladas. Objetivo: Java autoriza y orquesta; Python consulta vistas SQL con usuario de lectura y procesa OCR desde volumen compartido. Java escribe comprobantes y Python solo los lee. Este cambio requiere código, migraciones y configuración; todavía no está desplegado por esta actualización documental.
 
-Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones y pestañas de gastos, miembros y categorías. E2.1 incorpora carga manual y listado de gastos, alta de miembros por email, cambio de rol, desactivación/reactivación y alta/desactivación de categorías. E2.2 agrega historial filtrado y paginado, detalle, edición con versión y anulación confirmada de gastos. Edición de categorías, calendario y analítica siguen pendientes. La especificación incorpora calendario y preserva funciones existentes.
+Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones y pestañas de gastos, miembros y categorías. E2.1 incorpora carga manual y listado de gastos, alta de miembros por email, cambio de rol, desactivación/reactivación y alta/desactivación de categorías. E2.2 agrega historial filtrado y paginado, detalle, edición con versión y anulación confirmada de gastos. E2.3 incorpora la vista alternable de calendario mensual con totales diarios y consulta/detalle por fecha dentro de la pestaña de gastos. Edición de categorías y analítica siguen pendientes. La especificación incorpora calendario y preserva funciones existentes.
 
 E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
 
@@ -86,7 +86,7 @@ Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demo
 
 ### 4. Usar la aplicación
 
-Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Dentro de la organización activa están las pestañas Gastos, Miembros y Categorías: se pueden cargar y listar gastos, y ADMIN puede administrar miembros y crear/desactivar categorías. El historial permite filtrar y paginar, abrir detalles, editar gastos como autor/ADMIN y confirmar anulaciones. Calendario y análisis siguen pendientes.
+Abrir [http://localhost:5173](http://localhost:5173) para crear una cuenta o iniciar sesión. Después se pueden consultar, seleccionar o crear organizaciones. Dentro de la organización activa están las pestañas Gastos, Miembros y Categorías: se pueden cargar y listar gastos, y ADMIN puede administrar miembros y crear/desactivar categorías. En Gastos se puede alternar entre Historial (filtrado y paginado) y Calendario (resumen mensual navegable con total diario y listado por fecha), además de abrir detalles, editar gastos como autor/ADMIN y confirmar anulaciones. El panel analítico sigue pendiente.
 
 Python queda disponible en [http://localhost:8000/docs](http://localhost:8000/docs).
 

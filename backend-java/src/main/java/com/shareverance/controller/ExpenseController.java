@@ -71,6 +71,13 @@ public class ExpenseController {
                 new com.shareverance.dto.ExpenseFilter(fromDate, toDate, categoryId, state), page, size));
     }
 
+    @GetMapping("/organization/{organizationId}/calendar")
+    public ResponseEntity<com.shareverance.dto.ExpenseCalendarResponse> getCalendar(
+            @PathVariable Long organizationId,
+            @RequestParam(required = false) String month) {
+        return ResponseEntity.ok(expenseService.getExpenseCalendar(organizationId, month));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ExpenseDetailResponse> updateExpense(@PathVariable Long id, @RequestBody ExpenseUpdateRequest request) {
         return ResponseEntity.ok(expenseService.updateExpense(id, request));
