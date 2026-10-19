@@ -25,6 +25,8 @@ React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker
 
 Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java y devuelve predicciones simuladas. Objetivo: Java autoriza y orquesta; Python consulta vistas SQL con usuario de lectura y procesa OCR desde volumen compartido. Java escribe comprobantes y Python solo los lee. Este cambio requiere código, migraciones y configuración; todavía no está desplegado por esta actualización documental.
 
+E3.1 incorpora V7: vistas analíticas aisladas por contexto transaccional, cobertura explícita por mes cerrado y credenciales separadas para migración, Java y lectura Python. El consumidor Python y la retirada del callback permanecen pendientes de E3.2; no hay panel ni predicción real nuevos. Contratos y permisos en [PostgreSQL](docs/postgre.md) y [API](docs/contratos_api.md).
+
 Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones y pestañas de gastos, miembros y categorías. E2.1 incorpora carga manual y listado de gastos, alta de miembros por email, cambio de rol, desactivación/reactivación y alta/desactivación de categorías. E2.2 agrega historial filtrado y paginado, detalle, edición con versión y anulación confirmada de gastos. E2.3 incorpora la vista alternable de calendario mensual con totales diarios y consulta/detalle por fecha dentro de la pestaña de gastos. Edición de categorías y analítica siguen pendientes. La especificación incorpora calendario y preserva funciones existentes.
 
 E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
@@ -51,6 +53,8 @@ Copy-Item .env.example .env
 ```
 
 Revisar las credenciales de `.env`. Este archivo es personal y no se sube a Git. La copia de `.env.example` incluye credenciales OAuth locales para que Python consulte el historial a través de Java; son solo para desarrollo y deben reemplazarse antes de cualquier despliegue. Si `.env` ya existía, agregarle `PYTHON_CLIENT_ID` y `PYTHON_CLIENT_SECRET` desde `.env.example`.
+
+E3.1 añade `JAVA_DB_PASSWORD` y `PYTHON_DB_PASSWORD`; agregar ambas a un `.env` existente y elegir valores distintos y no vacíos. `POSTGRES_USER/POSTGRES_PASSWORD` quedan para administración/Flyway; no usar `shareverance_java` ni `shareverance_python` como POSTGRES_USER. Los ejemplos son exclusivamente locales. Compose conserva valores de desarrollo predeterminados para las dos variables nuevas; deben reemplazarse fuera de este entorno.
 
 Para el acceso directo a los servicios, si tienen algun puerto ocupado agregar a `.env`:
 
@@ -83,6 +87,8 @@ docker compose -f compose.yaml -f compose.tools.yaml ps
 ```
 
 Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demostración se cargan automáticamente; no crear tablas manualmente.
+
+`database-access` es una excepción: termina con código 0 después de aprovisionar los logins desde variables de entorno, antes de Java. Java ejecuta Flyway con la cuenta administrativa y usa `shareverance_java` para las consultas de negocio. También se aprovisiona el rol de lectura `shareverance_python`, todavía sin conexión desde el contenedor Python. El proceso funciona sobre volúmenes existentes: no borrar la base para aplicar V7. Cambiar las contraseñas de Java/Python requiere volver a ejecutar el aprovisionamiento y recrear sus clientes; cambiar POSTGRES_PASSWORD no cambia la contraseña del propietario de una base ya inicializada.
 
 ### 4. Usar la aplicación
 
@@ -124,6 +130,15 @@ erDiagram
     EXPENSES ||--|{ EXPENSE_SPLITS : distribuye
     USER_ORGANIZATION ||--o{ EXPENSE_SPLITS : participa
     USERS ||--o{ AUTH_SESSIONS : inicia
+    ORGANIZATIONS ||--o{ ANALYTICS_MONTH_COVERAGE : declara
+    USERS ||--o{ ANALYTICS_MONTH_COVERAGE : confirma
+    ANALYTICS_MONTH_COVERAGE {
+        bigint organization_id PK
+        date covered_month PK
+        bigint declared_by_user_id FK
+        timestamp declared_at
+        boolean is_confirmed
+    }
     USERS {
         bigint id PK
         string full_name
@@ -756,3 +771,25 @@ docker compose -f compose.yaml -f compose.tools.yaml build frontend
 ```
 
 Las pruebas usan promesas controladas para simular respuestas fuera de orden, errores tardíos, A→B→A, recargas simultáneas y cierre de sesión/desmontaje. Verifican el cargador utilizado por React; no sustituyen pruebas de navegador ni aceptación integral con Java.
+
+## Pruebas E3.1: vistas, roles y cobertura
+
+`AnalyticsViewsPostgresTest` usa otra base temporal exclusiva cuyo nombre contenga `shareverance_e12_equal_test`, indicada por `E31_TEST_JDBC_URL`. No reutilizar una base con datos propios: la prueba migra V6, inserta fixtures sintéticos, aplica V7 y modifica datos. El usuario administrativo de estas pruebas es `e12` con la contraseña local de prueba del ejemplo anterior. Las credenciales SQL de prueba siguientes no se usan para desarrollo.
+
+```powershell
+docker run -d --name shareverance-e31-test-db --tmpfs /var/lib/postgresql/data -e POSTGRES_DB=shareverance_e12_equal_test_e31 -e POSTGRES_USER=e12 -e POSTGRES_PASSWORD=e12-local-test postgres:17.11-bookworm
+docker exec shareverance-e31-test-db pg_isready -U e12 -d shareverance_e12_equal_test_e31
+```
+
+Una vez listo PostgreSQL, crear la segunda base y aprovisionar sus logins:
+
+```powershell
+docker exec shareverance-e31-test-db createdb -U e12 shareverance_e12_equal_test_e31_analytics
+$E31Access = Get-Content .\database\configure-access.sql -Raw
+$E31Access | docker exec -i -e JAVA_DB_PASSWORD=e31-java-test -e PYTHON_DB_PASSWORD=e31-python-test shareverance-e31-test-db psql -v ON_ERROR_STOP=1 -U e12 -d shareverance_e12_equal_test_e31_analytics
+$E31Source = (Resolve-Path .\backend-java).Path
+docker run --rm --network container:shareverance-e31-test-db -e E12_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_e12_equal_test_e31 -e E31_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_e12_equal_test_e31_analytics --mount "type=bind,source=$E31Source,target=/app" -w /app maven:3.9.11-eclipse-temurin-21 mvn --batch-mode --no-transfer-progress clean test
+docker rm -f shareverance-e31-test-db
+```
+
+Las bases son distintas porque las suites anteriores utilizan sus propios esquemas y fixtures. Sin E31_TEST_JDBC_URL se omite esta integración; no interpretar omisiones como pruebas aprobadas. La prueba usa conexiones reales de Java/Python, verifica ausencia de contexto, commit/rollback A→B, permisos denegados, conciliación y API con autenticación. La aceptación de la integración Java→Python→vistas queda para E3.2.

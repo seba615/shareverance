@@ -9,6 +9,8 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 FastAPI en `service-python/app/`. Existen esquemas estrictos, validación de historial, endpoints predictivos y predictor simulado. El GET organizacional obtiene actualmente el historial mediante Java. No hay acceso de Python a PostgreSQL, predictor real evaluado ni router analítico mensual completo en la base revisada.
 
+E3.1 incorpora en PostgreSQL las vistas y el rol `shareverance_python`, no su consumidor Python. El contrato SQL definitivo de esta etapa está en [postgre.md](postgre.md): centavos BIGINT, contexto `shareverance.organization_id` local a una transacción, ausencia de filas sin contexto válido y vista separada de meses explícitamente confirmados. No se infiere cobertura por gastos ni se fabrican ceros en las vistas. E3.2 deberá conectar con esa credencial, establecer el contexto con ID autorizado por Java, terminar siempre la transacción antes de devolver conexiones al pool y adaptar cobertura/continuidad/categorías al contrato. Hasta entonces se conserva el callback y su autenticación vigente; no se expone un servicio Python SQL operativo ni se cambia v1.
+
 ## Arquitectura requerida
 
 Java autoriza al usuario y envía organización/período por HTTP interno autenticado. Python consulta vistas de PostgreSQL mediante credencial exclusiva de lectura, sin SELECT sobre tablas de negocio ni permisos de escritura. Contrato SQL en [postgre.md](postgre.md), contrato HTTP en [contratos_api.md](contratos_api.md).

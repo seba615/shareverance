@@ -108,7 +108,19 @@ Java verifica `WHERE id = ? AND version = ? AND is_active = TRUE` antes de guard
 
 Transición y consumidores: la variante de PUT sin version, admitida accidentalmente en PR #30, deja de aceptarse. El frontend integrado sólo consume sesión y organizaciones y no tiene un cliente de edición de gastos; Python no consume PUT/DELETE de gastos. Los nuevos clientes de E2 deben consultar y enviar version. No cambian los DTO de lectura ni la estructura del campo introducido en V6. Las pruebas HTTP de controlador verifican 400/409 y la versión de respuesta; la autorización por organización continúa en el circuito existente.
 
-## Contrato interno objetivo
+## Cobertura explícita E3.1
+
+Las rutas siguientes requieren sesión, usuario, organización ARS y membresía ADMIN activos. Las mutaciones con cookie conservan la protección CSRF. El autor se toma de la sesión; no hay cuerpo de solicitud ni cobertura inferida al crear gastos u organizaciones.
+
+| Operación | Ruta | Respuesta 200 |
+| --- | --- | --- |
+| Listar declaraciones, incluidas retiradas | GET `/api/v1/organizations/{id}/analytics/coverage` | Lista ordenada por mes de `{organizationId, month, confirmed}` |
+| Confirmar/reconfirmar un mes completo | PUT `/api/v1/organizations/{id}/analytics/coverage/{month}` | `{organizationId, month, confirmed:true}` |
+| Retirar la confirmación lógicamente | DELETE `/api/v1/organizations/{id}/analytics/coverage/{month}` | `{organizationId, month, confirmed:false}` |
+
+`month` tiene formato estricto YYYY-MM (años 0001–9999) y debe ser anterior al mes actual de Buenos Aires; inválido, actual o futuro devuelve 400. Las confirmaciones repetidas no duplican filas; retirar un mes conserva una declaración no confirmada. Sin sesión, 401; USER, otra organización o estados inactivos, 403. No se interpreta cobertura retirada como cero. La vista de cobertura sólo expone confirmaciones vigentes; columnas, roles y uso transaccional se definen en [postgre.md](postgre.md). Las vistas de importes muestran observaciones, incluso fuera de meses confirmados; el consumidor debe cruzarlas con cobertura y validar continuidad antes de construir historial confiable. No hay cambios de respuesta v1, callback o consumidor Python en E3.1.
+
+## Contrato interno objetivo (E3.2 y OCR)
 
 Propuesta de rutas distintas para no romper v1:
 
