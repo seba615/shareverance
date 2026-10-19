@@ -149,6 +149,20 @@ export default function App() {
     }
   }
 
+  async function handleReactivateMember(memberId: number) {
+    if (!selectedOrganizationId) return;
+    setBusy(true);
+    setError('');
+    try {
+      await membershipApi.reactivate(memberId);
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedOrganizationId) return;
@@ -770,7 +784,16 @@ export default function App() {
                                       </button>
                                     </div>
                                   ) : (
-                                    <span className="muted">Desactivado</span>
+                                    <div className="action-buttons">
+                                      <button
+                                        className="text-button"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => handleReactivateMember(m.id)}
+                                      >
+                                        Reactivar
+                                      </button>
+                                    </div>
                                   )}
                                 </td>
                               )}

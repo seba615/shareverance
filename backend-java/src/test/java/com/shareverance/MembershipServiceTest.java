@@ -69,4 +69,28 @@ class MembershipServiceTest {
                 service.addMemberToOrganization(
                         new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "inexistente@example.invalid")));
     }
+
+    @Test
+    void canReactivateDeactivatedMembership() {
+        var memberships = new MockUserOrganizationRepository();
+        var users = new MockUserRepository();
+        var organizations = new MockOrganizationRepository();
+        var service = new MembershipServiceImpl(memberships, users, organizations);
+
+        // En Org 1, membership 2 (User 2, USER) se desactiva
+        var deactivated = service.deactivateMembership(2L);
+        org.junit.jupiter.api.Assertions.assertFalse(deactivated.getIsActive());
+
+        // Reactivar mediante método explícito
+        var reactivated = service.reactivateMembership(2L);
+        org.junit.jupiter.api.Assertions.assertTrue(reactivated.getIsActive());
+        org.junit.jupiter.api.Assertions.assertEquals(2L, reactivated.getId());
+
+        // Volver a desactivar y reactivar mediante addMemberToOrganization por email
+        service.deactivateMembership(2L);
+        var readded = service.addMemberToOrganization(
+                new MembershipRequest(null, 1L, com.shareverance.model.MembershipRole.USER, "juan@perez.com"));
+        org.junit.jupiter.api.Assertions.assertTrue(readded.getIsActive());
+        org.junit.jupiter.api.Assertions.assertEquals(2L, readded.getId());
+    }
 }

@@ -191,6 +191,12 @@ export const membershipApi = {
       method: 'DELETE',
     }, true);
   },
+
+  reactivate(id: number): Promise<UserOrganization> {
+    return request<UserOrganization>(`/api/v1/memberships/${id}/reactivate`, {
+      method: 'PATCH',
+    }, true);
+  },
 };
 
 export interface Category {

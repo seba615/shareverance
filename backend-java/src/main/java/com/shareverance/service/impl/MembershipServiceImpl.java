@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class MembershipServiceImpl implements MembershipService {
@@ -52,8 +53,21 @@ public class MembershipServiceImpl implements MembershipService {
             throw new ResourceNotFoundException("Organización no encontrada con id: null");
         }
         requireActiveArsOrganization(request.organizationId());
-        if (userOrganizationRepository.existsByUserIdAndOrganizationId(user.getId(), request.organizationId())) {
-            throw new BusinessRuleException("El usuario ya pertenece a esta organización");
+        Optional<UserOrganization> existingOpt = userOrganizationRepository.findByUserIdAndOrganizationId(user.getId(), request.organizationId());
+        if (existingOpt.isPresent()) {
+            UserOrganization existing = existingOpt.get();
+            if (Boolean.TRUE.equals(existing.getIsActive())) {
+                throw new BusinessRuleException("El usuario ya pertenece a esta organización");
+            }
+            // Reactivación de membresía previamente desactivada
+            existing.setIsActive(true);
+            if (request.role() != null) {
+                existing.setRole(request.role());
+            }
+            UserOrganization updated = userOrganizationRepository.save(existing);
+            updated.setUserName(user.getFullName());
+            updated.setUserEmail(user.getEmail());
+            return updated;
         }
 
         MembershipRole role = request.role() != null ? request.role() : MembershipRole.USER;
@@ -127,6 +141,33 @@ public class MembershipServiceImpl implements MembershipService {
         }
         uo.setIsActive(false);
         return userOrganizationRepository.save(uo);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public UserOrganization reactivateMembership(Long id) {
+        UserOrganization initial = findMembership(id);
+        Organization organization = organizationRepository.findByIdForUpdate(initial.getOrganizationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
+        if (!Boolean.TRUE.equals(organization.getIsActive())
+                || !"ARS".equalsIgnoreCase(organization.getCurrency())) {
+            throw new BusinessRuleException("La organización debe estar activa y operar en ARS");
+        }
+        UserOrganization membership = userOrganizationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membresía no encontrada con id: " + id));
+        if (!organization.getId().equals(membership.getOrganizationId())) {
+            throw new BusinessRuleException("La membresía cambió de organización");
+        }
+        User user = userRepository.findById(membership.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BusinessRuleException("No se puede reactivar una membresía de un usuario inactivo");
+        }
+        membership.setIsActive(true);
+        UserOrganization saved = userOrganizationRepository.save(membership);
+        saved.setUserName(user.getFullName());
+        saved.setUserEmail(user.getEmail());
+        return saved;
     }
 
     private UserOrganization requireActiveMembershipForUpdate(Long id) {
