@@ -116,7 +116,7 @@ Verificado E1.2: suite `mvn --batch-mode --no-transfer-progress clean test`, eje
 
 ### Evidencia E1.3 — versión optimista y último ADMIN, 18/10/2026
 
-Implementación en rama `feat/e1-3-concurrencia-version-admin`, base `2119011` (`origin/main`). Sin PRs remotos abiertos en colisión. Se identificó la imposibilidad técnica de invocar GitHub CLI (`gh` no reconocido) y crear issues por API sin sesión activa, por lo que no se generó ni vinculó issue remoto.
+Implementación en rama `feat/e1-3-concurrencia-version-admin`, base `2119011` (`origin/main`). Relacionado con [#29](https://github.com/seba615/shareverance/issues/29), asignado a la cuenta autenticada `seba615` y vinculado al proyecto de GitHub #3. Sin PRs remotos abiertos en colisión.
 
 Implementado:
 - Migración Flyway V6 (`V6__version_optimista_gastos.sql`) agregando columna `version INT NOT NULL DEFAULT 1` a `expenses`.
