@@ -27,6 +27,8 @@ Actual: React→Java→PostgreSQL para negocio; Python obtiene historial de Java
 
 Frontend existente: registro/login, restauración y cierre de sesión, creación/listado/selección de organizaciones. Las demás vistas y el predictor real se completan según roadmap. La especificación incorpora calendario y preserva funciones existentes.
 
+E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
+
 ## Inicio rápido
 
 
@@ -717,3 +719,27 @@ En GitHub, crear un Pull Request:
 Los nuevos commits que se suban a esa rama se incorporan automáticamente al mismo Pull Request mientras siga abierto.
 
 Después de integrar el Pull Request, comenzar la siguiente tarea desde `main` actualizado, siguiendo la sección 3.
+
+## Pruebas E1.2 con PostgreSQL aislado
+
+`ExpenseTransactionPostgresTest` requiere una base exclusiva y vacía cuyo nombre contenga `shareverance_e12_equal_test`. Se habilita mediante `E12_TEST_JDBC_URL`; sin esa variable se omite la integración PostgreSQL. Las pruebas crean datos sintéticos, eliminan registros e inyectan errores mediante triggers. No apuntar a una base de desarrollo.
+
+Desde PowerShell en la raíz:
+
+```powershell
+docker run -d --name shareverance-e12-equal-test-db --tmpfs /var/lib/postgresql/data -e POSTGRES_DB=shareverance_e12_equal_test -e POSTGRES_USER=e12 -e POSTGRES_PASSWORD=e12-local-test postgres:17.11-bookworm
+docker exec shareverance-e12-equal-test-db pg_isready -U e12 -d shareverance_e12_equal_test
+```
+
+Cuando PostgreSQL esté listo, ejecutar:
+
+```powershell
+$E12Source = (Resolve-Path .\backend-java).Path
+docker run --rm --network container:shareverance-e12-equal-test-db -e E12_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_e12_equal_test --mount "type=bind,source=$E12Source,target=/app" -w /app maven:3.9.11-eclipse-temurin-21 mvn --batch-mode --no-transfer-progress clean test
+```
+
+Al terminar, eliminar exclusivamente el contenedor temporal. Para repetir, volver a crearlo; no reutilizar datos de una ejecución anterior.
+
+```powershell
+docker rm -f shareverance-e12-equal-test-db
+```

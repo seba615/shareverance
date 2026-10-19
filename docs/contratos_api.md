@@ -22,6 +22,12 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 
 Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. El GET Python actual llama a Java; deberá migrar al repositorio de vistas.
 
+## Gastos E1.2: individual e iguales
+
+Se conservan POST /api/v1/expenses, PUT /api/v1/expenses/{id} y sus DTO. E1.2 cubre INDIVIDUAL, BETWEEN_TWO, SPECIFIC_GROUP y ALL_MEMBERS. INDIVIDUAL asigna todo al titular; BETWEEN_TWO requiere dos participantes distintos contando al titular; SPECIFIC_GROUP recibe una selección no vacía; el servidor agrega al titular si no está incluido. No se permiten IDs repetidos o nulos. ALL_MEMBERS selecciona membresías y cuentas activas de la organización.
+
+Total positivo hasta 9.999.999.999,99, con hasta dos decimales; los repartos deben permitir al menos un centavo por participante. El servidor calcula partes iguales y sobrantes por ID ascendente. PUT conserva participantes históricos y aplica el mismo cálculo. Reglas inválidas devuelven HTTP 400 sin guardar cambios parciales. CUSTOM sigue presente en el DTO preexistente, fuera del alcance y de la aceptación de E1.2; no se declara soporte nuevo para esa modalidad. Reglas normativas en [alcance_mvp.md](alcance_mvp.md).
+
 ## Contrato interno objetivo
 
 Propuesta de rutas distintas para no romper v1:
