@@ -119,9 +119,19 @@ public class MembershipServiceImpl implements MembershipService {
     }
 
     private UserOrganization requireActiveMembershipForUpdate(Long id) {
+        UserOrganization initial = findMembership(id);
+        // Orden común: organización antes que membresía, incluso si se cambia otro ADMIN.
+        Organization organization = organizationRepository.findByIdForUpdate(initial.getOrganizationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
+        if (!Boolean.TRUE.equals(organization.getIsActive())
+                || !"ARS".equalsIgnoreCase(organization.getCurrency())) {
+            throw new BusinessRuleException("La organización debe estar activa y operar en ARS");
+        }
         UserOrganization membership = userOrganizationRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Membresía no encontrada con id: " + id));
-        requireActiveArsOrganization(membership.getOrganizationId());
+        if (!organization.getId().equals(membership.getOrganizationId())) {
+            throw new BusinessRuleException("La membresía cambió de organización");
+        }
         if (!Boolean.TRUE.equals(membership.getIsActive())) {
             throw new BusinessRuleException("La membresía está inactiva");
         }

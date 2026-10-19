@@ -305,9 +305,17 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     public ExpenseDetailResponse updateExpense(Long id, ExpenseUpdateRequest request) {
+        if (request.version() == null || request.version() <= 0) {
+            throw new BusinessRuleException("La versión es obligatoria y debe ser positiva");
+        }
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));
         requireActiveArsOrganization(expense.getOrganizationId());
+        if (!request.version().equals(expense.getVersion())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "Conflicto de concurrencia: el gasto fue modificado por otra transacción");
+        }
         if (!Boolean.TRUE.equals(expense.getIsActive())) {
             throw new BusinessRuleException("El gasto está anulado y no se puede modificar");
         }
@@ -340,12 +348,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.setReceiptUrl(request.receiptUrl());
         }
 
-        if (request.version() != null && !request.version().equals(expense.getVersion())) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.CONFLICT,
-                    "Conflicto de concurrencia: el gasto fue modificado por otra transacción");
-        }
-
+        List<ExpenseSplit> partsToSave = List.of();
         if (request.amount() != null) {
             BigDecimal newAmount = validateAmount(request.amount());
             List<ExpenseSplit> existingSplits = expenseSplitRepository.findByExpenseId(id);
@@ -356,24 +359,22 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.setAmount(newAmount);
             for (ExpenseSplit split : existingSplits) {
                 split.setAmount(amounts.get(split.getUserOrganizationId()));
-                expenseSplitRepository.save(split);
             }
+            partsToSave = existingSplits;
         }
 
-        Expense updated;
-        if (request.version() != null) {
-            updated = expenseRepository.updateWithOptimisticLocking(expense, request.version())
-                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                            org.springframework.http.HttpStatus.CONFLICT,
-                            "Conflicto de concurrencia: el gasto fue modificado por otra transacción"));
-        } else {
-            updated = expenseRepository.save(expense);
-        }
+        // Primero asegurar versión y bloqueo del gasto; cualquier fallo posterior revierte todo.
+        Expense updated = expenseRepository.updateWithOptimisticLocking(expense, request.version())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,
+                        "Conflicto de concurrencia: el gasto fue modificado por otra transacción"));
+        for (ExpenseSplit split : partsToSave) expenseSplitRepository.save(split);
         List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(id);
         return new ExpenseDetailResponse(updated, splits);
     }
 
     @Override
+    @Transactional
     public Expense deactivateExpense(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Gasto no encontrado con id: " + id));
@@ -381,8 +382,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (!Boolean.TRUE.equals(expense.getIsActive())) {
             throw new BusinessRuleException("El gasto ya está anulado");
         }
-        expense.setIsActive(false);
-        return expenseRepository.save(expense);
+        return expenseRepository.deactivateById(id)
+                .orElseThrow(() -> new BusinessRuleException("El gasto ya está anulado"));
     }
 
     @Override

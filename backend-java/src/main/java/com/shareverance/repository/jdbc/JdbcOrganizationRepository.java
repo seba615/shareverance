@@ -61,6 +61,16 @@ public class JdbcOrganizationRepository implements OrganizationRepository {
     }
 
     @Override
+    public Optional<Organization> findByIdForUpdate(Long id) {
+        return jdbcTemplate.query("""
+                SELECT id, name, type, currency, created_at, is_active
+                FROM organizations
+                WHERE id = ?
+                FOR UPDATE
+                """, ROW_MAPPER, id).stream().findFirst();
+    }
+
+    @Override
     public List<Organization> findAll() {
         return jdbcTemplate.query("""
                 SELECT id, name, type, currency, created_at, is_active

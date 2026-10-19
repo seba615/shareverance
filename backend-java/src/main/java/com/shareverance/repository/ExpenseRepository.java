@@ -9,6 +9,7 @@ public interface ExpenseRepository {
     Expense save(Expense expense);
     Optional<Expense> updateWithOptimisticLocking(Expense expense, Integer expectedVersion);
     Optional<Expense> findById(Long id);
+    Optional<Expense> deactivateById(Long id);
     List<Expense> findByOrganizationId(Long organizationId);
     boolean existsById(Long id);
 }

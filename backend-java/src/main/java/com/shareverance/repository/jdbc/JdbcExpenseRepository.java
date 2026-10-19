@@ -79,7 +79,7 @@ public class JdbcExpenseRepository implements ExpenseRepository {
                 SET organization_id = ?, created_by_user_id = ?, paid_by_membership_id = ?, category_id = ?,
                     amount = ?, expense_date = ?, description = ?, receipt_url = ?, split_type = ?,
                     created_at = ?, is_active = ?, version = version + 1
-                WHERE id = ? AND version = ?
+                WHERE id = ? AND version = ? AND is_active = TRUE
                 RETURNING id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
                           amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
                 """, ROW_MAPPER,
@@ -89,6 +89,17 @@ public class JdbcExpenseRepository implements ExpenseRepository {
                 timestamp(expense.getCreatedAt()), expense.getIsActive(),
                 expense.getId(), expectedVersion);
         return updated.stream().findFirst();
+    }
+
+    @Override
+    public Optional<Expense> deactivateById(Long id) {
+        return jdbcTemplate.query("""
+                UPDATE expenses
+                SET is_active = FALSE, version = version + 1
+                WHERE id = ? AND is_active = TRUE
+                RETURNING id, organization_id, created_by_user_id, paid_by_membership_id, category_id,
+                          amount, expense_date, description, receipt_url, split_type, created_at, is_active, version
+                """, ROW_MAPPER, id).stream().findFirst();
     }
 
     @Override
