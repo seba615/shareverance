@@ -1,6 +1,7 @@
 package com.shareverance.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shareverance.exception.BusinessRuleException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,15 +78,34 @@ public class PredictionService {
     public PredictionService(
             JdbcTemplate jdbc,
             AuthService auth,
-            ObjectMapper objectMapper,
             @Value("${python.service.url:http://python-service:8000}") String pythonServiceUrl,
             @Value("${security.clients.python-service.client-secret:}") String pythonClientSecret,
             @Value("${python.service.connect-timeout-ms:2000}") long connectTimeoutMs,
             @Value("${python.service.read-timeout-ms:5000}") long readTimeoutMs
     ) {
+        this(
+                jdbc,
+                auth,
+                new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false),
+                pythonServiceUrl,
+                pythonClientSecret,
+                connectTimeoutMs,
+                readTimeoutMs
+        );
+    }
+
+    public PredictionService(
+            JdbcTemplate jdbc,
+            AuthService auth,
+            ObjectMapper objectMapper,
+            String pythonServiceUrl,
+            String pythonClientSecret,
+            long connectTimeoutMs,
+            long readTimeoutMs
+    ) {
         this.jdbc = jdbc;
         this.auth = auth;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.pythonServiceUrl = pythonServiceUrl.replaceAll("/+$", "");
         this.pythonClientSecret = pythonClientSecret == null ? "" : pythonClientSecret.trim();
         this.readTimeoutMs = readTimeoutMs;
