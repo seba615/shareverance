@@ -82,3 +82,13 @@ class InternalPredictionRequest(ContractModel):
     request_id: UUID
     organization_id: PositiveId
     target_month: Month
+
+
+class InternalOcrRequest(ContractModel):
+    """Solicitud interna v1 para procesamiento OCR de un comprobante almacenado."""
+
+    contract_version: Literal["1"]
+    request_id: UUID
+    organization_id: PositiveId
+    receipt_id: UUID
+    storage_key: Annotated[str, Field(min_length=1, max_length=500)]

@@ -37,6 +37,14 @@ Edición conserva participantes históricos y debe enviar la versión positiva d
 
 OCR: subir una imagen a Java y mostrar resultado editable. No fijar Content-Type application/json en multipart; el navegador genera el boundary. La precarga no guarda el gasto. Mantener acceso a formulario manual ante error. No exponer rutas locales ni credenciales internas.
 
+En E4.2 se incorpora en el formulario de alta de gastos (`App.tsx`) la subida de comprobante y precarga editable vía `receiptApi.upload` y `receiptApi.processOcr`:
+- Selector de archivo JPEG o PNG (hasta 10 MB).
+- Al seleccionar archivo, se envía multipart con CSRF a Java (`POST /api/v1/organizations/{id}/receipts`) y se solicita el reconocimiento OCR (`POST .../{receiptId}/ocr`).
+- Los campos reconocidos (fecha, importe y descripción) se precargan en los controles del formulario y quedan plenamente editables antes del alta definitiva.
+- Si el normalizador detecta advertencias (p. ej. fecha no detectada o uso del fallback `Varios`), se presentan en pantalla en un aviso de advertencia.
+- Si el servicio OCR o la conexión con Python no están disponibles o fallan, se muestra aviso informativo y el usuario puede continuar cargando el gasto de forma manual.
+- Al confirmar el formulario, se envía el `receiptId` como `receiptUrl` para vincular el archivo al nuevo gasto creado. Cambiar de organización o cancelar el formulario reinicia los datos y estados del comprobante.
+
 ## Sesión, accesibilidad y estados
 
 Conservar cookies same-origin y flujo CSRF actual. No almacenar tokens técnicos en navegador. Ante expiración, pedir login y evitar mostrar datos de otra organización. Al cambiar organización se invalidan inmediatamente los datos, errores y estados de carga de solicitudes previas; no se muestran datos ni roles de A bajo B. También se reinician formularios, participantes, modalidad de reparto y pestaña. El cargador identifica la selección y la solicitud más reciente: A→B→A no acepta la respuesta de la primera visita a A, y una recarga vieja de la misma organización no reemplaza una nueva. Las operaciones de escritura de la selección anterior pueden terminar en Java, pero sus resultados no cierran formularios, muestran errores ni recargan otra selección. Logout y desmontaje invalidan las respuestas pendientes; no se abortan escrituras del servidor.
@@ -46,6 +54,8 @@ Diseño adaptable móvil/escritorio, labels de campos, teclado, foco visible y e
 Biblioteca gráfica pendiente de selección. No incorporar un framework adicional por defecto.
 
 ## Pruebas
+
+E4.2 utiliza `receiptLoader.ts` para el ciclo subida→OCR. Cancelar, cambiar de organización o desmontar invalida respuestas pendientes; reabrir el formulario en la misma organización inicia una generación independiente. Durante la subida/OCR se bloquean el guardado y los tres campos de precarga para evitar sobrescribir ediciones manuales; al terminar o fallar OCR vuelven a ser editables. El fallo de OCR conserva el comprobante subido y permite continuar manualmente. `receiptLoader.test.mjs` verifica respuestas y errores tardíos, reapertura y liberación de controles. Cancelar descarta el resultado en la UI, sin borrar el archivo temporal del servidor ni iniciar una purga automática.
 
 Preservar registro/login/recarga/logout y creación/selección. Recorrido manual y OCR→revisión→alta→historial→calendario→panel→predicción. Verificar USER/ADMIN, sesión vencida, cambio rápido de organización, filtros/paginación, conflicto 409, OCR fallido y Python caído. Revisar móvil y escritorio; build TypeScript/Vite y pruebas existentes afectadas.
 

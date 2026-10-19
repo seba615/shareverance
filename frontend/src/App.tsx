@@ -12,12 +12,14 @@ import {
   expenseApi,
   membershipApi,
   organizationApi,
+  receiptApi,
 } from './api/java';
 
 import { ExpenseCalendarView } from './ExpenseCalendar';
 import { ExpenseHistory } from './ExpenseHistory';
 import { buenosAiresToday } from './calendarModel';
 import { createOrganizationLoader } from './organizationLoader';
+import { createReceiptLoader } from './receiptLoader';
 
 type AuthMode = 'login' | 'register';
 type OrgTab = 'expenses' | 'members' | 'categories';
@@ -67,6 +69,48 @@ export default function App() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
 
+  // Estados para carga de comprobante y OCR
+  const [uploadedReceiptId, setUploadedReceiptId] = useState<string | null>(null);
+  const [uploadedReceiptName, setUploadedReceiptName] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDate, setExpenseDate] = useState(buenosAiresToday());
+
+  const [receiptLoader] = useState(() => createReceiptLoader({
+    upload: receiptApi.upload,
+    processOcr: receiptApi.processOcr,
+    onUpload: receipt => {
+      setUploadedReceiptId(receipt.receiptId);
+      setUploadedReceiptName(receipt.originalFilename);
+    },
+    onResult: result => {
+      if (result.date) setExpenseDate(result.date);
+      if (result.amount != null) setExpenseAmount(String(result.amount));
+      if (result.description) setExpenseDescription(result.description);
+      setOcrWarnings(result.warnings ?? []);
+    },
+    onError: error => setError(messageFrom(error)),
+    onOcrError: () => setOcrWarnings(['No se pudieron extraer datos del comprobante por OCR. Podés cargarlos manualmente.']),
+    onLoading: setOcrLoading,
+  }));
+
+  useEffect(() => () => receiptLoader.invalidate(), [receiptLoader]);
+
+  function resetExpenseForm() {
+    receiptLoader.invalidate();
+    setUploadedReceiptId(null);
+    setUploadedReceiptName(null);
+    setOcrLoading(false);
+    setOcrWarnings([]);
+    setExpenseDescription('');
+    setExpenseAmount('');
+    setExpenseDate(buenosAiresToday());
+    setSelectedMemberIds([]);
+    setSplitMode('INDIVIDUAL');
+  }
+
   // Estado del reparto de gasto
   const [splitMode, setSplitMode] = useState<SplitMode>('INDIVIDUAL');
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
@@ -105,8 +149,7 @@ export default function App() {
     setShowAddMember(false);
     setShowAddCategory(false);
     setShowAddExpense(false);
-    setSelectedMemberIds([]);
-    setSplitMode('INDIVIDUAL');
+    resetExpenseForm();
     setActiveTab('expenses');
   }
 
@@ -223,9 +266,29 @@ export default function App() {
     }
   }
 
+  async function handleReceiptFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !selectedOrganizationId) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('El comprobante no puede superar 10 MB.');
+      return;
+    }
+    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+      setError('Formato no soportado. Debe ser imagen JPEG o PNG.');
+      return;
+    }
+
+    setUploadedReceiptId(null);
+    setUploadedReceiptName(null);
+    setOcrWarnings([]);
+    setError('');
+    await receiptLoader.load(selectedOrganizationId, file, organizationLoader.scope(selectedOrganizationId));
+  }
+
   async function handleCreateExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedOrganizationId) return;
+    if (!selectedOrganizationId || receiptLoader.isLoading()) return;
     const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
@@ -246,12 +309,13 @@ export default function App() {
         amount,
         expenseDate,
         description,
+        receiptUrl: uploadedReceiptId ?? undefined,
         splitMode,
         splitMemberIds: splitMode === 'SPECIFIC_GROUP' ? selectedMemberIds : undefined,
       });
       if (!isCurrentOrganization()) return;
       setShowAddExpense(false);
-      setSelectedMemberIds([]);
+      resetExpenseForm();
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
       if (isCurrentOrganization()) setError(messageFrom(cause));
@@ -593,7 +657,11 @@ export default function App() {
                       <button
                         className="primary-button"
                         type="button"
-                        onClick={() => { setShowAddExpense(curr => !curr); setError(''); }}
+                        onClick={() => {
+                          if (showAddExpense) resetExpenseForm();
+                          setShowAddExpense(!showAddExpense);
+                          setError('');
+                        }}
                       >
                         {showAddExpense ? 'Cancelar' : '＋ Cargar gasto'}
                       </button>
@@ -602,33 +670,69 @@ export default function App() {
                     {showAddExpense && (
                       <form className="subform panel" onSubmit={handleCreateExpense}>
                         <h4>Nuevo gasto</h4>
+
+                        <div className="receipt-upload-box">
+                          <label>
+                            Comprobante (opcional, JPEG o PNG hasta 10 MB)
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png"
+                              disabled={busy || ocrLoading}
+                              onChange={handleReceiptFileChange}
+                            />
+                          </label>
+                          {ocrLoading && <p className="field-hint">Procesando OCR del comprobante…</p>}
+                          {uploadedReceiptName && !ocrLoading && (
+                            <p className="field-hint">Comprobante adjuntado: <strong>{uploadedReceiptName}</strong></p>
+                          )}
+                          {ocrWarnings.length > 0 && (
+                            <div className="notice warning" role="status">
+                              {ocrWarnings.map((w, idx) => (
+                                <p key={idx}>{w}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="form-grid-expense">
                           <label>
                             Descripción
-                            <input name="description" type="text" maxLength={500} required placeholder="Ej. Compra supermercado" />
+                            <input
+                              name="description"
+                              disabled={busy || ocrLoading}
+                              type="text"
+                              maxLength={500}
+                              required
+                              placeholder="Ej. Compra supermercado"
+                              value={expenseDescription}
+                              onChange={(e) => setExpenseDescription(e.target.value)}
+                            />
                           </label>
 
                           <label>
                             Importe (ARS)
                             <input
-                              name="amount"
+                              name="amount" disabled={busy || ocrLoading}
                               type="number"
                               step="0.01"
                               min="0.01"
                               max="9999999999.99"
                               required
                               placeholder="0.00"
+                              value={expenseAmount}
+                              onChange={(e) => setExpenseAmount(e.target.value)}
                             />
                           </label>
 
                           <label>
                             Fecha
                             <input
-                              name="expenseDate"
+                              name="expenseDate" disabled={busy || ocrLoading}
                               type="date"
                               max={buenosAiresToday()}
-                              defaultValue={buenosAiresToday()}
                               required
+                              value={expenseDate}
+                              onChange={(e) => setExpenseDate(e.target.value)}
                             />
                           </label>
 
@@ -691,7 +795,7 @@ export default function App() {
                           </div>
                         )}
 
-                        <button className="primary-button" type="submit" disabled={busy}>
+                        <button className="primary-button" type="submit" disabled={busy || ocrLoading}>
                           {busy ? 'Guardando…' : 'Registrar gasto'}
                         </button>
                       </form>

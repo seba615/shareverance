@@ -9,6 +9,8 @@ class Settings:
     database_url: str
     internal_service_token: str
     internal_service_token_previous: str
+    receipts_storage_path: str = "/data/receipts"
+    ocr_engine: str = "tesseract"
 
 
 def _build_database_url() -> str:
@@ -44,4 +46,6 @@ def load_settings() -> Settings:
         internal_service_token_previous=os.getenv(
             "PYTHON_CLIENT_SECRET_PREVIOUS", ""
         ).strip(),
+        receipts_storage_path=os.getenv("RECEIPTS_STORAGE_PATH", "/data/receipts").strip(),
+        ocr_engine=os.getenv("OCR_ENGINE", "tesseract").strip().lower(),
     )

@@ -286,3 +286,48 @@ Implementado en la misma rama del PR #42:
 Seguimiento: issue #43 creado con la cuenta autenticada `chelofabian`, asignado a esa cuenta y vinculado al proyecto 3. Sin cambios de estado ni cierre. Revisión remota previa a la entrega: sólo PR #42 abierto, `origin/main` en `8312e65` y sin otra V9 en ramas remotas.
 
 Verificado: `mvn --batch-mode --no-transfer-progress clean test` en Docker Maven 3.9.11/Java 21 con PostgreSQL 17.11 y bases temporales vacías `shareverance_e12_equal_test_pr42_final` y `_analytics`: 111 pruebas aprobadas, cero fallos, errores u omisiones. `mvn --batch-mode --no-transfer-progress -Dtest=ReceiptServiceTest,ReceiptSafetyTest,ReceiptControllerTest -DargLine=-Xmx64m test`: 28 aprobadas, cero fallos/errores/omisiones, incluido PNG válido de 100 MP rechazado antes de decodificar. Compose (`docker compose --env-file .env.example -f compose.yaml config --quiet`), enlaces Markdown locales y `git diff --check`: correctos. Python no fue modificado ni reejecutado en esta corrección. No se alteraron datos ni volúmenes de desarrollo; aceptación y cierre manuales.
+
+### Implementación E4.2 — motor OCR, normalización y resultado editable, 19/10/2026
+
+Base `5695845` (PR #42 integrado); rama `feat/e4-2-ocr-tesseract-extraccion`. Relacionado con [#44](https://github.com/seba615/shareverance/issues/44), creado en español y asignado a la cuenta autenticada `Ale2611`. Se reporta que el issue no pudo agregarse automáticamente al proyecto de GitHub #3 por falta del scope `read:project`/`project` en el token personal. Sin PRs remotos abiertos en colisión. No se modificaron estados del tablero ni se cerraron tareas.
+
+Definiciones y diseño E4.2:
+- Motor OCR seleccionado: Tesseract local con paquetes Debian `tesseract-ocr` y `tesseract-ocr-spa` (español e inglés), ejecutado internamente en `service-python` sin dependencias externas ni conectividad a internet (licencia Apache 2.0).
+- Normalización determinista en Python (`ReceiptNormalizer`):
+  - Fecha: formatos habituales en Argentina (`DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, etc.), validación de existencia real y rechazo de fechas futuras según `America/Argentina/Buenos_Aires`. Si no se detecta, `null` y aviso en `warnings`.
+  - Importe: detección de patrones de importe con coma decimal y separador de miles por punto o sin separador. Priorización de líneas con palabra clave `TOTAL` (excluyendo líneas exclusivas de subtotal) y verificación de rango positivo hasta 9.999.999.999,99 con hasta dos decimales. Si no se detecta, `null` y aviso en `warnings`.
+  - Descripción: depuración de ruido fiscal y administrativo (CUIT, IVA, CAE, etc.), normalización de espacios repetidos y límite de 500 caracteres. Adopción determinista de `Varios` si la descripción resultante queda vacía, excede los 500 caracteres o carece de texto legible.
+  - Estados devueltos: `OK` (fecha e importe reconocidos), `PARTIAL` (uno de los dos reconocido) y `FAILED` (ninguno reconocido o imagen sin texto).
+- Endpoint interno Python: `POST /internal/v1/ocr` con validación de Bearer token (`PYTHON_CLIENT_SECRET` / `PYTHON_CLIENT_SECRET_PREVIOUS`), comprobación estricta de ruta bajo `/data/receipts/org_<id>/` con rechazo de path traversal y enlaces simbólicos.
+- Invocación en backend Java (`OcrService`, `ReceiptController`):
+  - `POST /api/v1/organizations/{organizationId}/receipts/{receiptId}/ocr` protegido por sesión activa, pertenencia a la organización y permisos de propietario/admin para comprobantes temporales. Timeout de lectura configurable (`python.service.ocr-read-timeout-ms`, 15.000 ms por defecto). Traducción de caídas/timeouts a HTTP 503 sin comprometer la carga manual.
+  - Asociación automática de comprobante: `ExpenseServiceImpl.createExpense` vincula el comprobante mediante `receiptService.linkReceiptToExpense` cuando `receiptUrl` contiene el UUID de un comprobante activo de la organización.
+- Frontend React (`App.tsx`, `api/java.ts`, `style.css`):
+  - Integración en formulario de alta de gastos: selector opcional de comprobante JPEG o PNG (hasta 10 MB), subida multipart con CSRF e invocación de OCR.
+  - Precarga de fecha, importe y descripción manteniendo todos los campos completamente editables antes de confirmar. Visualización de advertencias informativas y aviso de respaldo para carga manual si el servicio OCR no responde o falla.
+  - Envío del ID del comprobante al guardar el gasto para su vinculación formal. Limpieza y reinicio de comprobante al cambiar de organización o cancelar el formulario.
+
+Verificado E4.2:
+- Servicio Python (`pytest` en contenedor Docker con Python 3.13.16): 54 pruebas recolectadas, 53 aprobadas, 0 fallos, 0 errores, 1 omitida (views repository sin base postgres real), incluyendo 10 pruebas unitarias en `test_ocr.py` (normalización de ticket argentino completo, formatos alternativos de fecha, rechazo de fechas futuras, fallback a `Varios` por texto inutilizable o exceso de 500 caracteres, texto vacío, autenticación Bearer 401/403/200, prevención de path traversal y organizaciones cruzadas 400/404, procesamiento OCR exitoso con mock engine y ejecución segura de `TesseractOcrEngine`).
+- Backend Java (`mvn test` en contenedor Maven 3.9.11/Java 21): 122 pruebas contabilizadas, 78 aprobadas, 0 fallos, 0 errores, 44 omitidas (requieren variable de base postgres real), incluyendo 7 pruebas en `OcrServiceTest` (éxito OCR, rechazo de no miembro 403, rechazo de usuario ajeno no admin sobre comprobante temporal 403, acceso autorizado de admin 200, comprobante inexistente 404, traducción de error/timeout de Python a 503), 10 pruebas en `ReceiptControllerTest` (incluyendo endpoints OCR) y prueba de vinculación en `ExpenseServiceTest`.
+- Frontend React: 20 pruebas aprobadas en Node 24 (`npm test`), build completo `tsc --noEmit && vite build` ejecutado exitosamente en Docker sin errores de tipado ni advertencias.
+- Docker y Compose: sintaxis validada con `docker compose --env-file .env.example -f compose.yaml config --quiet` exitoso; imagen Docker de `service-python` reconstruida con `tesseract-ocr` y paquetes `spa+eng`.
+- Verificación con `git diff --check` y enlaces Markdown locales. No se utilizaron ni alteraron la base ni los volúmenes de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Correcciones E4.2 del PR #45 — issue #44, 19/10/2026
+
+Implementado sobre `78efc22`, manteniendo el alcance individual/iguales y las APIs existentes:
+
+- Aislamiento Python por componentes completos de ruta; `org_1` no autoriza `org_10`/`org_11`. Comprobación de enlaces antes de resolver, incluidos archivo, directorios y raíz. El volumen sigue controlado por Java y montado sólo lectura en Python; no se acredita resistencia a sustitución concurrente de directorios por procesos con escritura.
+- El alta distingue UUID canónico de referencias antiguas sin UUID. Las antiguas se conservan sin invocar asociación; un UUID debe vincularse correctamente o devolver el 403/404/409 original, revirtiendo gasto y partes sin ocultar el error ni provocar `UnexpectedRollbackException` por capturarlo. Sin migraciones nuevas ni cambios en V1–V9.
+- El normalizador excluye fragmentos de fecha al reconocer importes y rechaza montos negativos. Una fecha con puntos sin monto devuelve importe nulo y advertencia.
+- El ciclo subida/OCR usa una generación por formulario: cancelar, cambiar organización o desmontar invalida respuestas y errores anteriores. La nueva carga no se desbloquea por un resultado viejo; el guardado y los campos de precarga se bloquean durante el procesamiento y se habilitan al terminar o fallar. Un fallo OCR permite continuar manualmente con el comprobante ya subido.
+- README, contratos y documentos Java, PostgreSQL, frontend y OCR actualizados; corregido el conteo histórico de Java (122 contabilizadas = 78 aprobadas + 44 omitidas).
+
+Verificado: suite completa Java `mvn --batch-mode --no-transfer-progress clean test` en Docker Maven 3.9.11/Java 21 con PostgreSQL 17.11 temporal: 128 aprobadas, cero fallos, errores u omisiones. Bases exclusivas `shareverance_e12_equal_test_pr45_fix` y `_analytics`; las seis nuevas pruebas `ReceiptExpenseTransactionPostgresTest` incluyen referencias antiguas, vínculo válido, 403/404/409, rollback por fallo SQL y concurrencia de altas.
+
+Python: `uv run --locked pytest -q` con Python 3.13.16 y `PYTHON_TEST_PG_URL` hacia base temporal exclusiva `shareverance_e12_equal_test_pr45_python`, rol `shareverance_python`: 64 aprobadas, cero fallos u omisiones; diez regresiones nuevas de normalización, prefijos de organización y enlaces. Frontend: `npm test`, 25 aprobadas; `npm run build` correcto en Node 24. Se prueban resultados y errores tardíos del cargador real; no equivalen a aceptación visual ni evaluación de precisión de Tesseract sobre comprobantes reales, que permanece pendiente.
+
+Seguimiento reutilizado: issue #44, asignación de `Ale2611` conservada y vinculación al proyecto 3 realizada con la cuenta autenticada `chelofabian`; sin cambios de estado ni cierre. Los datos, volúmenes de desarrollo y cambios locales ajenos permanecen fuera de las pruebas. Aceptación e integración manuales.
+
+Comprobaciones finales: `origin/main` permanece en `5695845`, único PR abierto #45 con cabeza inicial `78efc22`, sin otros cambios activos en colisión. `docker compose --env-file .env.example -f compose.yaml config --quiet`, enlaces Markdown locales y `git diff --check`: correctos. La validación OCR de este ajuste usa texto e imágenes de prueba sintéticos; no se midió precisión con comprobantes reales.

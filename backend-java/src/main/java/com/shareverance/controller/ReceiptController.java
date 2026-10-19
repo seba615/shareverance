@@ -1,8 +1,10 @@
 package com.shareverance.controller;
 
+import com.shareverance.dto.OcrResultResponse;
 import com.shareverance.dto.ReceiptResponse;
 import com.shareverance.dto.ReceiptUploadResponse;
 import com.shareverance.service.AuthService;
+import com.shareverance.service.OcrService;
 import com.shareverance.service.ReceiptService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.Resource;
@@ -28,10 +30,16 @@ public class ReceiptController {
 
     private final ReceiptService receiptService;
     private final AuthService authService;
+    private final OcrService ocrService;
 
-    public ReceiptController(ReceiptService receiptService, AuthService authService) {
+    public ReceiptController(ReceiptService receiptService, AuthService authService, OcrService ocrService) {
         this.receiptService = receiptService;
         this.authService = authService;
+        this.ocrService = ocrService;
+    }
+
+    public ReceiptController(ReceiptService receiptService, AuthService authService) {
+        this(receiptService, authService, null);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -98,5 +106,20 @@ public class ReceiptController {
 
         ReceiptResponse metadata = receiptService.getReceiptMetadata(organizationId, receiptId, userId);
         return ResponseEntity.ok(metadata);
+    }
+
+    @PostMapping("/{receiptId}/ocr")
+    public ResponseEntity<OcrResultResponse> processReceiptOcr(
+            @PathVariable Long organizationId,
+            @PathVariable String receiptId,
+            HttpServletRequest httpRequest) {
+
+        Long userId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        if (userId == null || !authService.isOrganizationMember(userId, organizationId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No pertenecés a esta organización");
+        }
+
+        OcrResultResponse ocrResult = ocrService.processReceiptOcr(organizationId, receiptId, userId);
+        return ResponseEntity.ok(ocrResult);
     }
 }

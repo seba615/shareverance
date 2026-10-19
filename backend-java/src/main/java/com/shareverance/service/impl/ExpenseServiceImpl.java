@@ -37,6 +37,8 @@ import com.shareverance.repository.OrganizationRepository;
 import com.shareverance.repository.UserOrganizationRepository;
 import com.shareverance.repository.UserRepository;
 import com.shareverance.service.ExpenseService;
+import com.shareverance.service.ReceiptService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ExpenseServiceImpl implements ExpenseService {
@@ -47,6 +49,24 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final UserRepository userRepository;
     private final UserOrganizationRepository userOrganizationRepository;
     private final CategoryRepository categoryRepository;
+    private final ReceiptService receiptService;
+
+    @Autowired
+    public ExpenseServiceImpl(ExpenseRepository expenseRepository,
+                              ExpenseSplitRepository expenseSplitRepository,
+                              OrganizationRepository organizationRepository,
+                              UserRepository userRepository,
+                              UserOrganizationRepository userOrganizationRepository,
+                              CategoryRepository categoryRepository,
+                              @Autowired(required = false) ReceiptService receiptService) {
+        this.expenseRepository = expenseRepository;
+        this.expenseSplitRepository = expenseSplitRepository;
+        this.organizationRepository = organizationRepository;
+        this.userRepository = userRepository;
+        this.userOrganizationRepository = userOrganizationRepository;
+        this.categoryRepository = categoryRepository;
+        this.receiptService = receiptService;
+    }
 
     public ExpenseServiceImpl(ExpenseRepository expenseRepository,
                               ExpenseSplitRepository expenseSplitRepository,
@@ -54,12 +74,8 @@ public class ExpenseServiceImpl implements ExpenseService {
                               UserRepository userRepository,
                               UserOrganizationRepository userOrganizationRepository,
                               CategoryRepository categoryRepository) {
-        this.expenseRepository = expenseRepository;
-        this.expenseSplitRepository = expenseSplitRepository;
-        this.organizationRepository = organizationRepository;
-        this.userRepository = userRepository;
-        this.userOrganizationRepository = userOrganizationRepository;
-        this.categoryRepository = categoryRepository;
+        this(expenseRepository, expenseSplitRepository, organizationRepository,
+                userRepository, userOrganizationRepository, categoryRepository, null);
     }
 
     @Override
@@ -154,6 +170,29 @@ public class ExpenseServiceImpl implements ExpenseService {
             split.setExpenseId(savedExpense.getId());
         }
         List<ExpenseSplit> savedSplits = expenseSplitRepository.saveAll(splits);
+
+        if (receiptService != null && request.receiptUrl() != null && !request.receiptUrl().isBlank()) {
+            String candidateReceiptId = request.receiptUrl().trim();
+            if (candidateReceiptId.contains("/")) {
+                candidateReceiptId = candidateReceiptId.substring(candidateReceiptId.lastIndexOf('/') + 1);
+            }
+            boolean isReceiptId;
+            try {
+                isReceiptId = UUID.fromString(candidateReceiptId).toString().equalsIgnoreCase(candidateReceiptId);
+            } catch (IllegalArgumentException invalidId) {
+                isReceiptId = false;
+            }
+            // Las referencias anteriores no UUID siguen siendo texto; un UUID sí
+            // debe asociarse o rechazar toda el alta con su error de negocio original.
+            if (isReceiptId) {
+                receiptService.linkReceiptToExpense(
+                        candidateReceiptId,
+                        savedExpense.getId(),
+                        request.organizationId(),
+                        request.createdByUserId()
+                );
+            }
+        }
 
         return new ExpenseDetailResponse(savedExpense, savedSplits);
     }

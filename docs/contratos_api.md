@@ -137,13 +137,13 @@ Reglas de E3.2:
 
 ## Contrato interno objetivo (E3.2 y OCR)
 
-Rutas internas de diseño (E3.2 implementa `POST /internal/v2/predictions/monthly`; analítica v2 y OCR permanecen pendientes):
+Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR; analítica v2 permanece pendiente):
 
 | Operación | Ruta | Cuerpo |
 | --- | --- | --- |
 | Predicción con datos desde vistas (implementado en E3.2) | POST /internal/v2/predictions/monthly | contract_version (`"2"`), request_id, organization_id, target_month |
 | Analítica desde vistas (pendiente E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
-| OCR (pendiente E4.2) | POST /internal/v1/ocr | contract_version, request_id, organization_id, receipt_id, storage_key |
+| OCR (implementado en E4.2) | POST /internal/v1/ocr | contract_version (`"1"`), request_id, organization_id, receipt_id, storage_key |
 
 Ejemplo predictivo v2:
 
@@ -185,7 +185,50 @@ Códigos de respuesta de comprobantes:
 * `415 UNSUPPORTED MEDIA TYPE`: el archivo no es JPEG ni PNG (validado por magic bytes).
 * `409 CONFLICT`: el comprobante ya se encuentra vinculado a otro gasto activo.
 
-La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. El alta de gasto mantiene el campo `receiptUrl` preexistente, pero todavía no ejecuta la asociación interna de `receipts`: no basta enviar esa cadena para vincular el comprobante. El servicio interno de asociación exige un gasto activo de la misma organización y evita reemplazar vínculos concurrentes; su integración pública queda pendiente. El 409 corresponde a esa operación interna, sin endpoint público nuevo. La llamada interna OCR (E4.2) se integrará sobre `POST /internal/v1/ocr`.
+La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. En E4.2 el alta de gasto vincula el comprobante si `receiptUrl` es un UUID canónico o su último segmento es un UUID; las referencias anteriores sin UUID se conservan como texto. Para UUID se exige asociación válida: 404 si no existe, está inactivo o pertenece a otra organización; 403 sin permiso y 409 si está vinculado a otro gasto. Gasto, partes y asociación son atómicos; cualquier error revierte el alta sin ocultar el rechazo original.
+
+## OCR y precarga editable de comprobantes (implementado en E4.2)
+
+Rutas para el procesamiento OCR de comprobantes:
+
+* `POST /api/v1/organizations/{organizationId}/receipts/{receiptId}/ocr` (Java pública):
+  - Autenticación: sesión activa y membresía en la organización. El comprobante temporal debe pertenecer al usuario autenticado o este debe tener rol `ADMIN`. Si ya está vinculado a un gasto, cualquier miembro activo puede solicitarlo.
+  - Comportamiento: Java invoca internamente al servicio Python (`POST /internal/v1/ocr`) pasando `storage_key` (`org_<id>/<uuid>.<ext>`) con cabecera `Authorization: Bearer <PYTHON_CLIENT_SECRET>`. Si Python no responde o se agota el timeout de 15 segundos, responde HTTP 503 permitiendo al frontend continuar con la carga manual.
+  - Respuesta `200 OK` (`OcrResultResponse`):
+    ```json
+    {
+      "receiptId": "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b",
+      "status": "OK",
+      "currency": "ARS",
+      "date": "2026-10-15",
+      "amount": 7650.50,
+      "description": "Supermercado compras varias",
+      "warnings": []
+    }
+    ```
+
+* `POST /internal/v1/ocr` (Python interna):
+  - Autenticación: `Authorization: Bearer <PYTHON_CLIENT_SECRET>` (admite `PYTHON_CLIENT_SECRET_PREVIOUS` para rotación).
+  - Cuerpo de solicitud (`InternalOcrRequest`):
+    ```json
+    {
+      "contract_version": "1",
+      "request_id": "7f69bfaa-465e-4e74-a13f-169447481317",
+      "organization_id": 1,
+      "receipt_id": "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b",
+      "storage_key": "org_1/cbad14ba-cbe2-47ca-bdf6-b9266054ef0b.png"
+    }
+    ```
+  - Reglas de validación: `storage_key` debe residir bajo `/data/receipts/org_<organization_id>/`, comparando componentes completos, sin path traversal (`..`, rutas absolutas) ni enlaces simbólicos. Se comprueban los enlaces antes de resolver la ruta, incluida la raíz.
+  - Motor: Tesseract OCR local con paquetes en español e inglés (`spa+eng`).
+  - Normalización:
+    - Fecha: formatos `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, etc. Rechaza fechas futuras en huso `America/Argentina/Buenos_Aires`. Si no se detecta, devuelve `null` y aviso en `warnings`.
+    - Importe: detección de patrones monetarios con coma decimal y punto de miles. Prioriza líneas con `TOTAL` excluyendo subtotales. Excluye fragmentos de fecha y valores negativos. Límite máximo 9.999.999.999,99 ARS con hasta 2 decimales. Si no se detecta, devuelve `null` y aviso en `warnings`.
+    - Descripción: eliminación de ruido impositivo y de encabezados de tickets; espacios redundantes normalizados; longitud máxima de 500 caracteres. Si no es utilizable, está vacía o excede 500 caracteres, adopta el valor de respaldo `Varios`.
+  - Estados devueltos:
+    - `OK`: fecha e importe detectados.
+    - `PARTIAL`: solo uno de los dos campos numérico/temporal detectado.
+    - `FAILED`: ningún campo detectado o archivo vacío/ilegible.
 
 ## Resultados analíticos y predictivos
 

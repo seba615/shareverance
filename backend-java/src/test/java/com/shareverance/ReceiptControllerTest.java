@@ -1,11 +1,13 @@
 package com.shareverance;
 
 import com.shareverance.controller.ReceiptController;
+import com.shareverance.dto.OcrResultResponse;
 import com.shareverance.dto.ReceiptResponse;
 import com.shareverance.dto.ReceiptUploadResponse;
 import com.shareverance.exception.GlobalExceptionHandler;
 import com.shareverance.security.BearerTokenAuthFilter;
 import com.shareverance.service.AuthService;
+import com.shareverance.service.OcrService;
 import com.shareverance.service.ReceiptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,7 @@ class ReceiptControllerTest {
 
     private ReceiptService receiptService;
     private AuthService authService;
+    private OcrService ocrService;
     private MockMvc mockMvc;
 
     private final String validToken = "valid-token-123";
@@ -45,8 +48,9 @@ class ReceiptControllerTest {
     void setUp() {
         receiptService = Mockito.mock(ReceiptService.class);
         authService = Mockito.mock(AuthService.class);
+        ocrService = Mockito.mock(OcrService.class);
 
-        ReceiptController controller = new ReceiptController(receiptService, authService);
+        ReceiptController controller = new ReceiptController(receiptService, authService, ocrService);
         BearerTokenAuthFilter filter = new BearerTokenAuthFilter(authService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -178,5 +182,43 @@ class ReceiptControllerTest {
                         .header("Authorization", "Bearer " + validToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].receiptId").value("r1"));
+    }
+
+    @Test
+    void processReceiptOcr_success_returnsOcrResult() throws Exception {
+        when(authService.isAuthorizedForRequest(validToken, "POST", "/api/v1/organizations/1/receipts/rec-123/ocr"))
+                .thenReturn(true);
+        when(authService.isOrganizationMember(1L, 1L)).thenReturn(true);
+
+        OcrResultResponse ocrResult = new OcrResultResponse(
+                "rec-123", "OK", "ARS", "2026-10-15", new java.math.BigDecimal("1500.50"), "Ticket Farmacia", List.of()
+        );
+        when(ocrService.processReceiptOcr(1L, "rec-123", 1L)).thenReturn(ocrResult);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/organizations/1/receipts/rec-123/ocr")
+                        .header("Authorization", "Bearer " + validToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.receiptId").value("rec-123"))
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.date").value("2026-10-15"))
+                .andExpect(jsonPath("$.amount").value(1500.50))
+                .andExpect(jsonPath("$.description").value("Ticket Farmacia"));
+    }
+
+    @Test
+    void processReceiptOcr_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/organizations/1/receipts/rec-123/ocr"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void processReceiptOcr_nonMember_returns403() throws Exception {
+        when(authService.isAuthorizedForRequest(validToken, "POST", "/api/v1/organizations/1/receipts/rec-123/ocr"))
+                .thenReturn(true);
+        when(authService.isOrganizationMember(1L, 1L)).thenReturn(false);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/organizations/1/receipts/rec-123/ocr")
+                        .header("Authorization", "Bearer " + validToken))
+                .andExpect(status().isForbidden());
     }
 }

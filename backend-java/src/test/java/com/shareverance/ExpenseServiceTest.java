@@ -246,4 +246,43 @@ class ExpenseServiceTest {
         assertThrows(BusinessRuleException.class, () -> expenseService.getExpenseCalendar(1L, "2026-13"));
         assertThrows(BusinessRuleException.class, () -> expenseService.getExpenseCalendar(1L, currentMonth.plusMonths(1).toString()));
     }
+
+    @Test
+    void testCreateExpenseWithReceiptLinking() {
+        var receiptService = org.mockito.Mockito.mock(com.shareverance.service.ReceiptService.class);
+        var serviceWithReceipts = new ExpenseServiceImpl(
+                expenseRepo,
+                expenseSplitRepo,
+                orgRepo,
+                userRepo,
+                userOrgRepo,
+                categoryRepo,
+                receiptService
+        );
+
+        String receiptId = "cbad14ba-cbe2-47ca-bdf6-b9266054ef0b";
+        ExpenseCreateRequest request = new ExpenseCreateRequest(
+                1L,
+                1L,
+                1L,
+                1L,
+                new BigDecimal("500.00"),
+                LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires")),
+                "Ticket con comprobante",
+                receiptId,
+                SplitMode.INDIVIDUAL,
+                null,
+                null
+        );
+
+        ExpenseDetailResponse response = serviceWithReceipts.createExpense(request);
+        assertNotNull(response);
+        assertEquals(receiptId, response.expense().getReceiptUrl());
+        org.mockito.Mockito.verify(receiptService).linkReceiptToExpense(
+                org.mockito.ArgumentMatchers.eq(receiptId),
+                org.mockito.ArgumentMatchers.eq(response.expense().getId()),
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.eq(1L)
+        );
+    }
 }
