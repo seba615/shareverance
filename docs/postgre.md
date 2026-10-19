@@ -7,7 +7,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado persistido
 
-PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions. No renumerar versiones ni modificar SQL aplicado.
+PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V5.1 amplía ck_expense_split_type para admitir CUSTOM, sin modificar registros existentes. No renumerar versiones ni modificar SQL aplicado.
 
 | Tabla | Responsabilidad |
 | --- | --- |
@@ -54,3 +54,9 @@ Respaldar PostgreSQL y volumen de comprobantes con correspondencia consistente. 
 ## Pruebas
 
 Migraciones limpias e incrementales, FK de tenant cruzado, importes/roles inválidos, unicidad, rollback gasto/partes, versión optimista con dos conexiones y protección del último ADMIN. Validar agregaciones contra dataset manual y permisos reales de cada rol. Los tests de repositorios mock no sustituyen estas comprobaciones.
+
+## Migración E1.2
+
+`V5_1__reparto_personalizado.sql` se ubica después de V5 y antes de V6 (categorías iniciales de feat/web-app). No modifica migraciones aplicadas ni convierte históricos EQUAL. Verificación de numeración en main y todas las referencias remotas; registro de versión en issue no realizado porque GitHub rechazó crear la tarea con HTTP 403.
+
+Si un entorno ya aplicó V6 desde feat/web-app antes de incorporar V5.1, Flyway no aplicará automáticamente esta migración anterior. Revisar ese historial y coordinar su aplicación; no renumerar versiones aplicadas ni activar outOfOrder global como ajuste incidental. La validación de esta entrega parte de main/V5.

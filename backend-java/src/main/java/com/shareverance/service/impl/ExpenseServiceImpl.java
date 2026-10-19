@@ -1,6 +1,7 @@
 package com.shareverance.service.impl;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -78,12 +79,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (request.categoryId() == null) {
             throw new BusinessRuleException("La categoría es obligatoria");
         }
-        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessRuleException("El importe debe ser mayor a cero");
-        }
-        if (request.amount().compareTo(new BigDecimal("9999999999.99")) > 0) {
-            throw new BusinessRuleException("El importe excede el límite máximo permitido");
-        }
+        validateAmount(request.amount());
         if (request.expenseDate() == null) {
             throw new BusinessRuleException("La fecha del gasto es obligatoria");
         }
@@ -132,7 +128,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         List<ExpenseSplit> splits = calculateSplits(request, payerMembership);
 
         // Guardar gasto
-        BigDecimal normalizedAmount = request.amount().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal normalizedAmount = validateAmount(request.amount());
         Expense expense = new Expense(
                 null,
                 request.organizationId(),
@@ -148,7 +144,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         );
         expense.setSplitType(request.splitMode() == null || request.splitMode() == SplitMode.INDIVIDUAL
                 ? "INDIVIDUAL"
-                : "EQUAL");
+                : request.splitMode() == SplitMode.CUSTOM ? "CUSTOM" : "EQUAL");
 
         Expense savedExpense = expenseRepository.save(expense);
 
@@ -162,7 +158,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     private List<ExpenseSplit> calculateSplits(ExpenseCreateRequest request, UserOrganization payerMembership) {
-        BigDecimal totalAmount = request.amount().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalAmount = validateAmount(request.amount());
         SplitMode mode = request.splitMode() != null ? request.splitMode() : SplitMode.INDIVIDUAL;
         List<ExpenseSplit> splits = new ArrayList<>();
 
@@ -180,6 +176,10 @@ public class ExpenseServiceImpl implements ExpenseService {
                     memberIds.add(payerMembership.getId());
                 }
 
+                if (request.splitMemberIds() == null || request.splitMemberIds().isEmpty()
+                        || (mode == SplitMode.BETWEEN_TWO && new HashSet<>(memberIds).size() != 2)) {
+                    throw new BusinessRuleException("Debe seleccionar participantes válidos para la modalidad de reparto");
+                }
                 validateAndDivideEqually(request.organizationId(), memberIds, totalAmount, splits);
             }
             case ALL_MEMBERS -> {
@@ -204,7 +204,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 BigDecimal sum = BigDecimal.ZERO;
 
                 for (ExpenseSplitRequest splitReq : request.customSplits()) {
-                    if (splitReq.userOrganizationId() == null) {
+                    if (splitReq == null || splitReq.userOrganizationId() == null) {
                         throw new BusinessRuleException("El ID de membresía en el reparto no puede ser nulo");
                     }
                     if (seenMembers.contains(splitReq.userOrganizationId())) {
@@ -221,7 +221,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                         throw new BusinessRuleException("Cada parte asignada debe ser mayor a cero");
                     }
 
-                    BigDecimal partAmount = splitReq.amount().setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal partAmount = validateAmount(splitReq.amount());
                     sum = sum.add(partAmount);
                     splits.add(new ExpenseSplit(null, null, member.getId(), partAmount));
                 }
@@ -236,6 +236,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     private void validateAndDivideEqually(Long orgId, List<Long> memberIds, BigDecimal totalAmount, List<ExpenseSplit> splits) {
+        if (memberIds.stream().anyMatch(java.util.Objects::isNull)
+                || new HashSet<>(memberIds).size() != memberIds.size()) {
+            throw new BusinessRuleException("Los participantes no pueden ser nulos ni repetidos");
+        }
         Set<Long> uniqueMemberIds = new HashSet<>(memberIds);
         if (uniqueMemberIds.isEmpty()) {
             throw new BusinessRuleException("Debe seleccionar al menos un participante para la división del gasto");
@@ -247,20 +251,77 @@ public class ExpenseServiceImpl implements ExpenseService {
             requireActiveMembership(member, orgId, "El miembro con ID " + memberId);
         }
 
-        int count = uniqueMemberIds.size();
-        BigDecimal basePart = totalAmount.divide(BigDecimal.valueOf(count), 2, RoundingMode.DOWN);
-        BigDecimal remainder = totalAmount.subtract(basePart.multiply(BigDecimal.valueOf(count)));
+        for (ExpenseSplit part : equalParts(totalAmount, memberIds)) {
+            splits.add(part);
+        }
+    }
 
-        int i = 0;
-        for (Long memberId : uniqueMemberIds) {
-            BigDecimal amountForMember = basePart;
-            // Distribuir los centavos sobrantes
-            if (remainder.compareTo(BigDecimal.ZERO) > 0) {
-                amountForMember = amountForMember.add(new BigDecimal("0.01"));
-                remainder = remainder.subtract(new BigDecimal("0.01"));
-            }
-            splits.add(new ExpenseSplit(null, null, memberId, amountForMember));
-            i++;
+    private BigDecimal validateAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessRuleException("El importe debe ser mayor a cero");
+        }
+        if (amount.scale() > 2) {
+            throw new BusinessRuleException("El importe admite como máximo dos decimales");
+        }
+        if (amount.compareTo(new BigDecimal("9999999999.99")) > 0) {
+            throw new BusinessRuleException("El importe excede el límite máximo permitido");
+        }
+        return amount.setScale(2, RoundingMode.UNNECESSARY);
+    }
+
+    private List<ExpenseSplit> equalParts(BigDecimal amount, List<Long> memberIds) {
+        List<Long> sorted = memberIds.stream().sorted().toList();
+        long cents = amount.movePointRight(2).longValueExact();
+        if (sorted.isEmpty() || cents < sorted.size()) {
+            throw new BusinessRuleException("El importe debe permitir al menos un centavo por participante");
+        }
+        List<ExpenseSplit> result = new ArrayList<>();
+        for (int i = 0; i < sorted.size(); i++) {
+            result.add(new ExpenseSplit(null, null, sorted.get(i),
+                    BigDecimal.valueOf(cents / sorted.size() + (i < cents % sorted.size() ? 1 : 0), 2)));
+        }
+        return result;
+    }
+
+    private void recalculateParts(Expense expense, List<ExpenseSplit> parts, BigDecimal amount) {
+        if (parts.isEmpty() || parts.stream().anyMatch(p -> p.getUserOrganizationId() == null)
+                || parts.stream().map(ExpenseSplit::getUserOrganizationId).distinct().count() != parts.size()) {
+            throw new BusinessRuleException("El reparto histórico está incompleto o contiene participantes duplicados");
+        }
+        parts.sort(Comparator.comparing(ExpenseSplit::getUserOrganizationId));
+        if (!"CUSTOM".equals(expense.getSplitType())) {
+            List<ExpenseSplit> calculated = equalParts(amount,
+                    parts.stream().map(ExpenseSplit::getUserOrganizationId).toList());
+            for (int i = 0; i < parts.size(); i++) parts.get(i).setAmount(calculated.get(i).getAmount());
+            return;
+        }
+        BigDecimal previousSum = parts.stream().map(ExpenseSplit::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (previousSum.compareTo(expense.getAmount()) != 0
+                || parts.stream().anyMatch(p -> p.getAmount().signum() <= 0)) {
+            throw new BusinessRuleException("El reparto histórico no coincide con el total del gasto");
+        }
+        BigInteger total = amount.movePointRight(2).toBigIntegerExact();
+        BigInteger previous = previousSum.movePointRight(2).toBigIntegerExact();
+        Map<Long, BigInteger> remainders = new HashMap<>();
+        BigInteger allocated = BigInteger.ZERO;
+        for (ExpenseSplit part : parts) {
+            BigInteger[] division = total.multiply(part.getAmount().movePointRight(2).toBigIntegerExact())
+                    .divideAndRemainder(previous);
+            part.setAmount(new BigDecimal(division[0], 2));
+            remainders.put(part.getUserOrganizationId(), division[1]);
+            allocated = allocated.add(division[0]);
+        }
+        List<ExpenseSplit> byRemainder = parts.stream().sorted(
+                Comparator.<ExpenseSplit, BigInteger>comparing(p -> remainders.get(p.getUserOrganizationId()))
+                        .reversed().thenComparing(ExpenseSplit::getUserOrganizationId)).toList();
+        int remaining = total.subtract(allocated).intValueExact();
+        for (int i = 0; i < remaining; i++) {
+            ExpenseSplit part = byRemainder.get(i);
+            part.setAmount(part.getAmount().add(new BigDecimal("0.01")));
+        }
+        if (parts.stream().anyMatch(p -> p.getAmount().signum() <= 0)) {
+            throw new BusinessRuleException("El nuevo importe deja participantes sin al menos un centavo");
         }
     }
 
@@ -321,29 +382,11 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
 
         if (request.amount() != null) {
-            if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BusinessRuleException("El importe debe ser mayor a cero");
-            }
-            BigDecimal newAmount = request.amount().setScale(2, RoundingMode.HALF_UP);
+            BigDecimal newAmount = validateAmount(request.amount());
+            List<ExpenseSplit> existingSplits = new ArrayList<>(expenseSplitRepository.findByExpenseId(id));
+            recalculateParts(expense, existingSplits, newAmount);
             expense.setAmount(newAmount);
-
-            // Reajustar proporcionalmente los splits existentes para preservar la regla de consistencia
-            List<ExpenseSplit> existingSplits = expenseSplitRepository.findByExpenseId(id);
-            if (!existingSplits.isEmpty()) {
-                int count = existingSplits.size();
-                BigDecimal basePart = newAmount.divide(BigDecimal.valueOf(count), 2, RoundingMode.DOWN);
-                BigDecimal remainder = newAmount.subtract(basePart.multiply(BigDecimal.valueOf(count)));
-
-                for (ExpenseSplit split : existingSplits) {
-                    BigDecimal part = basePart;
-                    if (remainder.compareTo(BigDecimal.ZERO) > 0) {
-                        part = part.add(new BigDecimal("0.01"));
-                        remainder = remainder.subtract(new BigDecimal("0.01"));
-                    }
-                    split.setAmount(part);
-                    expenseSplitRepository.save(split);
-                }
-            }
+            for (ExpenseSplit split : existingSplits) expenseSplitRepository.save(split);
         }
 
         Expense updated = expenseRepository.save(expense);

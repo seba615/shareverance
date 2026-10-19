@@ -22,6 +22,12 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 
 Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. El GET Python actual llama a Java; deberá migrar al repositorio de vistas.
 
+## Gastos y reparto E1.2 (React→Java)
+
+Se conservan los DTO y rutas POST /api/v1/expenses y PUT /api/v1/expenses/{id}. `splitMode` admite INDIVIDUAL, BETWEEN_TWO, SPECIFIC_GROUP, ALL_MEMBERS y CUSTOM. Los modos iguales incluyen al titular; no se permiten IDs nulos o repetidos. CUSTOM recibe `customSplits: [{userOrganizationId, amount}]`, sin incluir automáticamente al titular. Cada parte es positiva, de hasta dos decimales, de una membresía y cuenta activas de la organización; la suma debe coincidir exactamente con `amount`. Las reglas inválidas devuelven HTTP 400.
+
+Los gastos CUSTOM nuevos devuelven `expense.splitType = "CUSTOM"` (antes se etiquetaban EQUAL). El consumidor de feat/web-app declara splitType como string y no decide el formulario según ese campo. No se altera la estructura JSON ni se retira ningún modo. En PUT se conservan los participantes; para CUSTOM, cambiar amount conserva proporciones usando mayor resto y desempate por ID. No se agrega edición manual de partes en PUT. Las reglas completas están en [alcance_mvp.md](alcance_mvp.md).
+
 ## Contrato interno objetivo
 
 Propuesta de rutas distintas para no romper v1:

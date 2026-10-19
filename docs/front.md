@@ -31,9 +31,9 @@ Calendario incluido; diseño propuesto: mes navegable, total por día y lista al
 
 ## Formularios
 
-Aplicar reglas de [alcance_mvp.md](alcance_mvp.md). Mostrar importe localizado sin usar coma/punto para alterar su valor; validar precisión, conservar decimales exactos al serializar. USER titular propio; ADMIN selector de miembros activos. Individual o iguales con selección de otro/grupo/todos. Mostrar distribución y ajuste de centavos.
+Aplicar reglas de [alcance_mvp.md](alcance_mvp.md). Mostrar importe localizado sin usar coma/punto para alterar su valor; validar precisión, conservar decimales exactos al serializar. USER titular propio; ADMIN selector de miembros activos. Individual, iguales con selección de otro/grupo/todos o CUSTOM con importes por participante y suma exacta. Mostrar distribución y ajuste de centavos.
 
-Edición recibe versión y conserva participantes. Ante 409, informar cambio concurrente y permitir recargar sin sobrescribir silenciosamente. Anulación requiere acción explícita y actualiza listas/panel. No presentar participación como deuda.
+Edición conserva participantes; CUSTOM conserva proporciones al cambiar el total según alcance_mvp.md. La versión optimista y su envío siguen pendientes de E1.3. Ante 409, informar cambio concurrente y permitir recargar sin sobrescribir silenciosamente. Anulación requiere acción explícita y actualiza listas/panel. No presentar participación como deuda.
 
 OCR: subir una imagen a Java y mostrar resultado editable. No fijar Content-Type application/json en multipart; el navegador genera el boundary. La precarga no guarda el gasto. Mantener acceso a formulario manual ante error. No exponer rutas locales ni credenciales internas.
 

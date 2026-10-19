@@ -40,11 +40,11 @@ Fecha no futura según el calendario del servidor; importe positivo hasta 9.999.
 
 El autor es la cuenta que registra; el titular es la membresía a cuyo nombre se carga. USER solo carga a su nombre; ADMIN puede elegir otro miembro activo de su organización. La participación asignada es la parte del gasto que corresponde a cada miembro. No equivale a deuda pendiente ni a pago efectuado.
 
-Modalidades: individual o partes iguales. Partes iguales permite seleccionar otro miembro, un grupo o todos los miembros activos. No se admite reparto personalizado por importes o porcentajes en el MVP.
+Modalidades: individual, partes iguales o personalizado por importes (`CUSTOM`). Partes iguales permite seleccionar otro miembro, un grupo o todos los miembros activos. CUSTOM recibe un importe positivo por membresía activa seleccionada, sin duplicados y con suma exacta igual al total. No se admite entrada de porcentajes en el MVP.
 
 La suma de partes debe ser exactamente el total, sin participantes duplicados ni ajenos y con importes positivos. Trabajar en centavos para dividir. El algoritmo distribuye el cociente entero y asigna los centavos sobrantes por ID de membresía ascendente. Si el importe no permite al menos un centavo por participante, rechazar la distribución.
 
-Autor o ADMIN pueden editar y anular. Editar conserva los participantes históricos; no incorpora automáticamente miembros nuevos. Cambiar el importe recalcula partes entre esos participantes. Una categoría inactiva puede conservarse en la edición sin convertirla en elegible para un cambio de categoría. Anular excluye el gasto de indicadores y predicciones; conserva gasto, partes y comprobante. No se reactiva en el MVP.
+Autor o ADMIN pueden editar y anular. Editar conserva los participantes históricos; no incorpora automáticamente miembros nuevos. Cambiar el importe recalcula partes entre esos participantes: en iguales se aplica el cociente y sobrantes por ID ascendente; en CUSTOM se conservan las proporciones anteriores, se toma la parte entera en centavos y se asigna el remanente por mayor resto, con desempate por ID de membresía ascendente. Si alguna parte queda en cero, se rechaza la edición completa. Una categoría inactiva puede conservarse en la edición sin convertirla en elegible para un cambio de categoría. Anular excluye el gasto de indicadores y predicciones; conserva gasto, partes y comprobante. No se reactiva en el MVP.
 
 Ediciones concurrentes requieren versión optimista y respuesta 409 ante versión desactualizada. Gasto y partes se guardan en una transacción.
 

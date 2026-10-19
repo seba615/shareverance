@@ -66,7 +66,7 @@ Python consulta PostgreSQL mediante vistas autorizadas y una credencial propia d
 
 ## Límites de arquitectura y MVP
 
-ARS única, calendario Buenos Aires, reparto individual/iguales. No incorporar caja, pagos, liquidaciones, recurrencias ni multimoneda al MVP.
+ARS única, calendario Buenos Aires, reparto individual/iguales/personalizado por importes (CUSTOM). No incorporar caja, pagos, liquidaciones, recurrencias ni multimoneda al MVP.
 
 Conservar funcionalidades existentes del frontend. No introducir JPA ni reorganizar servicios como consecuencia incidental de una tarea. Respetar parámetros abiertos del roadmap; plantear una decisión cuando afecte alcance o contrato.
 

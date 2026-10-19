@@ -180,4 +180,67 @@ class ExpenseServiceTest {
                 null
         );
     }
+    private ExpenseCreateRequest splitRequest(String amount, SplitMode mode, java.util.List<Long> ids,
+            java.util.List<com.shareverance.dto.ExpenseSplitRequest> custom) {
+        return new ExpenseCreateRequest(1L, 1L, 1L, 1L, new BigDecimal(amount), LocalDate.now(),
+                "Prueba reparto", null, mode, ids, custom);
+    }
+
+    @Test
+    void equalRemainderUsesMembershipOrderAndRejectsDuplicatesAndZeroParts() {
+        var result = expenseService.createExpense(splitRequest("0.03", SplitMode.SPECIFIC_GROUP,
+                java.util.List.of(2L, 1L), null));
+        assertEquals(1L, result.splits().get(0).getUserOrganizationId());
+        assertEquals(new BigDecimal("0.02"), result.splits().get(0).getAmount());
+        assertEquals(new BigDecimal("0.01"), result.splits().get(1).getAmount());
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                splitRequest("1.00", SplitMode.SPECIFIC_GROUP, java.util.List.of(2L, 2L), null)));
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                splitRequest("0.01", SplitMode.ALL_MEMBERS, null, null)));
+    }
+
+    @Test
+    void refusesPrecisionAndLimitsOnCreateAndUpdate() {
+        for (String invalid : java.util.List.of("0", "-1", "1.001", "10000000000.00")) {
+            assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                    splitRequest(invalid, SplitMode.INDIVIDUAL, null, null)));
+        }
+        var result = expenseService.createExpense(splitRequest("1.00", SplitMode.INDIVIDUAL, null, null));
+        for (String invalid : java.util.List.of("0", "-1", "1.001", "10000000000.00")) {
+            assertThrows(BusinessRuleException.class, () -> expenseService.updateExpense(result.expense().getId(),
+                    new com.shareverance.dto.ExpenseUpdateRequest(null, new BigDecimal(invalid), null, null, null)));
+        }
+    }
+
+    @Test
+    void customIsExactAndPreservesProportionsOnUpdate() {
+        var parts = java.util.List.of(new com.shareverance.dto.ExpenseSplitRequest(2L, new BigDecimal("0.03")),
+                new com.shareverance.dto.ExpenseSplitRequest(1L, new BigDecimal("0.01")));
+        var result = expenseService.createExpense(splitRequest("0.04", SplitMode.CUSTOM, null, parts));
+        assertEquals("CUSTOM", result.expense().getSplitType());
+        var updated = expenseService.updateExpense(result.expense().getId(),
+                new com.shareverance.dto.ExpenseUpdateRequest(null, new BigDecimal("0.06"), null, null, null));
+        var amounts = updated.splits().stream().collect(java.util.stream.Collectors.toMap(
+                com.shareverance.model.ExpenseSplit::getUserOrganizationId,
+                com.shareverance.model.ExpenseSplit::getAmount));
+        assertEquals(new BigDecimal("0.02"), amounts.get(1L));
+        assertEquals(new BigDecimal("0.04"), amounts.get(2L));
+    }
+
+    @Test
+    void customRejectsInvalidPartsAndSum() {
+        for (String invalid : java.util.List.of("0", "-1", "0.001", "0.99")) {
+            var parts = java.util.List.of(new com.shareverance.dto.ExpenseSplitRequest(1L, new BigDecimal(invalid)));
+            assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                    splitRequest("1.00", SplitMode.CUSTOM, null, parts)));
+        }
+        var repeated = java.util.List.of(new com.shareverance.dto.ExpenseSplitRequest(1L, new BigDecimal("0.50")),
+                new com.shareverance.dto.ExpenseSplitRequest(1L, new BigDecimal("0.50")));
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                splitRequest("1.00", SplitMode.CUSTOM, null, repeated)));
+        var foreign = java.util.List.of(new com.shareverance.dto.ExpenseSplitRequest(3L, new BigDecimal("1.00")));
+        assertThrows(BusinessRuleException.class, () -> expenseService.createExpense(
+                splitRequest("1.00", SplitMode.CUSTOM, null, foreign)));
+    }
+
 }
