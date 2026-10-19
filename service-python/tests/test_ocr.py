@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -232,4 +233,51 @@ def test_tesseract_ocr_engine_execution(tmp_path: Path):
     engine = TesseractOcrEngine()
     # Ejecución sobre archivo inexistente devuelve cadena vacía de forma segura sin excepciones no controladas
     assert engine.extract_text(tmp_path / "nonexistent.png") == ""
+
+
+@pytest.mark.parametrize("text", ["FECHA: 10.08.2026", "FECHA: 10/08/2026", "FECHA: 31.02.2026", "TOTAL: -$ 500,00"])
+def test_dates_and_negative_values_are_not_positive_amounts(text):
+    _, amount, _, warnings = ReceiptNormalizer.normalize(text)
+    assert amount is None
+    assert any("importe" in warning for warning in warnings)
+
+
+def test_date_and_amount_on_same_line_preserves_real_amount():
+    d, amount, _, _ = ReceiptNormalizer.normalize("FECHA: 10.08.2026 TOTAL $ 1.234,56")
+    assert d == "2026-08-10"
+    assert amount == 1234.56
+
+
+@pytest.mark.parametrize("other_org", [10, 11])
+def test_similar_organization_prefix_is_rejected(tmp_path, other_org):
+    other = tmp_path / f"org_{other_org}"
+    other.mkdir()
+    (other / "ticket.png").write_bytes(b"synthetic")
+    service = OcrService(tmp_path, MockOcrEngine())
+    with pytest.raises(HTTPException) as error:
+        service._resolve_safe_path(1, f"org_{other_org}/ticket.png")
+    assert error.value.status_code == 400
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+def test_symbolic_links_are_rejected_before_resolution(tmp_path, kind):
+    storage = tmp_path / "receipts"
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "ticket.png").write_bytes(b"synthetic")
+    if kind == "root":
+        (external / "org_1").mkdir()
+        (external / "org_1" / "ticket.png").write_bytes(b"synthetic")
+        storage.symlink_to(external, target_is_directory=True)
+    else:
+        storage.mkdir()
+        if kind == "directory":
+            (storage / "org_1").symlink_to(external, target_is_directory=True)
+        else:
+            (storage / "org_1").mkdir()
+            (storage / "org_1" / "ticket.png").symlink_to(external / "ticket.png")
+    service = OcrService(storage, MockOcrEngine())
+    with pytest.raises(HTTPException) as error:
+        service._resolve_safe_path(1, "org_1/ticket.png")
+    assert error.value.status_code == 404
 

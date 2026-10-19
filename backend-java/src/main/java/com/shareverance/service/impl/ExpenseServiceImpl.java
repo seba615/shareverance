@@ -176,15 +176,21 @@ public class ExpenseServiceImpl implements ExpenseService {
             if (candidateReceiptId.contains("/")) {
                 candidateReceiptId = candidateReceiptId.substring(candidateReceiptId.lastIndexOf('/') + 1);
             }
+            boolean isReceiptId;
             try {
+                isReceiptId = UUID.fromString(candidateReceiptId).toString().equalsIgnoreCase(candidateReceiptId);
+            } catch (IllegalArgumentException invalidId) {
+                isReceiptId = false;
+            }
+            // Las referencias anteriores no UUID siguen siendo texto; un UUID sí
+            // debe asociarse o rechazar toda el alta con su error de negocio original.
+            if (isReceiptId) {
                 receiptService.linkReceiptToExpense(
                         candidateReceiptId,
                         savedExpense.getId(),
                         request.organizationId(),
                         request.createdByUserId()
                 );
-            } catch (Exception ignored) {
-                // Si la cadena receiptUrl no es un ID de comprobante registrado, se conserva el texto sin vincular entidad
             }
         }
 

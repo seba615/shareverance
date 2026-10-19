@@ -235,7 +235,13 @@ class ReceiptNormalizer:
     def _find_amounts_in_text(cls, text: str) -> list[float]:
         amounts: list[float] = []
 
+        # Una fecha con puntos no es un importe decimal, incluso si es inválida.
+        for date_pattern in cls.DATE_REGEXES:
+            text = date_pattern.sub(" ", text)
+
         for match in cls.AMOUNT_COMBINED_REGEX.finditer(text):
+            if text[:match.start()].rstrip().endswith("-"):
+                continue
             raw = match.group(1)
             # Normalizar a decimal estándar
             if "," in raw and "." in raw:
@@ -350,32 +356,30 @@ class OcrService:
                 detail="Clave de almacenamiento inválida.",
             )
 
-        base = self.storage_base_path.resolve()
-        org_prefix = (self.storage_base_path / f"org_{organization_id}").resolve()
-        target = (self.storage_base_path / key).resolve()
+        base = self.storage_base_path.absolute()
+        org_prefix = base / f"org_{organization_id}"
+        target = base / key
 
-        # Asegurar que esté estrictamente bajo la carpeta de la organización
-        if not str(target).startswith(str(org_prefix)):
+        # Comparar componentes, no prefijos textuales (org_1 != org_10).
+        if not target.is_relative_to(org_prefix):
             raise HTTPException(
                 status_code=400,
                 detail="Acceso denegado a comprobante fuera del ámbito de la organización.",
             )
 
-        # Verificar symlinks
-        if target.is_symlink():
-            raise HTTPException(
-                status_code=404,
-                detail="El archivo especificado no está disponible.",
-            )
-
+        # Inspeccionar la ruta original antes de resolve(), incluidos raíz y padres.
         curr = target
-        while curr != base and curr != curr.parent:
+        while curr != curr.parent:
             if curr.is_symlink():
                 raise HTTPException(
                     status_code=404,
                     detail="El archivo especificado no está disponible.",
                 )
             curr = curr.parent
+
+        target = target.resolve()
+        if not target.is_relative_to(org_prefix.resolve()):
+            raise HTTPException(status_code=400, detail="Ruta de comprobante no permitida.")
 
         if not target.exists() or not target.is_file():
             raise HTTPException(

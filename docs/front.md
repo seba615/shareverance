@@ -55,6 +55,8 @@ Biblioteca gráfica pendiente de selección. No incorporar un framework adiciona
 
 ## Pruebas
 
+E4.2 utiliza `receiptLoader.ts` para el ciclo subida→OCR. Cancelar, cambiar de organización o desmontar invalida respuestas pendientes; reabrir el formulario en la misma organización inicia una generación independiente. Durante la subida/OCR se bloquean el guardado y los tres campos de precarga para evitar sobrescribir ediciones manuales; al terminar o fallar OCR vuelven a ser editables. El fallo de OCR conserva el comprobante subido y permite continuar manualmente. `receiptLoader.test.mjs` verifica respuestas y errores tardíos, reapertura y liberación de controles. Cancelar descarta el resultado en la UI, sin borrar el archivo temporal del servidor ni iniciar una purga automática.
+
 Preservar registro/login/recarga/logout y creación/selección. Recorrido manual y OCR→revisión→alta→historial→calendario→panel→predicción. Verificar USER/ADMIN, sesión vencida, cambio rápido de organización, filtros/paginación, conflicto 409, OCR fallido y Python caído. Revisar móvil y escritorio; build TypeScript/Vite y pruebas existentes afectadas.
 
 ## Comprobación automatizada de selección

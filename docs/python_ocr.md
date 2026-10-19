@@ -27,12 +27,16 @@ Un volumen persistente compartido de Compose (`receipts_data`) montado en `/data
 
 El servidor conserva referencia y organización; la ruta relativa incluye un identificador generado y no datos personales. No permitir que el front invoque Python o elija rutas. Un contenedor recreado no debe borrar imágenes.
 
+Python compara componentes de ruta: `org_1` no autoriza `org_10` ni `org_11`. Comprueba enlaces simbólicos en el archivo, directorios, raíz y padres antes de resolver la ruta; después comprueba nuevamente su pertenencia al directorio de la organización. El volumen debe permanecer bajo control de Java, con Python en sólo lectura; no se acredita protección frente a sustituciones concurrentes de directorios por otro proceso con permisos de escritura.
+
 ## Resultado
 
 Contrato en [contratos_api.md](contratos_api.md). Campos no reconocidos son null y llevan advertencia en `warnings`; no inventar fecha ni importe. La moneda se conoce como ARS. No emitir puntuaciones de confianza ficticias. OCR no confirma gastos ni decide categoría/reparto. Un timeout, archivo ilegible o error del motor permite continuar con carga manual. Estados de resultado:
 - `OK`: fecha e importe detectados.
 - `PARTIAL`: solo uno de los dos campos (fecha o importe) detectado.
 - `FAILED`: no se pudo reconocer fecha ni importe, o el archivo es ilegible / vacío.
+
+El reconocimiento de importes excluye fragmentos de fecha antes de buscar números decimales y no convierte valores negativos en positivos. Una fecha con puntos sin monto no produce un importe; se devuelve `amount: null` y su advertencia.
 
 ## Motor y parámetros
 

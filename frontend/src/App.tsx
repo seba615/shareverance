@@ -19,6 +19,7 @@ import { ExpenseCalendarView } from './ExpenseCalendar';
 import { ExpenseHistory } from './ExpenseHistory';
 import { buenosAiresToday } from './calendarModel';
 import { createOrganizationLoader } from './organizationLoader';
+import { createReceiptLoader } from './receiptLoader';
 
 type AuthMode = 'login' | 'register';
 type OrgTab = 'expenses' | 'members' | 'categories';
@@ -77,7 +78,28 @@ export default function App() {
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState(buenosAiresToday());
 
+  const [receiptLoader] = useState(() => createReceiptLoader({
+    upload: receiptApi.upload,
+    processOcr: receiptApi.processOcr,
+    onUpload: receipt => {
+      setUploadedReceiptId(receipt.receiptId);
+      setUploadedReceiptName(receipt.originalFilename);
+    },
+    onResult: result => {
+      if (result.date) setExpenseDate(result.date);
+      if (result.amount != null) setExpenseAmount(String(result.amount));
+      if (result.description) setExpenseDescription(result.description);
+      setOcrWarnings(result.warnings ?? []);
+    },
+    onError: error => setError(messageFrom(error)),
+    onOcrError: () => setOcrWarnings(['No se pudieron extraer datos del comprobante por OCR. Podés cargarlos manualmente.']),
+    onLoading: setOcrLoading,
+  }));
+
+  useEffect(() => () => receiptLoader.invalidate(), [receiptLoader]);
+
   function resetExpenseForm() {
+    receiptLoader.invalidate();
     setUploadedReceiptId(null);
     setUploadedReceiptName(null);
     setOcrLoading(false);
@@ -257,45 +279,16 @@ export default function App() {
       return;
     }
 
-    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
-    setOcrLoading(true);
+    setUploadedReceiptId(null);
+    setUploadedReceiptName(null);
     setOcrWarnings([]);
     setError('');
-
-    try {
-      const uploadRes = await receiptApi.upload(selectedOrganizationId, file);
-      if (!isCurrentOrganization()) return;
-      setUploadedReceiptId(uploadRes.receiptId);
-      setUploadedReceiptName(uploadRes.originalFilename);
-
-      try {
-        const ocrRes = await receiptApi.processOcr(selectedOrganizationId, uploadRes.receiptId);
-        if (!isCurrentOrganization()) return;
-        if (ocrRes.date) setExpenseDate(ocrRes.date);
-        if (ocrRes.amount !== null && ocrRes.amount !== undefined) setExpenseAmount(String(ocrRes.amount));
-        if (ocrRes.description) setExpenseDescription(ocrRes.description);
-        if (ocrRes.warnings && ocrRes.warnings.length > 0) {
-          setOcrWarnings(ocrRes.warnings);
-        }
-      } catch {
-        if (isCurrentOrganization()) {
-          setOcrWarnings(['No se pudieron extraer datos del comprobante por OCR. Podés cargarlos manualmente.']);
-        }
-      }
-    } catch (uploadErr) {
-      if (isCurrentOrganization()) {
-        setError(messageFrom(uploadErr));
-      }
-    } finally {
-      if (isCurrentOrganization()) {
-        setOcrLoading(false);
-      }
-    }
+    await receiptLoader.load(selectedOrganizationId, file, organizationLoader.scope(selectedOrganizationId));
   }
 
   async function handleCreateExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedOrganizationId) return;
+    if (!selectedOrganizationId || receiptLoader.isLoading()) return;
     const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
     setBusy(true);
     setError('');
@@ -665,10 +658,8 @@ export default function App() {
                         className="primary-button"
                         type="button"
                         onClick={() => {
-                          setShowAddExpense(curr => {
-                            if (curr) resetExpenseForm();
-                            return !curr;
-                          });
+                          if (showAddExpense) resetExpenseForm();
+                          setShowAddExpense(!showAddExpense);
                           setError('');
                         }}
                       >
@@ -708,6 +699,7 @@ export default function App() {
                             Descripción
                             <input
                               name="description"
+                              disabled={busy || ocrLoading}
                               type="text"
                               maxLength={500}
                               required
@@ -720,7 +712,7 @@ export default function App() {
                           <label>
                             Importe (ARS)
                             <input
-                              name="amount"
+                              name="amount" disabled={busy || ocrLoading}
                               type="number"
                               step="0.01"
                               min="0.01"
@@ -735,7 +727,7 @@ export default function App() {
                           <label>
                             Fecha
                             <input
-                              name="expenseDate"
+                              name="expenseDate" disabled={busy || ocrLoading}
                               type="date"
                               max={buenosAiresToday()}
                               required
@@ -803,7 +795,7 @@ export default function App() {
                           </div>
                         )}
 
-                        <button className="primary-button" type="submit" disabled={busy}>
+                        <button className="primary-button" type="submit" disabled={busy || ocrLoading}>
                           {busy ? 'Guardando…' : 'Registrar gasto'}
                         </button>
                       </form>

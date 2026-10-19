@@ -137,7 +137,7 @@ Reglas de E3.2:
 
 ## Contrato interno objetivo (E3.2 y OCR)
 
-Rutas internas de diseño (E3.2 implementa `POST /internal/v2/predictions/monthly`; analítica v2 y OCR permanecen pendientes):
+Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR; analítica v2 permanece pendiente):
 
 | Operación | Ruta | Cuerpo |
 | --- | --- | --- |
@@ -185,7 +185,7 @@ Códigos de respuesta de comprobantes:
 * `415 UNSUPPORTED MEDIA TYPE`: el archivo no es JPEG ni PNG (validado por magic bytes).
 * `409 CONFLICT`: el comprobante ya se encuentra vinculado a otro gasto activo.
 
-La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. En E4.2 el alta de gasto vincula automáticamente el comprobante cuando `receiptUrl` contiene el UUID del comprobante activo perteneciente a la organización, invocando la asociación segura de `receipts`.
+La descarga codifica el nombre en `Content-Disposition` mediante UTF-8. Se conservan rutas y DTOs. En E4.2 el alta de gasto vincula el comprobante si `receiptUrl` es un UUID canónico o su último segmento es un UUID; las referencias anteriores sin UUID se conservan como texto. Para UUID se exige asociación válida: 404 si no existe, está inactivo o pertenece a otra organización; 403 sin permiso y 409 si está vinculado a otro gasto. Gasto, partes y asociación son atómicos; cualquier error revierte el alta sin ocultar el rechazo original.
 
 ## OCR y precarga editable de comprobantes (implementado en E4.2)
 
@@ -219,11 +219,11 @@ Rutas para el procesamiento OCR de comprobantes:
       "storage_key": "org_1/cbad14ba-cbe2-47ca-bdf6-b9266054ef0b.png"
     }
     ```
-  - Reglas de validación: `storage_key` debe residir bajo `/data/receipts/org_<organization_id>/`, sin path traversal (`..`, rutas absolutas) ni enlaces simbólicos.
+  - Reglas de validación: `storage_key` debe residir bajo `/data/receipts/org_<organization_id>/`, comparando componentes completos, sin path traversal (`..`, rutas absolutas) ni enlaces simbólicos. Se comprueban los enlaces antes de resolver la ruta, incluida la raíz.
   - Motor: Tesseract OCR local con paquetes en español e inglés (`spa+eng`).
   - Normalización:
     - Fecha: formatos `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, etc. Rechaza fechas futuras en huso `America/Argentina/Buenos_Aires`. Si no se detecta, devuelve `null` y aviso en `warnings`.
-    - Importe: detección de patrones monetarios con coma decimal y punto de miles. Prioriza líneas con `TOTAL` excluyendo subtotales. Límite máximo 9.999.999.999,99 ARS con hasta 2 decimales. Si no se detecta, devuelve `null` y aviso en `warnings`.
+    - Importe: detección de patrones monetarios con coma decimal y punto de miles. Prioriza líneas con `TOTAL` excluyendo subtotales. Excluye fragmentos de fecha y valores negativos. Límite máximo 9.999.999.999,99 ARS con hasta 2 decimales. Si no se detecta, devuelve `null` y aviso en `warnings`.
     - Descripción: eliminación de ruido impositivo y de encabezados de tickets; espacios redundantes normalizados; longitud máxima de 500 caracteres. Si no es utilizable, está vacía o excede 500 caracteres, adopta el valor de respaldo `Varios`.
   - Estados devueltos:
     - `OK`: fecha e importe detectados.
