@@ -122,6 +122,8 @@ Las rutas siguientes requieren sesión, usuario, organización ARS y membresía 
 
 ## Predicción autenticada y lectura de vistas E3.2
 
+Planificación pendiente: el [plan complementario del predictor](road_map.md#predictor-multihorizonte) contempla horizontes de 4/5/6 meses. Las rutas y DTO documentados aquí mantienen el comportamiento vigente de un mes. P2-H debe coordinar Python, Java y frontend y definir compatibilidad/transición antes de implementar campos o rutas; esta nota no introduce un nuevo contrato ni autoriza interpretar varios `targetMonth` como una previsión multihorizonte desde el mismo origen.
+
 En E3.2 se implementa el flujo unidireccional `React → Java → Python → PostgreSQL (vistas)` y se retira el callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`).
 
 | Servicio | Operación | Ruta | Autenticación y permisos |

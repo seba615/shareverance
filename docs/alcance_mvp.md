@@ -54,6 +54,8 @@ El calendario debe permitir consultar gastos por fecha y abrir su detalle. El di
 
 Analítica usa fecha del gasto y solo gastos vigentes; diferencia entre gasto organizacional y participación individual. Un mes sin cobertura conocida no se transforma automáticamente en cero. Predicción del mes siguiente al último cerrado con cobertura confiable.
 
+Ampliación planificada del predictor: previsiones mensuales de 4, 5 o 6 meses desde un mismo corte confirmado, con seis meses como máximo y avisos de calidad por horizonte sustentados en evaluación. El contrato y la implementación actuales siguen siendo de un mes; la ampliación requiere revisión e implementación coordinadas según el [plan complementario](road_map.md#predictor-multihorizonte). Incluye preparación de un entorno demostrativo separado con usuarios y gastos sintéticos derivados del CSV, sin alterar la validación humana en curso. No se declara implementada ni aceptada.
+
 E3.1 registra cobertura explícita por organización y mes cerrado, declarada por ADMIN activo mediante Java y retirable lógicamente sin borrar el registro. No infiere cobertura por el primer gasto, por crear una organización ni por ausencia de filas. Las vistas SQL usan contexto de organización limitado a la transacción; sin contexto válido no devuelven datos. El consumidor Python y la retirada del callback siguen pendientes de E3.2; esta base SQL no acredita analítica ni predicción reales.
 
 OCR opcional: fecha, importe y descripción de hasta 500 caracteres; valor alternativo `Varios` cuando la descripción no es utilizable. No extrae proveedor, razón social ni moneda. El usuario revisa y confirma antes del alta. Un fallo de OCR permite continuar manualmente.
