@@ -92,3 +92,22 @@ La edición adquiere el bloqueo de expenses mediante UPDATE condicional por vers
 ## Consultas de historial E2.2 y calendario E2.3
 
 Sin migraciones nuevas: utilizan V1–V6 vigentes. En el historial paginado (E2.2), los filtros de fecha, categoría, estado y organización se aplican a expenses antes de la paginación; SUM se calcula sin unir expense_splits para evitar duplicaciones. Orden estable expense_date DESC/id DESC, LIMIT/OFFSET parametrizados. En el calendario mensual (E2.3), los totales diarios y conteos (`SUM(amount)`, `COUNT(*)`) se agrupan por `expense_date ASC` directamente sobre `expenses` con `organization_id = ?`, `is_active = TRUE` y rango mensual inclusivo, sin unir `expense_splits`. Totales, filas y partes de cada respuesta se consultan bajo REPEATABLE_READ; no se conserva un snapshot entre páginas o solicitudes realizadas en momentos distintos. No se añaden índices ni se acredita rendimiento con volúmenes de producción. Las pruebas usan el esquema e22_history dentro de la base aislada de pruebas; nunca la base de desarrollo.
+
+## Verificación E5.1 con PostgreSQL real, 20/10/2026
+
+Base exclusiva `shareverance_e51_test` en contenedor `shareverance-e51-verificacion-db`, PostgreSQL 17.11 con almacenamiento tmpfs, sin puertos publicados ni volúmenes persistentes. Se aplicó en orden el SQL vigente de V1–V9 (no existe V4) y se aprovisionó el login `shareverance_python` mediante `database/configure-access.sql`. Esta ejecución comprueba el SQL y la integración analítica; no es una nueva comprobación del historial/checksums de Flyway. No se crearon ni modificaron migraciones.
+
+Conjunto sintético de dos organizaciones, dos categorías de A (una inactiva), una membresía histórica inactiva y gastos con varias partes. Importes esperados en centavos:
+
+| Mes de A | Categoría 10 | Categoría 20 histórica | Total observado vigente | Cobertura | Total en evolución |
+| --- | --- | --- | --- | --- | --- |
+| 2026-01 | 10001 | 2002 | 12003 | Confirmada | 12003 |
+| 2026-02 | 0 | 0 | 0 | Confirmada | 0 |
+| 2026-03 | 15005 | 1003 | 16008 | Confirmada | 16008 |
+| 2026-04 | 9999 | 0 | 9999 | Desconocida | null |
+
+Un gasto anulado de A (90000 centavos) y un gasto de B (999999 centavos) no se incluyen en los totales de A. Las sumas directas de `expenses` vigentes se contrastaron con el resultado analítico; las partes múltiples no duplicaron importes. Comparar febrero con marzo devuelve anterior 0, actual 16008, variación 16008 y porcentaje no disponible. Incluir abril devuelve `INSUFFICIENT_HISTORY` y `comparison: null`, aunque existan gastos observados ese mes.
+
+Comprobadas lectura A→B sobre la misma conexión, ausencia de contexto tras COMMIT/ROLLBACK y cero filas sin contexto. El rol real Python carece de SUPERUSER/CREATEROLE/BYPASSRLS; SELECT/UPDATE sobre tablas de negocio y CREATE TEMP fueron rechazados. La consulta de cobertura y gastos utilizó las vistas autorizadas en transacciones de lectura.
+
+La suite `uv run --locked pytest -q` recibió `PYTHON_TEST_PG_URL` con esa base y el rol de lectura: 95 aprobadas, cero fallos u omisiones. También se ejercitó FastAPI mediante TestClient con lifespan y repositorio PostgreSQL reales, sin simular el acceso a vistas: Bearer ausente/incorrecto/válido produjo 401/403/200 y los resultados coincidieron con el conjunto. El contenedor temporal fue retirado al terminar; la base de desarrollo permaneció intacta. No se probó una ruta pública Java, panel ni rendimiento de producción.

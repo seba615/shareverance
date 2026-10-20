@@ -23,7 +23,7 @@ Sistema de registro, distribución y análisis de gastos para hogares, consorcio
 
 React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker Compose.
 
-Actual: React→Java→PostgreSQL para negocio; Java autoriza y orquesta hacia Python (`POST /internal/v2/predictions/monthly` con Bearer interno) y Python consulta directamente las vistas SQL de PostgreSQL con su rol de solo lectura (`shareverance_python`), devolviendo predicciones simuladas. E4.2 incorpora OCR local Tesseract desde el volumen privado, precarga editable y asociación transaccional del comprobante al confirmar el gasto. La carga manual sigue disponible si falla OCR. Analítica mensual y panel (E5), modelo predictivo real (E6) y aceptación integral permanecen pendientes.
+Actual: React→Java→PostgreSQL para negocio; Java autoriza y orquesta hacia Python (`POST /internal/v2/predictions/monthly` con Bearer interno) y Python consulta directamente las vistas SQL de PostgreSQL con su rol de solo lectura (`shareverance_python`), devolviendo predicciones simuladas. E4.2 incorpora OCR local Tesseract desde el volumen privado, precarga editable y asociación transaccional del comprobante al confirmar el gasto. La carga manual sigue disponible si falla OCR. La entrada pública Java y el panel analítico (E5.2), el modelo predictivo real (E6) y la aceptación integral permanecen pendientes.
 
 E3.1 incorpora V7: vistas analíticas aisladas por contexto transaccional, cobertura explícita por mes cerrado y credenciales separadas para migración, Java y lectura Python. E3.2 incorpora el consumidor Python de vistas (`ViewsRepository` con `psycopg[binary]`), la llamada autenticada `Java → Python` (`GET /api/v1/organizations/{id}/predictions/monthly` → `POST /internal/v2/predictions/monthly`) con soporte de rotación de secreto (`PYTHON_CLIENT_SECRET` / `PYTHON_CLIENT_SECRET_PREVIOUS`) y el retiro del callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`). Contratos y permisos en [PostgreSQL](docs/postgre.md) y [API](docs/contratos_api.md).
 
@@ -32,6 +32,8 @@ Frontend existente: registro/login, restauración y cierre de sesión, creación
 E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
 
 La corrección OCR permite solicitar procesamiento con sesión/CSRF, mejora fotos mediante orientación, recorte y contraste y evita reutilizar campos de otro comprobante. Fecha e importe siguen sujetos a revisión antes de registrar; los valores no reconocidos quedan vacíos. Implementación y límites en [Python OCR](docs/python_ocr.md), con validación manual de los casos probados y evidencia automatizada en el [roadmap](docs/road_map.md).
+
+E5.1 tiene implementada la analítica interna Python desde vistas SQL y su verificación con PostgreSQL real: 95 pruebas Python aprobadas, sin omisiones, sobre datos sintéticos aislados. La consulta pública Java y el panel React siguen pendientes de E5.2. Evidencia y límites en el [roadmap](docs/road_map.md), con el conjunto de comprobación en [PostgreSQL](docs/postgre.md).
 
 ## Inicio rápido
 
