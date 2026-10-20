@@ -16,6 +16,7 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 | Java, sesión | GET /api/v1/auth/csrf; POST /login, /register, /logout y GET /me bajo /api/v1/auth |
 | Java, negocio | /api/v1/users, /organizations, /memberships, /categories, /expenses; métodos según controladores |
 | Java, cobertura y predicción | GET/PUT/DELETE /api/v1/organizations/{organizationId}/analytics/coverage; GET /api/v1/organizations/{organizationId}/predictions/monthly |
+| Java, panel analítico E5.2 | GET /api/v1/organizations/{organizationId}/analytics/monthly?fromMonth=YYYY-MM&toMonth=YYYY-MM |
 | Python, interno y contrato | POST /internal/v2/predictions/monthly (Bearer interno, lee vistas SQL); POST /api/v1/predictions/monthly (contrato v1 con historial en cuerpo para pruebas) |
 | Salud | Python /health; Java /actuator/health y readiness |
 
@@ -145,11 +146,23 @@ Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR, E5.1 implem
 | Analítica desde vistas (implementado en E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
 | OCR (implementado en E4.2) | POST /internal/v1/ocr | contract_version (`"1"`), request_id, organization_id, receipt_id, storage_key |
 
-Reglas de E5.1 (analítica v2, sólo Python; no hay ruta pública Java todavía):
+Reglas internas de E5.1 (analítica v2; consumida por Java desde E5.2):
 - La ventana `from_month`..`to_month` es inclusiva, con `from_month <= to_month` y hasta 60 meses; en caso contrario `422`/`INVALID_VALUE` sin consultar vistas. Misma autenticación Bearer que predicción.
 - Se comparan `to_month` y el mes anterior; ambos deben estar confirmados en `analytics.v_monthly_coverage`. Si no, `status: INSUFFICIENT_HISTORY`, `comparison: null` y cálculos `null`. Un mes sin cobertura nunca se trata como cero; un mes confirmado sin gastos es cero confirmado.
 - Categorías: las que tienen gastos en meses confirmados de la ventana, ordenadas por id. Una categoría sin gasto en el mes anterior tiene base cero (porcentaje `null`). Fórmulas de la sección 4.1.
 - `evolution` lista cada mes de la ventana: `covered`, `total_amount_minor` (suma exacta de `category_totals`, con ceros explícitos) y totales por categoría; meses sin cobertura: `covered:false`, total `null`, categorías vacías.
+
+### Consulta pública de analítica E5.2
+
+`GET /api/v1/organizations/{organizationId}/analytics/monthly?fromMonth=YYYY-MM&toMonth=YYYY-MM`. Consumidor: panel React. Requiere sesión y membresía USER/ADMIN activa en organización ARS activa; no cambia los permisos ADMIN de cobertura. Sin sesión 401; ámbito ajeno o estados inactivos 403; método de escritura no autorizado 403.
+
+- Ambos parámetros son opcionales; fin predeterminado: último mes cerrado en Buenos Aires. Inicio predeterminado: cinco meses antes del fin, limitado inferiormente a 0001-01. Valores explícitos estrictos YYYY-MM, años 0001–9999, sin espacios ni vacíos; inicio <= fin, ventana inclusiva de 1 a 60 meses y fin anterior al mes actual. Error: 400, sin invocar Python.
+- Java genera `request_id` UUID y envía contrato `"2"`, `organization_id` autorizado y `from_month`/`to_month` a la ruta interna E5.1 con Bearer y timeouts existentes. No acepta contexto SQL ni historial enviado por React.
+- Respuesta 200: `contract_version`, `request_id`, `organization_id`, `currency:"ARS"`, `status` (`OK` o `INSUFFICIENT_HISTORY`), `simulated:false`, `comparison`, `organization`, `categories` y `evolution`, conservando nombres snake_case y centavos enteros del contrato interno. `comparison` contiene `previous_month`/`current_month` o es null; `organization` y cada categoría contienen `status`, `previous_amount_minor`, `current_amount_minor`, `change_amount_minor`, `change_percentage` y `direction`; cada categoría añade `category_id`. La evolución contiene `month`, `covered`, `total_amount_minor` y `category_totals` (`category_id`, `amount_minor`). No incluye nombres de categorías; React los obtiene del listado autorizado existente.
+- Mes desconocido: `covered:false`, total null y categorías vacías. Mes confirmado sin gastos: total cero. Comparación insuficiente: comparación/cálculos null, conservando evolución; porcentaje null si la base anterior es cero. Ventana de un mes es válida y no permite comparación. No se infiere cobertura por ausencia/presencia de gastos.
+- Java verifica contexto y conciliación de la respuesta. Python no disponible, timeout, error, secreto ausente o respuesta incompatible: 503 con mensaje público controlado. No se altera la carga manual ni la consulta de gastos.
+
+La ruta es adicional: no retira ni modifica APIs de gastos, cobertura, predicción u OCR. No agrega migraciones ni cambia el contrato interno E5.1. El panel no consume directamente Python.
 
 Ejemplo predictivo v2:
 

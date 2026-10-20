@@ -52,6 +52,40 @@ import java.time.Instant;
 class AuthServiceTest {
 
     @Test
+    void analyticsMonthlyUsesRealRouteAuthorizationForActiveUserAndAdminOnlyGet() throws Exception {
+        User user = new User(1L, "Prueba", "analytics@example.invalid", passwordEncoder.encode("password123"), null, true);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        var membership = new UserOrganization(1L, 1L, 10L, MembershipRole.USER, LocalDateTime.now(), true);
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(membership));
+        String token = authService.login(new LoginRequest(user.getEmail(), "password123")).token();
+        var analytics = mock(com.shareverance.service.AnalyticsService.class);
+        var mvc = standaloneSetup(new com.shareverance.controller.AnalyticsController(analytics))
+                .addFilters(new com.shareverance.security.BearerTokenAuthFilter(authService)).build();
+        var session = new jakarta.servlet.http.Cookie("SV_SESSION", token);
+        String path = "/api/v1/organizations/10/analytics/monthly";
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path).cookie(session)
+                        .param("fromMonth", "2026-01").param("toMonth", "2026-02")).andExpect(status().isOk());
+        verify(analytics).monthly(10L, 1L, "2026-01", "2026-02");
+        membership.setRole(MembershipRole.ADMIN);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path).cookie(session)).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/organizations/20/analytics/monthly")
+                        .cookie(session)).andExpect(status().isForbidden());
+        mvc.perform(post(path).cookie(session, new jakarta.servlet.http.Cookie("XSRF-TOKEN", "csrf"))
+                        .header("X-XSRF-TOKEN", "csrf")).andExpect(status().isForbidden());
+        membership.setRole(MembershipRole.USER);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/organizations/10/analytics/coverage")
+                        .cookie(session)).andExpect(status().isForbidden());
+        membership.setIsActive(false);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path).cookie(session)).andExpect(status().isForbidden());
+        membership.setIsActive(true);
+        when(organizationRepository.findById(10L)).thenReturn(Optional.of(new Organization(10L, "Inactiva", OrganizationType.HOUSEHOLD,
+                "ARS", LocalDateTime.now(), false)));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path).cookie(session)).andExpect(status().isForbidden());
+    }
+
+    @Test
     void receiptOcrUsesRealRouteAuthorizationAndRequiresActiveMembershipAndCsrf() throws Exception {
         User user = new User(1L, "Prueba", "ocr@example.invalid",
                 passwordEncoder.encode("password123"), null, true);

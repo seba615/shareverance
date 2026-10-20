@@ -20,7 +20,7 @@ Shareverance registra y distribuye gastos de hogares, consorcios y universidades
 | Consultar por período, categoría y estado | Historial paginado | E2.2 incorpora filtros y paginación servidor; aceptación integral pendiente |
 | Consultar gastos por fecha | Calendario | E2.3 incorpora calendario mensual navegable con totales diarios y detalle por fecha; aceptación integral pendiente |
 | Precargar fecha, importe y descripción | Carga con comprobante | E4.1 incorpora volumen privado/almacenamiento y E4.2 motor OCR Tesseract, normalización y precarga editable; aceptación integral pendiente |
-| Totales, comparación mensual, evolución y categorías | Panel analítico | Pendiente de integración real |
+| Totales, comparación mensual, evolución y categorías | Panel analítico | E5.2 incorpora consulta Java, gráficos SVG y tablas desde analítica Python real; aceptación integral pendiente |
 | Estimar próximo mes | Predicciones dentro del panel | API simulada existente; modelo real pendiente |
 | Consultar participación por miembro | Detalle / resumen individual | Basado en repartos; presentación pendiente |
 

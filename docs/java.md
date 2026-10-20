@@ -103,6 +103,14 @@ Se incorporan `PredictionController` y `PredictionService` para exponer `GET /ap
 
 Quedan retirados de Java el endpoint OAuth de callback `POST /api/v1/auth/token`, el endpoint `GET /api/v1/expenses/organization/{organizationId}/history` y los DTOs asociados al circuito inverso `Python → Java`.
 
+## Consulta analítica pública E5.2
+
+`AnalyticsController` y `AnalyticsService` exponen `GET /api/v1/organizations/{organizationId}/analytics/monthly?fromMonth=YYYY-MM&toMonth=YYYY-MM`. El filtro de sesión y el servicio exigen usuario, membresía y organización ARS activos; USER y ADMIN pueden consultar, pero las rutas de cobertura siguen reservadas a ADMIN. Sólo se permite GET. La identidad de usuario procede de la sesión y la organización autorizada se envía a Python; no se acepta un historial del navegador.
+
+La ventana predeterminada abarca seis meses hasta el último mes cerrado de Buenos Aires. Parámetros explícitos deben ser estrictos YYYY-MM, años 0001–9999, con inicio no posterior al fin, máximo 60 meses inclusivos y fin anterior al mes actual. Si sólo falta el inicio se calculan hasta seis meses terminados en el fin solicitado, sin descender de 0001-01; si falta el fin se usa el último cerrado. Parámetros vacíos son inválidos. Se devuelve 400 antes de llamar Python si el período no es válido.
+
+Java llama `POST /internal/v2/analytics/monthly`, contrato 2, con UUID nuevo, contexto y Bearer interno. Reutiliza la configuración de conexión 2000 ms/lectura 5000 ms; no mantiene una transacción JDBC durante la llamada. Error, timeout, secreto ausente o respuesta incompatible producen 503 con mensaje controlado. Valida identidad de organización/solicitud, moneda ARS, resultado no simulado, ventana ordenada, cobertura, centavos enteros seguros, categorías sin duplicar y conciliación de totales. Devuelve DTOs explícitos, sin reenviar credenciales ni errores internos. No cambia Python, vistas, migraciones ni las rutas anteriores.
+
 ## Volumen privado y gestión de comprobantes E4.1
 
 Se incorpora la infraestructura y los endpoints para el almacenamiento privado y seguro de comprobantes asociados a organizaciones:
