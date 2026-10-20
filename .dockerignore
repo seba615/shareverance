@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+backups
+artifacts
+**/target
+**/node_modules
+**/.venv
+**/__pycache__
