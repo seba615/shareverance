@@ -475,6 +475,8 @@ Ejemplo de estructura, con importes ilustrativos que no son resultados de un mod
 
 El modelo candidato inicial es el suavizado exponencial simple. Su configuración y evaluación se documentan en el módulo predictivo; este contrato no fija el algoritmo ni sus parámetros. Un cambio de método compatible con los mismos campos no exige cambiar la versión del contrato, pero sí identificar la nueva versión del modelo.
 
+E6.1 mantiene `PREDICTOR_MODE=mock` por defecto y permite `ses` únicamente mediante configuración explícita experimental. Mock devuelve `simulated:true`/`method:"mock"`; SES devuelve `simulated:false`/`method:"simple_exponential_smoothing"`/`model_version:"1"`, sin que esa marca certifique aceptación predictiva. Dataset, umbral y selección operativa siguen pendientes según [python_predictor.md](python_predictor.md). No cambian rutas, autenticación ni DTO; las métricas y referencias de evaluación son offline y no se agregan a respuestas HTTP.
+
 No se devuelven intervalos ni porcentajes de confianza hasta implementar y evaluar un procedimiento que los sustente. Los resultados expresan ARS nominales; no se ajustan por inflación. El incremento de gasto no identifica por sí solo mayor consumo ni su causa.
 
 Un fallo numérico, resultado no finito o fuera del límite monetario es un fallo interno del cálculo. No debe etiquetarse como historial insuficiente ni corregirse silenciosamente.

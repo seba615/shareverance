@@ -73,6 +73,26 @@ def test_health_remains_available(client):
     }
 
 
+def test_default_predictor_remains_mock(monkeypatch, payload):
+    monkeypatch.delenv("PREDICTOR_MODE", raising=False)
+    with TestClient(app) as test_client:
+        body = test_client.post(URL, json=payload).json()
+    assert body["simulated"] is True
+    assert body["organization"]["method"] == "mock"
+    assert body["organization"]["estimated_amount_minor"] == 60000
+
+
+def test_ses_requires_explicit_mode_and_returns_candidate_metadata(monkeypatch, payload):
+    monkeypatch.setenv("PREDICTOR_MODE", "ses")
+    with TestClient(app) as test_client:
+        response = test_client.post(URL, json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["simulated"] is False
+    assert body["organization"]["method"] == "simple_exponential_smoothing"
+    assert body["organization"]["estimated_amount_minor"] == 40588
+
+
 def test_prediction_returns_contract_response(client, payload):
     app.dependency_overrides[get_settings] = lambda: Settings(
         predictor_mode="mock",

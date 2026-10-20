@@ -31,6 +31,20 @@ Comparación: diferencia = actual − anterior. Porcentaje = diferencia / anteri
 
 ## Predicción real
 
+E6.1 incorpora un candidato SES (`alpha=0.3`, seis meses mínimos, versión 1) y herramientas offline de evaluación. El modo operativo predeterminado continúa siendo `mock`; `PREDICTOR_MODE=ses` es una opción explícita experimental, transmitida por Compose desde `.env`, para comprobar el candidato. En este modo `simulated:false` identifica el cálculo SES, sin certificar calidad predictiva ni aceptación de E6.1. No se activa automáticamente por obtener métricas ni por pasar pruebas. Dataset temporal de aceptación, métrica de decisión, umbral y regla de selección siguen abiertos y deben definirse antes de evaluar para aceptación. La UI predictiva E6.2 sigue pendiente.
+
+Desde `service-python`, el informe reproducible de regresión sintética se obtiene con:
+
+```sh
+uv run --locked python -m app.predictors.evaluation tests/fixtures/prediction_synthetic.json
+```
+
+El informe identifica SHA-256 del archivo, 18 meses sintéticos, seis meses iniciales, 12 orígenes temporales, `alpha=0.3` y `accepted:null`. Cada objetivo recibe únicamente meses anteriores; no hay ajuste con meses futuros. Compara SES, último mes y media histórica sobre los mismos orígenes. El CLI recibe valores mensuales en centavos; la fuente debe garantizar previamente meses consecutivos y cobertura confiable, porque una lista numérica no acredita por sí sola esas condiciones. El fixture no es representativo ni reemplaza el dataset de aceptación.
+
+Métricas internas con unidades explícitas: `mae_ars` y `rmse_ars` convierten centavos a ARS; `mape_percentage` usa sólo meses reales positivos y declara `mape_samples`; `wape_percentage` suma todos los errores absolutos, incluidos meses reales cero, y divide por la suma de importes reales. Si la suma real es cero, WAPE es null: se conserva MAE/RMSE y no se inventa error relativo cero. Redondeo del informe a dos decimales con ROUND_HALF_UP. La media histórica sólo utiliza la ventana anterior y redondea su estimación a centavos con la misma regla. Estos campos pertenecen al informe offline y no cambian los DTO HTTP.
+
+Resultado del fixture sintético: MAE SES 2460,04 ARS, último mes 1075,00 ARS y media histórica 4666,56 ARS. SES pierde ante último mes en esta serie; no se concluye superioridad general ni se promueve un método operativo. Los resultados no fijan retroactivamente un umbral de aceptación.
+
 Mínimo del contrato actual: seis meses válidos por serie. Insuficiencia devuelve estimación null y explica meses requeridos/utilizados. Categorías con historia insuficiente pueden producir estado PARTIAL; no rellenar con un valor inventado.
 
 Implementar suavizado exponencial simple y compararlo con último mes y media histórica como referencias. Elegir parámetros usando únicamente datos anteriores a cada fecha de evaluación. Backtesting con ventana temporal progresiva; reportar MAE en ARS y una medida relativa robusta a ceros cuando sea aplicable. No dividir aleatoriamente meses ni usar el futuro en entrenamiento.

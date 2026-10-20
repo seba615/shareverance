@@ -31,11 +31,11 @@ def _build_database_url() -> str:
 
 
 def load_settings() -> Settings:
-    mode = os.getenv("PREDICTOR_MODE", "ses").strip().lower()
+    mode = os.getenv("PREDICTOR_MODE", "mock").strip().lower()
 
     if mode not in ("mock", "ses"):
         raise ValueError(
-            "PREDICTOR_MODE debe ser 'ses' (por defecto) o 'mock'."
+            "PREDICTOR_MODE debe ser 'mock' (por defecto) o 'ses' (candidato experimental)."
         )
 
     return Settings(
