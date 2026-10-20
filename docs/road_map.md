@@ -331,3 +331,13 @@ Python: `uv run --locked pytest -q` con Python 3.13.16 y `PYTHON_TEST_PG_URL` ha
 Seguimiento reutilizado: issue #44, asignación de `Ale2611` conservada y vinculación al proyecto 3 realizada con la cuenta autenticada `chelofabian`; sin cambios de estado ni cierre. Los datos, volúmenes de desarrollo y cambios locales ajenos permanecen fuera de las pruebas. Aceptación e integración manuales.
 
 Comprobaciones finales: `origin/main` permanece en `5695845`, único PR abierto #45 con cabeza inicial `78efc22`, sin otros cambios activos en colisión. `docker compose --env-file .env.example -f compose.yaml config --quiet`, enlaces Markdown locales y `git diff --check`: correctos. La validación OCR de este ajuste usa texto e imágenes de prueba sintéticos; no se midió precisión con comprobantes reales.
+
+### Implementación E5.1 — comparación y agregaciones conciliadas, 19/10/2026
+
+Relacionado con [#46](https://github.com/seba615/shareverance/issues/46), creado en español, asignado a `seba615` y vinculado al proyecto #3 (`PVTI_lAHOAlJuzs4BlIz_zhB_pHQ`). Rama `feat/e5-1-comparacion-agregaciones` desde `origin/main` (`6b5f544`), sin PR abiertos. No se modificaron estados ni se cerró la tarea.
+
+Implementado: `POST /internal/v2/analytics/monthly` en Python (`AnalyticsService`, `app/api/analytics.py`, esquemas `InternalAnalyticsRequest` y `MonthlyEvolution`), con reglas en `docs/contratos_api.md`. Sin migraciones, cambios en Java/frontend ni dependencias. Límite: no existe aún ruta pública Java que lo consuma; queda a definir para E5.2.
+
+Verificado: `pytest` en Docker Python 3.13 con `uv sync --locked`: 74 aprobadas, 2 omitidas, 0 fallos. Las omitidas son las pruebas con PostgreSQL real (`PYTHON_TEST_PG_URL` no configurada), incluida la nueva de conciliación contra sumas directas de la vista: **no se ejecutaron**. Aceptación y cierre manuales.
+
+Corrección de arranque (E5.1): ReceiptController (E4.1/E4.2) tenía dos constructores sin @Autowired y java-service no iniciaba (No default constructor found); se anotó el constructor de tres parámetros. Verificado con docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait: postgres, python-service, java-service y frontend en estado healthy. No se ejecutó mvn test.

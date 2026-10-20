@@ -69,10 +69,25 @@ class CategoryAnalyticsResult(AnalyticsResult):
     category_id: PositiveId
 
 
+class EvolutionCategoryTotal(ContractModel):
+    category_id: PositiveId
+    amount_minor: AmountMinor
+
+
+class MonthlyEvolution(ContractModel):
+    """Total conciliado de un mes de la ventana; covered=false indica mes sin cobertura confirmada."""
+
+    month: Month
+    covered: bool = Field(strict=True)
+    total_amount_minor: AmountMinor | None
+    category_totals: list[EvolutionCategoryTotal] = Field(max_length=100)
+
+
 class AnalyticsResponse(ResponseBase):
     comparison: ComparisonPeriod | None
     organization: AnalyticsResult
     categories: list[CategoryAnalyticsResult] = Field(max_length=100)
+    evolution: list[MonthlyEvolution] | None = Field(default=None, max_length=60)
 
 
 class PredictionResult(ContractModel):
