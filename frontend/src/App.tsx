@@ -17,13 +17,14 @@ import {
 
 import { ExpenseCalendarView } from './ExpenseCalendar';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { PredictionPanel } from './PredictionPanel';
 import { ExpenseHistory } from './ExpenseHistory';
 import { buenosAiresToday } from './calendarModel';
 import { createOrganizationLoader } from './organizationLoader';
 import { createReceiptLoader } from './receiptLoader';
 
 type AuthMode = 'login' | 'register';
-type OrgTab = 'expenses' | 'members' | 'categories' | 'analytics';
+type OrgTab = 'expenses' | 'members' | 'categories' | 'analytics' | 'predictions';
 type ExpenseViewMode = 'history' | 'calendar';
 
 const organizationTypeLabels: Record<OrganizationType, string> = {
@@ -608,6 +609,8 @@ export default function App() {
               <nav className="tab-nav" aria-label="Secciones de la organización">
                 <button className={`tab-btn${activeTab === 'analytics' ? ' active' : ''}`} type="button"
                   onClick={() => { setActiveTab('analytics'); setError(''); }}>Panel</button>
+                <button className={`tab-btn${activeTab === 'predictions' ? ' active' : ''}`} type="button"
+                  onClick={() => { setActiveTab('predictions'); setError(''); }}>Predicción</button>
                 <button
                   className={`tab-btn${activeTab === 'expenses' ? ' active' : ''}`}
                   type="button"
@@ -637,6 +640,8 @@ export default function App() {
             ) : (
               <>
                 {activeTab === 'analytics' && <AnalyticsPanel key={`analytics-${selectedOrganization.id}`}
+                  organizationId={selectedOrganization.id} categories={categories} refreshToken={historyRefresh} />}
+                {activeTab === 'predictions' && <PredictionPanel key={`predictions-${selectedOrganization.id}`}
                   organizationId={selectedOrganization.id} categories={categories} refreshToken={historyRefresh} />}
                 {activeTab === 'expenses' && (
                   <div className="tab-pane">

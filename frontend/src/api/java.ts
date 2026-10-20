@@ -419,3 +419,36 @@ export const analyticsApi = {
     return request(`/api/v1/organizations/${organizationId}/analytics/monthly?${query}`);
   },
 };
+
+
+export interface PredictionResult {
+  status: 'OK' | 'INSUFFICIENT_HISTORY';
+  estimated_amount_minor: number | null;
+  months_used: number;
+  required_months: number;
+  method: string;
+  model_version: string;
+}
+
+export interface CategoryPredictionResult extends PredictionResult {
+  category_id: number;
+}
+
+export interface PredictionResponse {
+  contract_version: '2';
+  request_id: string;
+  organization_id: number;
+  currency: 'ARS';
+  target_month: string;
+  status: 'OK' | 'PARTIAL' | 'INSUFFICIENT_HISTORY';
+  simulated: boolean;
+  organization: PredictionResult;
+  categories: CategoryPredictionResult[];
+}
+
+export const predictionApi = {
+  monthly(organizationId: number, targetMonth?: string): Promise<PredictionResponse> {
+    const query = targetMonth ? `?targetMonth=${encodeURIComponent(targetMonth)}` : '';
+    return request<PredictionResponse>(`/api/v1/organizations/${organizationId}/predictions/monthly${query}`);
+  },
+};
