@@ -69,28 +69,31 @@ Antes de darlo por terminado, probar lectura autorizada de A, rechazo/ausencia d
 
 ## Respaldo y restauración
 
-E7.1 implementa el procedimiento reproducible de respaldo y restauración consistente de la base de datos PostgreSQL y el volumen compartido de comprobantes (`receipts_data`). Se garantiza correspondencia unívoca entre registros activos en la tabla `receipts` y los archivos almacenados en el sistema de archivos (`/data/receipts/org_<id>/<id>.<ext>`), evitando estados desincronizados.
+E7.1 incorpora un motor común (`scripts/backup_engine.py`) ejecutado dentro de Docker por wrappers Bash y PowerShell. Requiere proyecto Compose explícito, PostgreSQL activo y un único volumen etiquetado `receipts_data` del mismo proyecto. Resuelve contenedores mediante etiquetas de proyecto/servicio y verifica los montajes Java/Python existentes; rechaza ambigüedad y recursos discordantes. No selecciona el primer contenedor o volumen por coincidencia de nombre.
 
-### 1. Procedimiento de Respaldo (`scripts/backup.sh` y `scripts/backup.ps1`)
+### Ventana de copia
 
-- **Ventana consistente sin escrituras (A19):** Si el servicio `java-service` está en ejecución, se pausa temporalmente durante la extracción de datos (`docker pause`) para evitar escrituras concurrentes que puedan generar discrepancias entre base y archivos, reanudándose inmediatamente al finalizar (`docker unpause`).
-- **Volcado PostgreSQL:** Se genera un volcado binario mediante `pg_dump -Fc` (`db.dump`), que incluye todas las tablas de negocio, secuencias, vistas del esquema `analytics`, funciones y permisos otorgados a los roles técnicos.
-- **Empaquetado de comprobantes:** Se crea un archivo comprimido `receipts.tar.gz` con el contenido del volumen `receipts_data` respetando la estructura de directorios por organización (`org_<id>/`).
-- **Manifiesto de integridad criptográfica (`manifest.json`):** Contiene la marca de tiempo UTC (ISO-8601), los hashes SHA-256 de `db.dump` y `receipts.tar.gz`, el conteo de archivos físicos y las métricas de negocio al momento del respaldo (`users`, `organizations`, `user_organization`, `categories`, `expenses`, `expense_splits`, `receipts_active` y `analytics_month_coverage`).
+Un bloqueo exclusivo por proyecto impide dos operaciones simultáneas; un bloqueo persistente tras un corte debe revisarse manualmente antes de retirarlo. Se detienen Java/Python que estaban activos y se comprueba que no queden conexiones SQL externas en la base. Los clientes administrativos deben estar cerrados y no realizar escrituras durante toda la ventana: la comprobación de conexiones no bloquea nuevas conexiones administrativas. No se usa `docker pause`, porque pausar el proceso no detiene una consulta ya enviada a PostgreSQL. Al finalizar el respaldo se restituyen sólo los servicios originalmente activos. Una restauración fallida deja detenidos los servicios que detuvo, sin informar éxito.
 
-### 2. Procedimiento de Restauración (`scripts/restore.sh` y `scripts/restore.ps1`)
+### Artefactos y verificación
 
-- **Verificación criptográfica previa:** Antes de alterar cualquier dato, calcula las sumas SHA-256 de `db.dump` y `receipts.tar.gz` y las contrasta contra `manifest.json`. Si alguna no coincide, el proceso se aborta inmediatamente sin modificar el sistema.
-- **Restauración de PostgreSQL:** Restaura el esquema, secuencias, datos y permisos mediante `pg_restore --clean --if-exists --no-owner`. Re-aplica `database/configure-access.sql` para asegurar que las contraseñas y permisos de conexión de `shareverance_java` y `shareverance_python` queden plenamente operativos.
-- **Restauración de comprobantes:** Limpia el volumen destino y extrae el archivo `receipts.tar.gz` preservando la estructura de carpetas por organización.
-- **Auditoría de integridad cruzada post-restauración:**
-  1. Comprueba que las cantidades de registros en las tablas clave coincidan con las declaradas en el manifiesto.
-  2. Itera sobre cada registro activo en la tabla `receipts` (`is_active = TRUE`) y verifica que el archivo exista en `/data/<storage_path>` y que su tamaño en bytes sea exactamente igual al campo `file_size_bytes` de la base de datos.
-  3. Reporta cualquier archivo faltante, discrepancia de tamaño o archivo huérfano. Si se detectan inconsistencias, el script finaliza con código de error.
+- `db.dump`: pg_dump binario custom, escrito como bytes por el motor; no atraviesa redirecciones de texto de PowerShell.
+- `receipts.tar.gz`: todos los archivos regulares del volumen, sin enlaces simbólicos ni archivos especiales.
+- `manifest.json`, versión 2: fecha UTC, proyecto/base de origen, SHA-256 del dump y tar, inventario de rutas/tamaños/SHA-256 por archivo, conteos de negocio y cantidad de archivos sin referencia SQL. El directorio destino debe estar vacío; manifest se escribe al terminar. Backups queda ignorado por Git. La versión 1 inicial del PR no se convierte ni sobrescribe automáticamente: se rechaza antes de modificar datos.
 
-### 3. Verificación Automatizada en Entorno Aislado (`scripts/verify_backup_restore.sh`)
+La auditoría consulta todos los comprobantes, incluidos históricos inactivos y temporales; exige referencia única, archivo existente y tamaño coincidente. Los archivos sin referencia SQL se identifican y preservan, sin purgarlos automáticamente. El respaldo no acredita contenido OCR ni validez visual de imágenes. Los hashes detectan alteraciones respecto del manifiesto, no autentican la procedencia del respaldo.
 
-Comprueba el ciclo completo de respaldo y restauración en un contenedor PostgreSQL efímero montado sobre `tmpfs` y un volumen Docker temporal, aplicando las migraciones V1 a V9, insertando datos sintéticos de prueba con comprobantes asociados, ejecutando el respaldo, destruyendo los datos y archivos en una simulación de desastre, restaurando desde los artefactos y verificando que la integridad referencial y los roles técnicos funcionen al 100%. Nunca se ejecuta contra la base ni volúmenes de desarrollo.
+### Restauración
+
+Requiere proyecto explícito y `-ReplaceData`/`--replace-data`, además de contraseñas SQL Java/Python configuradas no vacías y distintas. Antes de detener servicios valida versión, hashes, inventario y rutas tar (sin rutas absolutas, traversal, enlaces ni duplicados), y valida el formato pg_dump. Aprovisiona roles técnicos antes de restaurar ACL, permitiendo recuperación en un clúster nuevo. Como pg_dump sin --create no incluye los permisos de la base, restituye expresamente la política V7: PUBLIC sin CONNECT/TEMPORARY, roles técnicos sólo CONNECT y permisos de tablas/vistas recuperados del volcado.
+
+Primero extrae los archivos a un volumen temporal y restaura el dump en una base temporal propia. Compara todos los conteos, referencias y hashes. Sólo entonces ejecuta pg_restore en la base destino con `--exit-on-error --single-transaction --clean --if-exists --no-owner`, vuelve a comprobar conteos/referencias y reemplaza el contenido del volumen destino con el staging validado. Verifica hashes finales y sólo en éxito reinicia los servicios inicialmente activos. No hay atomicidad entre PostgreSQL y filesystem: un error al reemplazar archivos requiere revisión/reintento con la aplicación detenida. No se descartan errores SQL ni se convierten consultas fallidas en conteos cero.
+
+Los recursos temporales se identifican por operación; no se borran bases ni volúmenes del proyecto para hacer pruebas. Los wrappers normalizan rutas a absolutas y usan un archivo de entorno como datos, sin ejecutarlo como script. Comandos en [README](../README.md).
+
+### Verificación aislada
+
+`verify_backup_restore.py`, invocado desde `verify_backup_restore.sh` o `verify_backup_restore.ps1`, crea proyectos únicos, PostgreSQL en tmpfs, volúmenes etiquetados y servicios auxiliares que simulan el ciclo de vida, sin puertos públicos ni lectura del `.env` de desarrollo. Usa sólo recursos creados por su ejecución, verifica recuperación en un clúster sin roles previos y casos negativos de hashes, formato y conteos; contrasta que otro proyecto conserve datos, archivos y estado. Su fixture tiene bytes sintéticos de comprobante y no acredita OCR ni aceptación integral del MVP. La limpieza retira únicamente recursos propios. Evidencia ejecutada y limitaciones en el [roadmap](road_map.md).
 
 ## Pruebas
 

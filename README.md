@@ -369,32 +369,40 @@ Para generar una copia consistente de la base de datos PostgreSQL (`db.dump`), e
 
 Desde PowerShell (Windows):
 ```powershell
-.\scripts\backup.ps1
+.\scripts\backup.ps1 -Project shareverance
 ```
 
 Desde Bash (Linux / macOS):
 ```bash
-./scripts/backup.sh
+bash scripts/backup.sh --project shareverance
 ```
 
-Los artefactos se almacenan de forma predeterminada en `backups/backup_YYYYMMDD_HHMMSS/`. Se puede especificar un directorio de destino como parámetro opcional.
+Los artefactos se almacenan de forma predeterminada en `backups/backup_YYYYMMDD_HHMMSS/` (ignorado por Git). El destino debe estar vacío. Se puede especificar `-TargetDir` en PowerShell o `--directory` en Bash; las rutas se convierten a absolutas antes de montarlas. `-Project`/`--project` es obligatorio: reemplazar `shareverance` por el nombre exacto del proyecto Compose, sin autodetección de otros proyectos.
+
+Ambos wrappers construyen el mismo motor Python/Docker dentro de una imagen con versiones y digests fijados; no requieren Python instalado en la PC. Requieren Docker con contenedores Linux y acceso al socket Docker Desktop. No ejecutan `.env` como código; pasan sus variables como configuración del contenedor. Restaurar requiere `JAVA_DB_PASSWORD` y `PYTHON_DB_PASSWORD` no vacías y distintas, desde `.env`, `-EnvFile`/`--env-file` o variables de entorno si no existe ese archivo.
 
 Para restaurar una copia previa y ejecutar la verificación de integridad cruzada (comprobando que cada comprobante activo en la base exista en el sistema de archivos con el tamaño exacto):
 
 Desde PowerShell (Windows):
 ```powershell
-.\scripts\restore.ps1 -BackupDir .\backups\backup_YYYYMMDD_HHMMSS
+.\scripts\restore.ps1 -Project shareverance -BackupDir .\backups\backup_YYYYMMDD_HHMMSS -ReplaceData
 ```
 
 Desde Bash (Linux / macOS):
 ```bash
-./scripts/restore.sh ./backups/backup_YYYYMMDD_HHMMSS
+bash scripts/restore.sh --project shareverance --directory ./backups/backup_YYYYMMDD_HHMMSS --replace-data
 ```
 
 Para verificar de forma aislada y automatizada el ciclo de respaldo y restauración en un contenedor efímero sin afectar los datos de desarrollo:
 ```bash
-./scripts/verify_backup_restore.sh
+bash scripts/verify_backup_restore.sh
 ```
+
+En Windows: `.\scripts\verify_backup_restore.ps1`. El verificador no lee `.env`, usa proyectos temporales únicos sin puertos públicos y retira sólo sus recursos propios.
+
+La restauración reemplaza la base y los archivos del proyecto explícito. Primero valida el respaldo y lo comprueba en una base/volumen temporales; se detiene ante cualquier error. Durante la copia se detienen los servicios Java/Python que estaban ejecutándose y se exige ausencia de conexiones SQL externas. Cerrar clientes SQL y evitar escrituras administrativas durante toda la ventana. Si la restauración falla, los servicios detenidos permanecen así para revisión; no se informa éxito ni se inicia la aplicación sobre un estado parcial.
+
+El manifiesto corregido utiliza versión 2 con SHA-256 global y por archivo, conteos y archivos sin referencia identificados/preservados. La versión 1 del PR inicial se rechaza antes de modificar datos; no se sobrescribe ni convierte automáticamente. Detalles, limitaciones y pruebas en [PostgreSQL](docs/postgre.md).
 
 ## 6. Incorporar bibliotecas en Java
 
