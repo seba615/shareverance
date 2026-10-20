@@ -137,13 +137,19 @@ Reglas de E3.2:
 
 ## Contrato interno objetivo (E3.2 y OCR)
 
-Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR; analítica v2 permanece pendiente):
+Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR, E5.1 implementa analítica v2):
 
 | Operación | Ruta | Cuerpo |
 | --- | --- | --- |
 | Predicción con datos desde vistas (implementado en E3.2) | POST /internal/v2/predictions/monthly | contract_version (`"2"`), request_id, organization_id, target_month |
-| Analítica desde vistas (pendiente E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
+| Analítica desde vistas (implementado en E5.1) | POST /internal/v2/analytics/monthly | contract_version, request_id, organization_id, from_month, to_month |
 | OCR (implementado en E4.2) | POST /internal/v1/ocr | contract_version (`"1"`), request_id, organization_id, receipt_id, storage_key |
+
+Reglas de E5.1 (analítica v2, sólo Python; no hay ruta pública Java todavía):
+- La ventana `from_month`..`to_month` es inclusiva, con `from_month <= to_month` y hasta 60 meses; en caso contrario `422`/`INVALID_VALUE` sin consultar vistas. Misma autenticación Bearer que predicción.
+- Se comparan `to_month` y el mes anterior; ambos deben estar confirmados en `analytics.v_monthly_coverage`. Si no, `status: INSUFFICIENT_HISTORY`, `comparison: null` y cálculos `null`. Un mes sin cobertura nunca se trata como cero; un mes confirmado sin gastos es cero confirmado.
+- Categorías: las que tienen gastos en meses confirmados de la ventana, ordenadas por id. Una categoría sin gasto en el mes anterior tiene base cero (porcentaje `null`). Fórmulas de la sección 4.1.
+- `evolution` lista cada mes de la ventana: `covered`, `total_amount_minor` (suma exacta de `category_totals`, con ceros explícitos) y totales por categoría; meses sin cobertura: `covered:false`, total `null`, categorías vacías.
 
 Ejemplo predictivo v2:
 

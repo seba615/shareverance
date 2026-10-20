@@ -84,6 +84,16 @@ class InternalPredictionRequest(ContractModel):
     target_month: Month
 
 
+class InternalAnalyticsRequest(ContractModel):
+    """Solicitud interna v2 de analítica: Python consulta vistas SQL autorizadas."""
+
+    contract_version: Literal["2"]
+    request_id: UUID
+    organization_id: PositiveId
+    from_month: Month
+    to_month: Month
+
+
 class InternalOcrRequest(ContractModel):
     """Solicitud interna v1 para procesamiento OCR de un comprobante almacenado."""
 

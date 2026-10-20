@@ -11,6 +11,7 @@ from app.api.error_handlers import (
     request_validation_handler,
     views_repository_error_handler,
 )
+from app.api.analytics import internal_analytics_router
 from app.api.ocr import internal_ocr_router
 from app.api.predictions import (
     internal_router as internal_predictions_router,
@@ -86,6 +87,7 @@ app.add_exception_handler(
 
 app.include_router(predictions_router)
 app.include_router(internal_predictions_router)
+app.include_router(internal_analytics_router)
 app.include_router(internal_ocr_router)
 
 
