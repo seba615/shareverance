@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ApiError, Category, predictionApi, PredictionResponse } from './api/java';
+import { PredictionHistory, PredictionInsufficiencyNotice, PredictionModelNotice } from './PredictionMessages';
 import {
   createPredictionLoader,
   formatMinor,
@@ -81,17 +82,8 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
         Estimación mensual proyectada en ARS calculada a partir del historial continuo de meses con cobertura confirmada.
       </p>
 
-      {data?.simulated && (
-        <div className="prediction-badge simulated" role="note">
-          <strong>Cálculo simulado (mock):</strong> valores sintéticos para verificación de integración; no constituyen una estimación económica real.
-        </div>
-      )}
-
-      {data && !data.simulated && (
-        <div className="prediction-badge experimental" role="note">
-          <strong>Modelo experimental:</strong> Suavizado Exponencial Simple (SES) versión {data.organization.model_version}.
-        </div>
-      )}
+      {data && <PredictionModelNotice simulated={data.simulated} method={data.organization.method}
+        version={data.organization.model_version} />}
 
       <form className="prediction-filters" onSubmit={handleSubmit}>
         <label>
@@ -147,21 +139,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
           {isInsufficient ? (
             <div className="prediction-card insufficient" role="alert">
-              <h5>Historial insuficiente para calcular la predicción</h5>
-              <p>
-                Se requieren al menos <strong>{data.organization.required_months} meses continuos</strong> con cobertura confirmada inmediatamente anteriores a{' '}
-                {formatPredictionMonth(data.target_month)}. Actualmente la serie continua cuenta con{' '}
-                <strong>{data.organization.months_used}</strong> de los {data.organization.required_months} meses necesarios.
-              </p>
-              {data.organization.months_used === 0 && (
-                <p className="muted">
-                  No se registran meses confirmados continuos anteriores al mes objetivo. Un administrador puede confirmar la cobertura de meses cerrados en la sección de analítica.
-                </p>
-              )}
-              <div className="prediction-amount-block disabled">
-                <span className="amount-label">Importe organizacional proyectado:</span>
-                <span className="amount-value">No disponible</span>
-              </div>
+              <PredictionInsufficiencyNotice requiredMonths={data.organization.required_months} targetMonth={data.target_month} />
             </div>
           ) : (
             <div className="prediction-card success">
@@ -175,7 +153,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                 <div>
                   <span className="meta-label">Historial utilizado</span>
                   <strong>
-                    {data.organization.months_used} de {data.organization.required_months} meses requeridos
+                    <PredictionHistory result={data.organization} />
                   </strong>
                 </div>
                 <div>
@@ -222,7 +200,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                           <td>
                             {isCatInsufficient ? (
                               <span className="badge badge-warning">
-                                Insuficiente ({cat.months_used}/{cat.required_months} m)
+                                Historial insuficiente
                               </span>
                             ) : (
                               <span className="badge badge-success">Disponible</span>
@@ -234,7 +212,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                               : formatMinor(cat.estimated_amount_minor)}
                           </td>
                           <td>
-                            {cat.months_used} / {cat.required_months} meses
+                            <PredictionHistory result={cat} />
                           </td>
                           <td>{formatPredictionMethod(cat.method, data.simulated)}</td>
                         </tr>
