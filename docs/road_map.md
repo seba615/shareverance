@@ -435,3 +435,29 @@ Es evidencia sintética de regresión, no un dataset representativo ni un umbral
 Verificación final ejecutada: suite Python completa `uv run --locked pytest -q`, Python 3.13.16/Tesseract y PostgreSQL 17.11 exclusivo con `PYTHON_TEST_PG_URL`: **120 aprobadas, cero fallos y cero omisiones**. Incluye las dos pruebas SQL, modo predeterminado/SES explícito en API, unidades ARS, meses cero, validaciones, media histórica y ausencia de fuga temporal. Persiste una advertencia de deprecación de Starlette/httpx preexistente. Se aplicó el SQL vigente V1–V9 en `shareverance_e61_test` (sin nueva migración ni verificación de historial Flyway), con rol lector Python y fixtures sintéticos. Base en tmpfs, sin puertos ni volúmenes persistentes; contenedor exclusivo retirado al terminar.
 
 Prueba adicional ejecutada con FastAPI TestClient, lifespan y repositorio PostgreSQL reales: ambos modos devuelven 401/403 ante ausencia/error de Bearer; seis meses confirmados producen 60000 centavos en mock y 40588 en SES, con método/simulated correctos; tres meses producen INSUFFICIENT_HISTORY y estimación null. No sustituye prueba HTTP extremo a extremo a través de Java ni evaluación de producción. Compose validado mediante `config --quiet`; main consultado en `ba8c2cb`, sólo PR #54 abierto. Se preservan scripts ajenos y el entorno de prueba E5.2 en 5175. Sin cambios de asignación, estado ni cierre de #53; aceptación e integración manuales.
+
+
+### Implementación E6.2 — vista predictiva y estados de insuficiencia, 20/10/2026
+
+Relacionado con [#55](https://github.com/seba615/shareverance/issues/55), creado en español, asignado a la cuenta autenticada `chelofabian` y vinculado al proyecto 3 (`PVTI_lAHOAlJuzs4BlIz_zhCK-eY`). Rama de trabajo `feat/e6-2-vista-predictiva` desde `origin/main` (`b7ecdfe`), sin PRs abiertos ni ramas remotas en conflicto. No se alteraron estados del tablero ni se cerró la tarea.
+
+Implementado:
+- Pestaña `Predicción` en `App.tsx` y cliente `predictionApi.monthly` en `frontend/src/api/java.ts`, consumiendo la API pública Java `GET /api/v1/organizations/{organizationId}/predictions/monthly`.
+- Selector opcional de mes objetivo con validación estricta (`YYYY-MM`, años 0001 a 9999) y opción de consulta automática para el mes recomendado (`MAX(covered_month) + 1` o mes actual).
+- Diferenciación explícita (A12) entre estimación simulada (`simulated: true`, mock de prueba de integración) y modelo real experimental SES (`simulated: false`, Suavizado Exponencial Simple versión 1), con etiquetas y avisos destacados.
+- Manejo explícito de estados de insuficiencia (A11, `INSUFFICIENT_HISTORY` y estimación `null`), informando el mínimo requerido y que el modelo no se ejecutó, sin inferir meses disponibles a partir de months_used=0 ni fabricar importes en cero. Semántica corregida durante la revisión del PR #56.
+- Desglose por categorías con nombres y estado de categoría (activa/inactiva), estado de disponibilidad, meses utilizados y método aplicado.
+- Manejo de degradación y caídas (A13): traducción de errores y timeouts internos (HTTP 503) a mensajes controlados no bloqueantes en la UI.
+- Control de ciclo de vida con `createPredictionLoader` (`predictionModel.ts`), descartando respuestas y errores tardíos ante navegación A→B→A, cambio de mes u organización y desmontaje.
+- Estilos visuales adaptables en `style.css` para tarjetas, tablas con scroll horizontal y badges semánticos.
+
+Verificado E6.2:
+- Suite de pruebas de frontend (`npm test` en Node 24): 36 pruebas aprobadas, cero fallos y cero omisiones (incluyendo las cinco nuevas pruebas en `predictionModel.test.mjs` para validación de mes, formateo en huso neutro con años antiguos, métodos y descarte de carreras/errores tardíos).
+- Compilación de TypeScript y empaquetado de producción con Vite (`docker compose -f compose.yaml -f compose.tools.yaml build frontend`): `tsc --noEmit && vite build` completado exitosamente sin errores ni advertencias.
+- Sin cambios en migraciones Flyway ni dependencias de backend Java o Python. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Corrección de mensajes E6.2 — PR #56, seguimiento #55, 20/10/2026
+
+Sobre `ca9f131`: el aviso de insuficiencia conserva el mínimo requerido y No disponible, pero no interpreta months_used=0 como ausencia de meses confirmados. Organización y categorías distinguen meses utilizados de cobertura disponible, que la respuesta no informa cuando el modelo no se ejecuta. Se elimina la referencia a administrar cobertura desde Analítica, interfaz todavía pendiente. El aviso mock describe la reutilización del último importe del historial consultado, sin llamar sintéticos a los datos. Los avisos identifican método/versión y mantienen pendiente la aceptación experimental. Sin cambios de contratos HTTP, backend, dependencias ni migraciones.
+
+Verificado: `npm test` en Node 24.21.0: **40 aprobadas, cero fallos y cero omisiones**; `npm run build` TypeScript/Vite correcto. Incluye cuatro regresiones que renderizan los componentes React realmente usados por la vista con Vite/react-dom/server: resultado insuficiente con months_used=0, historial OK, aviso mock y aviso experimental. Se conserva la evidencia previa de 36 pruebas como ejecución anterior. Estas pruebas de renderizado usan una respuesta compatible con el contrato, no ejecutan backend ni sustituyen validación visual/HTTP integral. Documentación frontend actualizada. Main consultado en `b7ecdfe`, sólo PR #56 abierto; seguimiento #55 sin cambios de asignación/estado/cierre. Se preserva el script local ajeno. Integración y aceptación manuales.
