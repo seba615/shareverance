@@ -69,7 +69,28 @@ Antes de darlo por terminado, probar lectura autorizada de A, rechazo/ausencia d
 
 ## Respaldo y restauración
 
-Respaldar PostgreSQL y volumen de comprobantes con correspondencia consistente. Definir ventana sin escrituras o procedimiento equivalente, restaurar ambos en entorno aislado y comprobar referencias. Nunca usar down -v sobre datos que deban conservarse. Cambiar contraseña en .env no cambia por sí solo la de una base inicializada.
+E7.1 implementa el procedimiento reproducible de respaldo y restauración consistente de la base de datos PostgreSQL y el volumen compartido de comprobantes (`receipts_data`). Se garantiza correspondencia unívoca entre registros activos en la tabla `receipts` y los archivos almacenados en el sistema de archivos (`/data/receipts/org_<id>/<id>.<ext>`), evitando estados desincronizados.
+
+### 1. Procedimiento de Respaldo (`scripts/backup.sh` y `scripts/backup.ps1`)
+
+- **Ventana consistente sin escrituras (A19):** Si el servicio `java-service` está en ejecución, se pausa temporalmente durante la extracción de datos (`docker pause`) para evitar escrituras concurrentes que puedan generar discrepancias entre base y archivos, reanudándose inmediatamente al finalizar (`docker unpause`).
+- **Volcado PostgreSQL:** Se genera un volcado binario mediante `pg_dump -Fc` (`db.dump`), que incluye todas las tablas de negocio, secuencias, vistas del esquema `analytics`, funciones y permisos otorgados a los roles técnicos.
+- **Empaquetado de comprobantes:** Se crea un archivo comprimido `receipts.tar.gz` con el contenido del volumen `receipts_data` respetando la estructura de directorios por organización (`org_<id>/`).
+- **Manifiesto de integridad criptográfica (`manifest.json`):** Contiene la marca de tiempo UTC (ISO-8601), los hashes SHA-256 de `db.dump` y `receipts.tar.gz`, el conteo de archivos físicos y las métricas de negocio al momento del respaldo (`users`, `organizations`, `user_organization`, `categories`, `expenses`, `expense_splits`, `receipts_active` y `analytics_month_coverage`).
+
+### 2. Procedimiento de Restauración (`scripts/restore.sh` y `scripts/restore.ps1`)
+
+- **Verificación criptográfica previa:** Antes de alterar cualquier dato, calcula las sumas SHA-256 de `db.dump` y `receipts.tar.gz` y las contrasta contra `manifest.json`. Si alguna no coincide, el proceso se aborta inmediatamente sin modificar el sistema.
+- **Restauración de PostgreSQL:** Restaura el esquema, secuencias, datos y permisos mediante `pg_restore --clean --if-exists --no-owner`. Re-aplica `database/configure-access.sql` para asegurar que las contraseñas y permisos de conexión de `shareverance_java` y `shareverance_python` queden plenamente operativos.
+- **Restauración de comprobantes:** Limpia el volumen destino y extrae el archivo `receipts.tar.gz` preservando la estructura de carpetas por organización.
+- **Auditoría de integridad cruzada post-restauración:**
+  1. Comprueba que las cantidades de registros en las tablas clave coincidan con las declaradas en el manifiesto.
+  2. Itera sobre cada registro activo en la tabla `receipts` (`is_active = TRUE`) y verifica que el archivo exista en `/data/<storage_path>` y que su tamaño en bytes sea exactamente igual al campo `file_size_bytes` de la base de datos.
+  3. Reporta cualquier archivo faltante, discrepancia de tamaño o archivo huérfano. Si se detectan inconsistencias, el script finaliza con código de error.
+
+### 3. Verificación Automatizada en Entorno Aislado (`scripts/verify_backup_restore.sh`)
+
+Comprueba el ciclo completo de respaldo y restauración en un contenedor PostgreSQL efímero montado sobre `tmpfs` y un volumen Docker temporal, aplicando las migraciones V1 a V9, insertando datos sintéticos de prueba con comprobantes asociados, ejecutando el respaldo, destruyendo los datos y archivos en una simulación de desastre, restaurando desde los artefactos y verificando que la integridad referencial y los roles técnicos funcionen al 100%. Nunca se ejecuta contra la base ni volúmenes de desarrollo.
 
 ## Pruebas
 

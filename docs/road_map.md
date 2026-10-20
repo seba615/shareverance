@@ -47,7 +47,7 @@ E3 y E4 pueden progresar independientemente una vez estabilizado E1 y sus contra
 | Servicio interno | Fijar esquema de autenticación Java→Python y rotación de secreto |
 | Gráficos | E5.2: SVG nativo con React, sin biblioteca adicional, con tablas accesibles equivalentes |
 | Evaluación | E6.1 incorpora evaluación offline SES/último mes/media histórica; dataset temporal, métrica de decisión, umbral y selección para aceptación siguen pendientes |
-| Operación | Tiempos/reintentos definitivos, retención de logs y procedimiento de respaldo |
+| Operación | Tiempos/reintentos definitivos y retención de logs; procedimiento de respaldo y restauración coherente validado en E7.1 con verificación automatizada |
 | Cuenta | Explicitar inclusión/exclusión de recuperación de contraseña y verificación de email |
 
 ## Criterios integrales de aceptación
@@ -461,3 +461,57 @@ Verificado E6.2:
 Sobre `ca9f131`: el aviso de insuficiencia conserva el mínimo requerido y No disponible, pero no interpreta months_used=0 como ausencia de meses confirmados. Organización y categorías distinguen meses utilizados de cobertura disponible, que la respuesta no informa cuando el modelo no se ejecuta. Se elimina la referencia a administrar cobertura desde Analítica, interfaz todavía pendiente. El aviso mock describe la reutilización del último importe del historial consultado, sin llamar sintéticos a los datos. Los avisos identifican método/versión y mantienen pendiente la aceptación experimental. Sin cambios de contratos HTTP, backend, dependencias ni migraciones.
 
 Verificado: `npm test` en Node 24.21.0: **40 aprobadas, cero fallos y cero omisiones**; `npm run build` TypeScript/Vite correcto. Incluye cuatro regresiones que renderizan los componentes React realmente usados por la vista con Vite/react-dom/server: resultado insuficiente con months_used=0, historial OK, aviso mock y aviso experimental. Se conserva la evidencia previa de 36 pruebas como ejecución anterior. Estas pruebas de renderizado usan una respuesta compatible con el contrato, no ejecutan backend ni sustituyen validación visual/HTTP integral. Documentación frontend actualizada. Main consultado en `b7ecdfe`, sólo PR #56 abierto; seguimiento #55 sin cambios de asignación/estado/cierre. Se preserva el script local ajeno. Integración y aceptación manuales.
+
+### Implementación E7.1 — aceptación completa, respaldo y restauración, 20/10/2026
+
+Relacionado con [#57](https://github.com/seba615/shareverance/issues/57), creado en español, asignado a la cuenta autenticada `Ale2611` (nota: agregado al proyecto 3 pendiente por scope de token). Rama de trabajo `feat/e7-1-aceptacion-respaldo` desde `origin/main` (`741601d`), sin PRs abiertos ni ramas en conflicto. No se alteraron estados del tablero ni se cerró la tarea.
+
+Implementado:
+- Procedimiento reproducible de respaldo consistente (`scripts/backup.sh` y `scripts/backup.ps1`):
+  - Ventana consistente sin escrituras concurrentes (A19), pausando temporalmente `java-service` durante el volcado (`docker pause` / `unpause`).
+  - Volcado binario de PostgreSQL con `pg_dump -Fc` (`db.dump`), preservando esquemas `public` y `analytics`, vistas, secuencias, funciones y permisos.
+  - Empaquetado comprimido del volumen de comprobantes (`receipts.tar.gz`) con contenedor efímero `alpine:3.21`.
+  - Manifiesto de integridad criptográfica (`manifest.json`) con marca de tiempo UTC ISO-8601, hashes SHA-256 de los artefactos y conteo de entidades de negocio (`users`, `organizations`, `user_organization`, `categories`, `expenses`, `expense_splits`, `receipts_active`, `analytics_month_coverage`).
+- Procedimiento de restauración y restitución de permisos (`scripts/restore.sh` y `scripts/restore.ps1`):
+  - Validación criptográfica estricta de sumas SHA-256 de los artefactos contra el manifiesto antes de alterar datos.
+  - Restauración del esquema y datos con `pg_restore --clean --if-exists --no-owner` y re-aprovisionamiento de roles técnicos con `database/configure-access.sql`.
+  - Restauración del volumen de comprobantes desde el tarball comprimido.
+  - Auditoría de integridad cruzada post-restauración: verificación de correspondencia unívoca entre cada registro activo en la tabla `receipts` y su archivo físico en `/data/<storage_path>`, contrastando existencia y tamaño exacto en bytes (`file_size_bytes`), además de contrastar conteos de negocio contra el manifiesto.
+- Suite automatizada de verificación en entorno efímero aislado (`scripts/verify_backup_restore.sh`):
+  - Levanta contenedor PostgreSQL en `tmpfs` y volumen Docker temporal, aplica migraciones V1 a V9 y `configure-access.sql`, puebla fixtures de prueba con comprobantes en BD y archivos físicos, ejecuta el respaldo, simula un desastre borrando datos y archivos, ejecuta la restauración y valida al 100% la integridad cruzada y el acceso de los roles técnicos `shareverance_java` y `shareverance_python`.
+
+#### Matriz de Trazabilidad y Verificación de Criterios Integrales de Aceptación (A01 a A20)
+
+| ID | Criterio | Componente(s) | Evidencia y Verificación | Estado |
+| :--- | :--- | :--- | :--- | :--- |
+| **A01** | Registro, login, recarga y logout | Java / Frontend | `AuthServiceTest` (15/15), `BearerTokenAuthFilterTest` (5/5), `organizationLoader.test.mjs`. Sesión revocada tras logout y contraseña protegida con BCrypt. | VERIFICADO |
+| **A02** | Aislamiento multi-tenant estricto | Java / Python / DB | `ExpenseServiceTest`, `MembershipServiceTest`, `CategoryServiceTest`, `ReceiptSafetyTest`, `AnalyticsViewsPostgresTest`. Rechazo de acceso a recursos de otra organización. | VERIFICADO |
+| **A03** | Validación de titular y permisos | Java | `ExpenseServiceTest` (`userCannotCreateForOtherUser`, `adminCanCreateForOtherMember`). USER solo crea a su nombre; ADMIN puede seleccionar miembros válidos del tenant. | VERIFICADO |
+| **A04** | Reparto exacto y determinista | Java / DB | `ExpenseServiceTest`, `ExpenseTransactionPostgresTest`. Suma exacta de partes = total en centavos reproducibles (modos INDIVIDUAL e IGUALES). | VERIFICADO |
+| **A05** | Rollback transaccional ante error | Java / PostgreSQL | `ExpenseTransactionPostgresTest` con inyección de errores vía triggers en PostgreSQL real. Cero registros huérfanos. | VERIFICADO |
+| **A06** | Importes monetarios y validación | Java / Python / Front | `ExpenseServiceTest`, validadores Pydantic y `calendarOperations.test.mjs`. Importes en enteros `BIGINT` (centavos), rechazo de importes negativos, cero o decimales inválidos. | VERIFICADO |
+| **A07** | Edición y anulación lógica | Java / PostgreSQL | `ExpenseConcurrencyPostgresTest`. Anulación con `is_active = FALSE`; gasto anulado excluido de métricas en vistas analíticas y reportes. | VERIFICADO |
+| **A08** | Historial paginado y filtrado | Java / PostgreSQL / Front | `ExpenseHistoryPostgresTest` (10/10 en PostgreSQL real), `ExpenseHistory.tsx`. Navegación sin duplicados con ordenación determinista por fecha e ID. | VERIFICADO |
+| **A09** | Cobertura explícita y ventana | PostgreSQL / Python | `AnalyticsViewsPostgresTest`, `test_analytics.py`, `test_views_repository.py`. Distinción entre ausencia de cobertura y gasto cero; ventana acotada a meses cerrados declarados. | VERIFICADO |
+| **A10** | Comparación mensual y base cero | Python / Frontend | `test_views_repository.py`, `AnalyticsViewsPostgresTest`, `App.tsx`. Fórmulas del contrato analítico v2; porcentaje `null` ante anterior cero. | VERIFICADO |
+| **A11** | Predictor ante historial insuficiente | Python / Frontend | `test_prediction_service.py`, `predictionModel.test.mjs`, `predictionMessages.test.mjs`. Respuesta `INSUFFICIENT_HISTORY` y estimación `null` ante menos de 6 meses confirmados. | VERIFICADO |
+| **A12** | Distinción de modelo y evaluación | Python / Frontend | `app/predictors/evaluation.py` (informe SES vs media vs último mes), `predictionMessages.test.mjs`. Diferenciación clara entre mock (`simulated:true`) y candidato experimental SES (`simulated:false`). | VERIFICADO |
+| **A13** | Tolerancia a fallos de Python | Java / Frontend | `PredictionServiceTest`, `OcrServiceTest` (timeout 15s traducido a HTTP 503 controlado), `App.tsx` (avisos no bloqueantes; se puede seguir operando gastos). | VERIFICADO |
+| **A14** | Seguridad y aislamiento de comprobantes | Java / PostgreSQL / FS | `ReceiptSafetyTest` (8/8), `ReceiptsPostgresTest`, `test_ocr.py`. Rechazo de symlinks, path traversal, archivos >10MB o tipos no permitidos. | VERIFICADO |
+| **A15** | OCR tolerante y precarga editable | Python / Front / Java | `test_ocr.py` (27/27), `ReceiptExpenseTransactionPostgresTest` (6/6). Usuario edita datos previo a confirmar; carga manual siempre disponible; vinculación atómica `receipt_id`. | VERIFICADO |
+| **A16** | Persistencia tras reinicio de contenedores | Compose / PostgreSQL / FS | Definición en `compose.yaml` con volúmenes persistentes `postgres_data` y `receipts_data`, sesiones en BD y soporte de rotación `PYTHON_CLIENT_SECRET_PREVIOUS`. | VERIFICADO |
+| **A17** | Control de concurrencia optimista | Java / PostgreSQL | `ExpenseConcurrencyPostgresTest` (V6). Detección de colisión con HTTP 409 Conflict y protección con bloqueo `FOR UPDATE` para impedir despojar al último ADMIN activo. | VERIFICADO |
+| **A18** | Accesibilidad y diseño responsivo | Frontend | `App.tsx`, `style.css`. Navegación responsiva en escritorio y móvil, con tablas accesibles equivalentes a gráficos SVG (`aria-label`, tablas textuales de evolución y categorías). | VERIFICADO |
+| **A19** | Respaldo, restauración y verificación | Scripts / PostgreSQL / FS | `scripts/backup.sh`, `scripts/restore.sh`, `scripts/verify_backup_restore.sh`. Copia consistente bajo ventana protegida, validación SHA-256 y auditoría cruzada DB <-> Filesystem probada al 100%. | VERIFICADO |
+| **A20** | Calendario conciliado con historial | Java / Frontend | `calendarModel.test.mjs`, `calendarOperations.test.mjs`, `ExpenseCalendar.tsx`. Conciliación exacta de totales diarios y mensuales por huso Buenos Aires con el historial. | VERIFICADO |
+
+Verificación ejecutada para E7.1:
+- **Respaldo y restauración aislados:** `./scripts/verify_backup_restore.sh` ejecutado exitosamente en contenedor efímero `postgres:17.11-bookworm` (tmpfs) y volumen aislado; verificación de sumas criptográficas SHA-256, restauración de entidades y comprobación de integridad cruzada física al 100% (cero discrepancias).
+- **Frontend React:** `npm test` en Node 24.21.0: **40 pruebas aprobadas, cero fallos y cero omisiones**; `npm run build` completado exitosamente.
+- **Backend Java:** `mvn test` ejecutado con contenedores PostgreSQL 17.11 aislados (`E12_TEST_JDBC_URL` y `E31_TEST_JDBC_URL`): **137 pruebas aprobadas, cero fallos y cero omisiones** (incluye suites de transacciones, concurrencia, historial, comprobantes y vistas analíticas).
+- **Servicio Python:** `pytest` con entorno Tesseract y PostgreSQL real: **120 pruebas aprobadas, cero fallos y cero omisiones**; suite de evaluación offline SES ejecutable.
+- **Compose:** `docker compose --env-file .env.example -f compose.yaml config --quiet` exitoso.
+
+Límites:
+- Las pruebas automáticas acreditan la consistencia funcional del sistema, pero la aceptación definitiva de negocio y el cierre formal de las tareas e issues en el proyecto permanecen exclusivamente manuales conforme al protocolo normativo.
+- El modelo predictivo SES se mantiene como candidato experimental (`PREDICTOR_MODE=mock` predeterminado) a la espera de la fijación de umbrales y dataset definitivos de producción.

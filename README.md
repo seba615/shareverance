@@ -363,6 +363,39 @@ docker compose -f compose.yaml -f compose.tools.yaml start
 
 **No agregar `-v` a `down` en el uso habitual:** elimina también los volúmenes y los datos de la base. Cambiar las credenciales en `.env` tampoco cambia automáticamente las credenciales de una base ya inicializada.
 
+## 5.1. Respaldo y restauración consistente (E7.1 / A19)
+
+Para generar una copia consistente de la base de datos PostgreSQL (`db.dump`), el volumen de comprobantes (`receipts.tar.gz`) y el manifiesto con sumas criptográficas SHA-256 (`manifest.json`):
+
+Desde PowerShell (Windows):
+```powershell
+.\scripts\backup.ps1
+```
+
+Desde Bash (Linux / macOS):
+```bash
+./scripts/backup.sh
+```
+
+Los artefactos se almacenan de forma predeterminada en `backups/backup_YYYYMMDD_HHMMSS/`. Se puede especificar un directorio de destino como parámetro opcional.
+
+Para restaurar una copia previa y ejecutar la verificación de integridad cruzada (comprobando que cada comprobante activo en la base exista en el sistema de archivos con el tamaño exacto):
+
+Desde PowerShell (Windows):
+```powershell
+.\scripts\restore.ps1 -BackupDir .\backups\backup_YYYYMMDD_HHMMSS
+```
+
+Desde Bash (Linux / macOS):
+```bash
+./scripts/restore.sh ./backups/backup_YYYYMMDD_HHMMSS
+```
+
+Para verificar de forma aislada y automatizada el ciclo de respaldo y restauración en un contenedor efímero sin afectar los datos de desarrollo:
+```bash
+./scripts/verify_backup_restore.sh
+```
+
 ## 6. Incorporar bibliotecas en Java
 
 Las dependencias se declaran en `backend-java/pom.xml`, dentro de `<dependencies>`. Usar las coordenadas indicadas por la documentación oficial de la biblioteca. Este fragmento es una plantilla, no una dependencia real:
