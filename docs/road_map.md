@@ -46,7 +46,7 @@ E3 y E4 pueden progresar independientemente una vez estabilizado E1 y sus contra
 | Vistas SQL | E3.1: cobertura explícita por organización/mes cerrado y contexto SQL local a la transacción; consumidor y transición en E3.2 |
 | Servicio interno | Fijar esquema de autenticación Java→Python y rotación de secreto |
 | Gráficos | E5.2: SVG nativo con React, sin biblioteca adicional, con tablas accesibles equivalentes |
-| Evaluación | Fijar dataset temporal, métrica y umbral antes de medir modelo |
+| Evaluación | E6.1: Suavizado exponencial simple (SES, alpha=0.3, required_months=6) evaluado mediante rolling-origin hacia adelante con métricas MAE, RMSE y MAPE frente a referencia naive (mock) |
 | Operación | Tiempos/reintentos definitivos, retención de logs y procedimiento de respaldo |
 | Cuenta | Explicitar inclusión/exclusión de recuperación de contraseña y verificación de email |
 
@@ -395,3 +395,23 @@ Revisión en navegador del frontend real: total/variaciones/categorías y tablas
 Seguimiento #51 asignado a `chelofabian` y vinculado al proyecto 3, sin cambios de estados ni cierre. No se detectaron PR abiertos al iniciar. README, alcance, contratos, Java y frontend actualizados; decisión gráfica registrada en esta tarea. Aceptación e integración manuales.
 
 Ajuste visual E5.2, 20/10/2026: el gráfico inferior identifica cada barra con el nombre de categoría y su estado inactivo, en lugar de mostrar únicamente el ID. Nombres extensos abreviados en la etiqueta, completos en título y tabla. La revisión humana confirmó el resto del panel en el conjunto probado; no constituye aceptación integral del MVP.
+
+### Implementación E6.1 — modelo predictivo real y evaluación temporal, 20/10/2026
+
+Relacionado con [#53](https://github.com/seba615/shareverance/issues/53), creado en español, asignado a la cuenta autenticada `seba615` y vinculado al proyecto 3 (`PVTI_lAHOAlJuzs4BlIz_zhCJDPs`). Rama de trabajo `feat/e6-1-modelo-real-evaluacion` creada a partir de `origin/main` (`ba8c2cb`), sin PRs abiertos ni conflictos detectados. No se alteraron estados del tablero ni se cerró la tarea.
+
+Parámetros definidos para E6.1:
+- Modelo candidato real: Suavizado Exponencial Simple (SES) con factor alpha=0.3 y required_months=6 (`method: "simple_exponential_smoothing"`, `model_version: "1"`, `simulated: false`). Redondeo monetario de centavos con `ROUND_HALF_UP` dentro del rango seguro MAX_SAFE_INTEGER.
+- Modo de predictor configurable vía `PREDICTOR_MODE`: `"ses"` por defecto, preservando opción `"mock"` para simulación y pruebas.
+- Protocolo de evaluación temporal: procedimiento rolling-origin / walk-forward hacia adelante sobre series mensuales (`app/predictors/evaluation.py`), calculando errores absolutos, cuadráticos y porcentuales (MAE, RMSE, MAPE) frente a la referencia naive (`MockPredictor`), cumpliendo el criterio integral A12 sin presentar mocks como modelo real ni añadir dependencias externas pesadas.
+
+Implementado:
+- `service-python/app/predictors/ses.py`: implementación de `SimpleExponentialSmoothingPredictor` conforme al contrato de predicción (`Predictor`).
+- `service-python/app/predictors/evaluation.py`: funciones `calculate_metrics` y `rolling_origin_evaluation`.
+- `service-python/app/predictors/factory.py` y `app/config.py`: soporte para `PREDICTOR_MODE=ses` por defecto y fallback `"mock"`.
+- `service-python/app/api/predictions.py`: inyección dinámica del predictor respetando configuración de `Settings`.
+- `service-python/tests/test_ses_predictor.py`: pruebas unitarias de SES, validaciones de alpha/parámetros/límites, cálculo manual paso a paso y evaluación temporal rolling-origin contra mock.
+
+Verificado:
+- Suite completa Python en Docker con Python 3.13.16: **99 aprobadas, 5 omitidas (requieren PostgreSQL de test no configurado), 0 fallos, 0 errores**.
+- Reconstrucción de contenedor `python-service` con Docker Compose (`docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait`): contenedor saludable `Up (healthy)`. No se alteraron datos persistentes ni volúmenes de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.

@@ -34,8 +34,15 @@ def get_settings(request: Request) -> Settings:
 
 def get_prediction_service(
     request: Request,
+    settings: Settings = Depends(get_settings),
 ) -> PredictionService:
-    return request.app.state.prediction_service
+    service = getattr(request.app.state, "prediction_service", None)
+    if service is None or getattr(service, "_settings_mode", None) != settings.predictor_mode:
+        from app.predictors.factory import create_predictor
+        service = PredictionService(create_predictor(settings))
+        service._settings_mode = settings.predictor_mode
+        request.app.state.prediction_service = service
+    return service
 
 
 def get_views_repository(
