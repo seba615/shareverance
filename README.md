@@ -31,6 +31,8 @@ Frontend existente: registro/login, restauración y cierre de sesión, creación
 
 E1.2 implementa reparto individual e igualitario determinista y validaciones monetarias exactas; conserva el guardado transaccional de gastos y partes. No agrega migraciones ni amplía el MVP a reparto personalizado. Evidencia y límites en el [roadmap](docs/road_map.md).
 
+La corrección OCR permite solicitar procesamiento con sesión/CSRF, mejora fotos mediante orientación, recorte y contraste y evita reutilizar campos de otro comprobante. Fecha e importe siguen sujetos a revisión antes de registrar; los valores no reconocidos quedan vacíos. Implementación y límites en [Python OCR](docs/python_ocr.md), con validación manual de los casos probados y evidencia automatizada en el [roadmap](docs/road_map.md).
+
 ## Inicio rápido
 
 

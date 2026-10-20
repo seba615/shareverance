@@ -86,9 +86,9 @@ export default function App() {
       setUploadedReceiptName(receipt.originalFilename);
     },
     onResult: result => {
-      if (result.date) setExpenseDate(result.date);
-      if (result.amount != null) setExpenseAmount(String(result.amount));
-      if (result.description) setExpenseDescription(result.description);
+      setExpenseDate(result.date ?? '');
+      setExpenseAmount(result.amount != null ? String(result.amount) : '');
+      setExpenseDescription(result.description ?? '');
       setOcrWarnings(result.warnings ?? []);
     },
     onError: error => setError(messageFrom(error)),
@@ -283,6 +283,9 @@ export default function App() {
     setUploadedReceiptName(null);
     setOcrWarnings([]);
     setError('');
+    setExpenseDate('');
+    setExpenseAmount('');
+    setExpenseDescription('');
     await receiptLoader.load(selectedOrganizationId, file, organizationLoader.scope(selectedOrganizationId));
   }
 

@@ -227,6 +227,8 @@ Rutas para el procesamiento OCR de comprobantes:
     ```
   - Reglas de validación: `storage_key` debe residir bajo `/data/receipts/org_<organization_id>/`, comparando componentes completos, sin path traversal (`..`, rutas absolutas) ni enlaces simbólicos. Se comprueban los enlaces antes de resolver la ruta, incluida la raíz.
   - Motor: Tesseract OCR local con paquetes en español e inglés (`spa+eng`).
+  - Lectura robusta: si la imagen original no permite reconocer fecha e importe, se prueban copias temporales con orientación EXIF, contraste, escala y variantes de segmentación/rotación, sin modificar el original. Presupuesto compartido de subprocesos 12 segundos (hasta 4 por intento), manteniendo el timeout Java de 15 segundos y los mismos DTO/estados. Detectar ambos campos no certifica su exactitud; el usuario debe revisarlos.
+  - Las variantes incluyen recorte conservador de papel claro sobre fondo oscuro y contraste binario. Se admiten etiquetas TOTAL degradadas y espacios antes de los centavos, sin reemplazar dígitos. Se excluyen fechas administrativas; un número aislado sin TOTAL ni moneda explícita no se considera importe. Si falta evidencia, el campo queda nulo con advertencia.
   - Normalización:
     - Fecha: formatos `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, etc. Rechaza fechas futuras en huso `America/Argentina/Buenos_Aires`. Si no se detecta, devuelve `null` y aviso en `warnings`.
     - Importe: detección de patrones monetarios con coma decimal y punto de miles. Prioriza líneas con `TOTAL` excluyendo subtotales. Excluye fragmentos de fecha y valores negativos. Límite máximo 9.999.999.999,99 ARS con hasta 2 decimales. Si no se detecta, devuelve `null` y aviso en `warnings`.

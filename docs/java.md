@@ -125,6 +125,7 @@ El archivo UUID creado por una carga se elimina si falla el guardado SQL o si la
 
 Se incorporan `OcrService` y su implementación `OcrServiceImpl`:
 - Endpoint público `POST /api/v1/organizations/{organizationId}/receipts/{receiptId}/ocr`:
+  - El autorizador de rutas admite exclusivamente POST OCR para miembros activos. Luego `OcrService` comprueba organización, comprobante y permisos de propietario/ADMIN; reconocer la ruta no sustituye esas comprobaciones. Sesión por cookie exige CSRF en esta mutación.
   - Requiere membresía activa en la organización y que el usuario sea el propietario del comprobante o `ADMIN` de la organización (si el comprobante ya está vinculado a un gasto, cualquier miembro activo puede procesarlo).
   - Invoca internamente a Python en `POST /internal/v1/ocr` enviando cabecera `Authorization: Bearer <PYTHON_CLIENT_SECRET>` y cuerpo JSON con `storage_key` (`org_<id>/<uuid>.<ext>`).
   - Aplica timeout de lectura configurable (`python.service.ocr-read-timeout-ms`, por defecto 15.000 ms). Si Python no está disponible, agota el tiempo de espera o retorna error, Java responde HTTP 503 (`SERVICE_UNAVAILABLE`) sin comprometer el alta ni consulta de gastos.
