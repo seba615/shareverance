@@ -248,6 +248,27 @@ def test_date_and_amount_on_same_line_preserves_real_amount():
     assert amount == 1234.56
 
 
+@pytest.mark.parametrize("label", ["DT AL", "T0TAL", "T O T A L"])
+def test_total_label_and_decimal_spacing_ocr_variants(label):
+    _, amount, _, _ = ReceiptNormalizer.normalize(f"{label} 8123. 45")
+    assert amount == 8123.45
+
+
+@pytest.mark.parametrize("text", ["Ruido\n11.00", "IVA $ 812,00", "CAE 11.00"])
+def test_isolated_numbers_and_tax_lines_are_not_expense_amounts(text):
+    _, amount, _, warnings = ReceiptNormalizer.normalize(text)
+    assert amount is None
+    assert any("importe" in warning for warning in warnings)
+
+
+def test_administrative_dates_do_not_become_expense_date():
+    text = "Inicio de Actividades: 01/09/2011\nVTO CAE: 15/09/2026\nTOTAL: 8123.45"
+    d, amount, _, warnings = ReceiptNormalizer.normalize(text)
+    assert d is None
+    assert amount == 8123.45
+    assert any("fecha" in warning for warning in warnings)
+
+
 @pytest.mark.parametrize("other_org", [10, 11])
 def test_similar_organization_prefix_is_rejected(tmp_path, other_org):
     other = tmp_path / f"org_{other_org}"

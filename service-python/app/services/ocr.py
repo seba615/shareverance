@@ -1,12 +1,16 @@
 import logging
 import re
 import subprocess
+import time
+from collections import deque
+from tempfile import TemporaryDirectory
 from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
+from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 from app.schemas.requests import InternalOcrRequest
 from app.schemas.responses import InternalOcrResponse, OcrStatus
@@ -27,31 +31,158 @@ class TesseractOcrEngine:
         self,
         binary_path: str = "tesseract",
         lang: str = "spa+eng",
-        timeout_seconds: float = 15.0,
+        timeout_seconds: float = 12.0,
     ) -> None:
         self.binary_path = binary_path
         self.lang = lang
         self.timeout_seconds = timeout_seconds
 
     def extract_text(self, image_path: Path) -> str:
+        deadline = time.monotonic() + self.timeout_seconds
+        best = self._recognize(image_path, deadline, 3)
+        if self._score(best)[0] == 2:
+            return best
+        try:
+            # Sólo copias temporales; nunca escribir en el volumen de comprobantes.
+            with TemporaryDirectory(prefix="shareverance-ocr-") as directory:
+                with self._prepare_image(image_path) as prepared, self._binarize(prepared) as binary, self._binarize(prepared, 0.85) as alternate:
+                    variants = [(binary, 0, 6), (alternate, 0, 6), (prepared, 0, 6), (binary, 0, 11),
+                                (binary, 90, 6), (binary, 270, 6), (binary, 180, 6)]
+                    for source, angle, mode in variants:
+                        if deadline - time.monotonic() < 0.2:
+                            break
+                        candidate_path = Path(directory) / "candidate.png"
+                        with source.rotate(angle, expand=True, fillcolor=255) as candidate:
+                            candidate.save(candidate_path, dpi=(300, 300))
+                        text = self._recognize(candidate_path, deadline, mode)
+                        if self._score(text) > self._score(best):
+                            best = text
+                        if self._score(best)[0] == 2 and self._score(best)[1] >= 2:
+                            break
+        except (OSError, UnidentifiedImageError, ValueError, Image.DecompressionBombError):
+            logger.warning("No se pudo preparar la imagen para OCR")
+        return best
+
+    @staticmethod
+    def _score(text: str) -> tuple[int, int, int, int]:
+        date_value, amount, description, _ = ReceiptNormalizer.normalize(text)
+        repetitions = ReceiptNormalizer._find_amounts_in_text(text).count(amount) if amount is not None else 0
+        return (int(date_value is not None) + int(amount is not None), min(repetitions, 3),
+                int(description != "Varios"), min(sum(c.isalpha() for c in text), 1000))
+
+    @staticmethod
+    def _prepare_image(image_path: Path) -> Image.Image:
+        with Image.open(image_path) as source:
+            if source.width * source.height > 50_000_000:
+                raise ValueError("Imagen fuera del límite de píxeles")
+            oriented = ImageOps.exif_transpose(source)
+            try:
+                document = TesseractOcrEngine._crop_document(oriented)
+                oriented.close()
+                oriented = document
+                oriented.thumbnail((2400, 2400))
+                gray = ImageOps.grayscale(oriented)
+            finally:
+                oriented.close()
+        try:
+            scale = min(2.0, 1600 / gray.width, 3200 / max(gray.size))
+            if scale > 1:
+                resized = gray.resize((round(gray.width * scale), round(gray.height * scale)), Image.Resampling.LANCZOS)
+                gray.close()
+                gray = resized
+            contrast = ImageOps.autocontrast(gray)
+            try:
+                return contrast.filter(ImageFilter.UnsharpMask(radius=1, percent=120, threshold=3))
+            finally:
+                contrast.close()
+        finally:
+            gray.close()
+
+    @staticmethod
+    def _binarize(image: Image.Image, percentile: float = 0.9) -> Image.Image:
+        # Estimar el blanco del papel sin asumir una exposición fija.
+        histogram = image.histogram()
+        target = image.width * image.height * percentile
+        accumulated = 0
+        paper_level = 255
+        for level, count in enumerate(histogram):
+            accumulated += count
+            if accumulated >= target:
+                paper_level = level
+                break
+        threshold = max(64, min(235, paper_level - 20))
+        return image.point(lambda value: 255 if value > threshold else 0)
+
+    @staticmethod
+    def _crop_document(image: Image.Image) -> Image.Image:
+        """Recorte conservador de una región de papel clara sobre fondo oscuro."""
+        with ImageOps.grayscale(image) as preview:
+            preview.thumbnail((240, 240))
+            width, height = preview.size
+            values = preview.tobytes()
+        total = width * height
+        if sum(value < 140 for value in values) < total * 0.2:
+            return image.copy()
+        mask = bytearray(value >= 185 for value in values)
+        components = []
+        for start in range(total):
+            if not mask[start]:
+                continue
+            queue = deque([start])
+            mask[start] = 0
+            count = 0
+            left = right = start % width
+            top = bottom = start // width
+            while queue:
+                index = queue.popleft()
+                x, y = index % width, index // width
+                count += 1
+                left, right = min(left, x), max(right, x)
+                top, bottom = min(top, y), max(bottom, y)
+                for neighbor in (index - width if y else -1,
+                                 index + width if y + 1 < height else -1,
+                                 index - 1 if x else -1,
+                                 index + 1 if x + 1 < width else -1):
+                    if neighbor >= 0 and mask[neighbor]:
+                        mask[neighbor] = 0
+                        queue.append(neighbor)
+            components.append((count, left, top, right + 1, bottom + 1))
+        components.sort(reverse=True)
+        if not components:
+            return image.copy()
+        count, left, top, right, bottom = components[0]
+        area = (right - left) * (bottom - top)
+        runner_up = components[1][0] if len(components) > 1 else 0
+        if (count < total * 0.1 or not total * 0.1 < area < total * 0.85
+                or count < area * 0.35 or count < runner_up * 1.5):
+            return image.copy()
+        pad = 3
+        return image.crop((max(0, left - pad) * image.width // width,
+                           max(0, top - pad) * image.height // height,
+                           min(width, right + pad) * image.width // width,
+                           min(height, bottom + pad) * image.height // height))
+
+    def _recognize(self, image_path: Path, deadline: float, mode: int) -> str:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return ""
         try:
             res = subprocess.run(
-                [self.binary_path, str(image_path), "stdout", "-l", self.lang],
+                [self.binary_path, str(image_path), "stdout", "-l", self.lang, "--psm", str(mode)],
                 capture_output=True,
                 text=True,
-                timeout=self.timeout_seconds,
+                timeout=min(4.0, remaining),
                 check=False,
             )
             if res.returncode != 0:
                 logger.warning(
-                    "Tesseract finalizó con código %s: %s",
+                    "Tesseract finalizó con código %s",
                     res.returncode,
-                    res.stderr,
                 )
                 return ""
             return res.stdout
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-            logger.warning("Error ejecutando Tesseract: %s", e)
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            logger.warning("No se pudo completar el intento OCR")
             return ""
 
 
@@ -89,7 +220,8 @@ class ReceiptNormalizer:
     ]
 
     TOTAL_KEYWORD_PATTERN = re.compile(
-        r"\b(?:total\s+a\s+pagar|importe\s+total|total\s+neto|total\s+general|total\s*\$|total\s+ars|total)\b",
+        r"\b(?:total\s+a\s+pagar|importe\s+total|total\s+neto|total\s+general|total\s*\$|total\s+ars|total)\b"
+        r"|^\W*[td]\s*[o0]?\s*t\s*a\s*[l1i]\b",
         re.IGNORECASE,
     )
 
@@ -143,6 +275,8 @@ class ReceiptNormalizer:
         candidates_general: list[date] = []
 
         for line in lines:
+            if re.search(r"inicio\s+de\s+activ|vencimiento|\bvto\b|\bcae\b", line, re.IGNORECASE):
+                continue
             has_keyword = bool(cls.DATE_KEYWORD_PATTERN.search(line))
             found_dates = cls._find_dates_in_text(line, today_ba)
             if has_keyword:
@@ -215,7 +349,8 @@ class ReceiptNormalizer:
 
             if has_total_keyword and not is_subtotal:
                 keyword_amounts.extend(found_amounts)
-            elif not is_subtotal:
+            elif (not is_subtotal and re.search(r"\$|\bARS\b", line, re.IGNORECASE)
+                  and not any(re.search(pattern, line, re.IGNORECASE) for pattern in cls.BOILERPLATE_PATTERNS)):
                 general_amounts.extend(found_amounts)
 
         if keyword_amounts:
@@ -238,6 +373,7 @@ class ReceiptNormalizer:
         # Una fecha con puntos no es un importe decimal, incluso si es inválida.
         for date_pattern in cls.DATE_REGEXES:
             text = date_pattern.sub(" ", text)
+        text = re.sub(r"(?<=\d)([.,])\s+(?=\d{2}\b)", r"\1", text)
 
         for match in cls.AMOUNT_COMBINED_REGEX.finditer(text):
             if text[:match.start()].rstrip().endswith("-"):

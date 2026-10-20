@@ -51,6 +51,41 @@ import java.time.Instant;
 
 class AuthServiceTest {
 
+    @Test
+    void receiptOcrUsesRealRouteAuthorizationAndRequiresActiveMembershipAndCsrf() throws Exception {
+        User user = new User(1L, "Prueba", "ocr@example.invalid",
+                passwordEncoder.encode("password123"), null, true);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        var membership = new UserOrganization(1L, 1L, 10L, MembershipRole.USER, LocalDateTime.now(), true);
+        when(membershipRepository.findByUserIdAndOrganizationId(1L, 10L)).thenReturn(Optional.of(membership));
+        String token = authService.login(new LoginRequest(user.getEmail(), "password123")).token();
+        var receipts = mock(com.shareverance.service.ReceiptService.class);
+        var ocr = mock(com.shareverance.service.OcrService.class);
+        when(ocr.processReceiptOcr(10L, "test-receipt", 1L)).thenReturn(
+                new com.shareverance.dto.OcrResultResponse("test-receipt", "PARTIAL", "ARS",
+                        null, new BigDecimal("10.01"), "Prueba", java.util.List.of()));
+        var mvc = standaloneSetup(new com.shareverance.controller.ReceiptController(receipts, authService, ocr))
+                .addFilters(new com.shareverance.security.BearerTokenAuthFilter(authService)).build();
+        String path = "/api/v1/organizations/10/receipts/test-receipt/ocr";
+        var session = new jakarta.servlet.http.Cookie("SV_SESSION", token);
+        var csrf = new jakarta.servlet.http.Cookie("XSRF-TOKEN", "test-csrf");
+
+        mvc.perform(post(path).cookie(session, csrf).header("X-XSRF-TOKEN", "test-csrf"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PARTIAL"));
+        mvc.perform(post(path).cookie(session)).andExpect(status().isForbidden());
+        mvc.perform(post(path)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/organizations/20/receipts/test-receipt/ocr")
+                        .cookie(session, csrf).header("X-XSRF-TOKEN", "test-csrf"))
+                .andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path)
+                        .cookie(session)).andExpect(status().isForbidden());
+        membership.setIsActive(false);
+        mvc.perform(post(path).cookie(session, csrf).header("X-XSRF-TOKEN", "test-csrf"))
+                .andExpect(status().isForbidden());
+        verify(ocr, org.mockito.Mockito.times(1)).processReceiptOcr(10L, "test-receipt", 1L);
+    }
+
     private AuthServiceImpl authService;
     private UserRepository userRepository;
     private UserOrganizationRepository membershipRepository;
