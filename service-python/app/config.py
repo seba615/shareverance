@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dataclasses import dataclass
 from urllib.parse import quote_plus
 
@@ -33,10 +33,9 @@ def _build_database_url() -> str:
 def load_settings() -> Settings:
     mode = os.getenv("PREDICTOR_MODE", "mock").strip().lower()
 
-    if mode != "mock":
+    if mode not in ("mock", "ses"):
         raise ValueError(
-            "PREDICTOR_MODE debe ser 'mock'. "
-            "El predictor real todavía no está implementado."
+            "PREDICTOR_MODE debe ser 'mock' (por defecto) o 'ses' (candidato experimental)."
         )
 
     return Settings(

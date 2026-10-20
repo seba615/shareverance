@@ -37,6 +37,8 @@ E5.1 tiene implementada la analítica interna Python desde vistas SQL y su verif
 
 ## Inicio rápido
 
+E6.1 incorpora SES como candidato experimental y un informe offline comparable con último mes/media histórica. El predictor predeterminado sigue siendo simulado (`PREDICTOR_MODE=mock`); activar `ses` explícitamente permite probar el cálculo candidato, sin acreditar aceptación predictiva. Dataset y umbral de aceptación siguen pendientes. Configuración, métricas y comando reproducible en [Python](docs/python_predictor.md).
+
 
 Requisitos: Git y Docker Desktop iniciado, con contenedores Linux y Docker Compose 2.20 o posterior. En Windows se usa WSL 2. No es necesario instalar Java, Python, Node.js o PostgreSQL por separado. La primera ejecución necesita Internet para descargar imágenes y dependencias.
 

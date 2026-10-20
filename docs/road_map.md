@@ -46,7 +46,7 @@ E3 y E4 pueden progresar independientemente una vez estabilizado E1 y sus contra
 | Vistas SQL | E3.1: cobertura explícita por organización/mes cerrado y contexto SQL local a la transacción; consumidor y transición en E3.2 |
 | Servicio interno | Fijar esquema de autenticación Java→Python y rotación de secreto |
 | Gráficos | E5.2: SVG nativo con React, sin biblioteca adicional, con tablas accesibles equivalentes |
-| Evaluación | Fijar dataset temporal, métrica y umbral antes de medir modelo |
+| Evaluación | E6.1 incorpora evaluación offline SES/último mes/media histórica; dataset temporal, métrica de decisión, umbral y selección para aceptación siguen pendientes |
 | Operación | Tiempos/reintentos definitivos, retención de logs y procedimiento de respaldo |
 | Cuenta | Explicitar inclusión/exclusión de recuperación de contraseña y verificación de email |
 
@@ -395,3 +395,43 @@ Revisión en navegador del frontend real: total/variaciones/categorías y tablas
 Seguimiento #51 asignado a `chelofabian` y vinculado al proyecto 3, sin cambios de estados ni cierre. No se detectaron PR abiertos al iniciar. README, alcance, contratos, Java y frontend actualizados; decisión gráfica registrada en esta tarea. Aceptación e integración manuales.
 
 Ajuste visual E5.2, 20/10/2026: el gráfico inferior identifica cada barra con el nombre de categoría y su estado inactivo, en lugar de mostrar únicamente el ID. Nombres extensos abreviados en la etiqueta, completos en título y tabla. La revisión humana confirmó el resto del panel en el conjunto probado; no constituye aceptación integral del MVP.
+
+### Implementación E6.1 — modelo predictivo real y evaluación temporal, 20/10/2026
+
+Relacionado con [#53](https://github.com/seba615/shareverance/issues/53), creado en español, asignado a la cuenta autenticada `seba615` y vinculado al proyecto 3 (`PVTI_lAHOAlJuzs4BlIz_zhCJDPs`). Rama de trabajo `feat/e6-1-modelo-real-evaluacion` creada a partir de `origin/main` (`ba8c2cb`), sin PRs abiertos ni conflictos detectados. No se alteraron estados del tablero ni se cerró la tarea.
+
+Parámetros definidos para E6.1:
+- Modelo candidato real: Suavizado Exponencial Simple (SES) con factor alpha=0.3 y required_months=6 (`method: "simple_exponential_smoothing"`, `model_version: "1"`, `simulated: false`). Redondeo monetario de centavos con `ROUND_HALF_UP` dentro del rango seguro MAX_SAFE_INTEGER.
+- Modo de predictor configurable vía `PREDICTOR_MODE`: `"mock"` por defecto; `"ses"` es candidato experimental de activación explícita. Corrección posterior a la entrega inicial del PR #54.
+- Protocolo de evaluación temporal: procedimiento rolling-origin / walk-forward hacia adelante sobre series mensuales (`app/predictors/evaluation.py`), con MAE/RMSE en ARS y MAPE/WAPE porcentuales frente a último mes y media histórica. Implementa el procedimiento; no acredita A12 ni calidad predictiva aceptada. Dataset y umbral siguen pendientes. Sin dependencias adicionales.
+
+Implementado:
+- `service-python/app/predictors/ses.py`: implementación de `SimpleExponentialSmoothingPredictor` conforme al contrato de predicción (`Predictor`).
+- `service-python/app/predictors/evaluation.py`: funciones `calculate_metrics` y `rolling_origin_evaluation`.
+- `service-python/app/predictors/factory.py` y `app/config.py`: soporte de `PREDICTOR_MODE=ses` experimental y `"mock"` predeterminado; Compose transmite la variable explícita desde `.env`.
+- `service-python/app/api/predictions.py`: inyección dinámica del predictor respetando configuración de `Settings`.
+- `service-python/tests/test_ses_predictor.py`: pruebas unitarias de SES, validaciones de alpha/parámetros/límites, cálculo manual paso a paso y evaluación temporal rolling-origin contra mock.
+
+Verificado:
+- Registro inicial del PR: se informaron 99 aprobadas/5 omitidas. La revisión del commit `3c1f784` reprodujo 102 aprobadas/2 omitidas por falta de PostgreSQL. La evidencia final de la corrección se registra a continuación; el recuento inicial no se usa como comprobación vigente.
+- Reconstrucción de contenedor `python-service` con Docker Compose (`docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait`): contenedor saludable `Up (healthy)`. No se alteraron datos persistentes ni volúmenes de desarrollo. Aceptación integral, merge del PR y cierre del issue permanecen manuales.
+
+### Corrección E6.1 — PR #54, seguimiento #53, 20/10/2026
+
+Sobre `3c1f784`, se mantiene el modo `mock` predeterminado y SES como candidato experimental configurable explícitamente, sin promoverlo por pasar pruebas. Compose transmite `PREDICTOR_MODE`; `.env.example`, README, alcance, contratos y documento Python actualizados. Se conserva `simulated:false` como identificación del cálculo SES en pruebas explícitas, sin afirmar aceptación predictiva. Dataset de aceptación, métrica de decisión, umbral y regla de selección permanecen abiertos; A12 no se considera acreditado por esta implementación.
+
+Evaluación offline corregida: comparación reproducible de SES (`alpha=0.3`), último mes y media histórica con seis meses iniciales y los mismos 12 orígenes del fixture sintético de 18 meses. MAE/RMSE se reportan en ARS; WAPE incluye errores de meses con gasto cero y devuelve null si el denominador total es cero; MAPE queda auxiliar con cantidad de muestras positivas informada. Sin fuga temporal, selección automática ni dependencias nuevas. Se retiraron los límites amplios que permitían presentar una prueba matemática como aceptación del modelo; las regresiones contrastan cálculos conocidos y registran que SES pierde frente a último mes en este fixture.
+
+Informe ejecutado mediante `uv run --locked python -m app.predictors.evaluation tests/fixtures/prediction_synthetic.json`, con SHA-256 del archivo y `accepted:null`:
+
+| Candidato | MAE ARS | RMSE ARS | MAPE % | WAPE % |
+| --- | --- | --- | --- | --- |
+| SES | 2460,04 | 2536,06 | 13,65 | 13,55 |
+| Último mes | 1075,00 | 1180,75 | 6,00 | 5,92 |
+| Media histórica | 4666,56 | 4916,44 | 25,01 | 25,71 |
+
+Es evidencia sintética de regresión, no un dataset representativo ni un umbral definido retroactivamente. La validación predictiva y E6.2 siguen pendientes.
+
+Verificación final ejecutada: suite Python completa `uv run --locked pytest -q`, Python 3.13.16/Tesseract y PostgreSQL 17.11 exclusivo con `PYTHON_TEST_PG_URL`: **120 aprobadas, cero fallos y cero omisiones**. Incluye las dos pruebas SQL, modo predeterminado/SES explícito en API, unidades ARS, meses cero, validaciones, media histórica y ausencia de fuga temporal. Persiste una advertencia de deprecación de Starlette/httpx preexistente. Se aplicó el SQL vigente V1–V9 en `shareverance_e61_test` (sin nueva migración ni verificación de historial Flyway), con rol lector Python y fixtures sintéticos. Base en tmpfs, sin puertos ni volúmenes persistentes; contenedor exclusivo retirado al terminar.
+
+Prueba adicional ejecutada con FastAPI TestClient, lifespan y repositorio PostgreSQL reales: ambos modos devuelven 401/403 ante ausencia/error de Bearer; seis meses confirmados producen 60000 centavos en mock y 40588 en SES, con método/simulated correctos; tres meses producen INSUFFICIENT_HISTORY y estimación null. No sustituye prueba HTTP extremo a extremo a través de Java ni evaluación de producción. Compose validado mediante `config --quiet`; main consultado en `ba8c2cb`, sólo PR #54 abierto. Se preservan scripts ajenos y el entorno de prueba E5.2 en 5175. Sin cambios de asignación, estado ni cierre de #53; aceptación e integración manuales.

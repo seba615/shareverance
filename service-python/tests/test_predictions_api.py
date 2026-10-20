@@ -1,4 +1,4 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -73,22 +73,49 @@ def test_health_remains_available(client):
     }
 
 
-def test_prediction_returns_contract_response(client, payload):
-    response = client.post(URL, json=payload)
-
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert body["contract_version"] == "1"
-    assert UUID(body["request_id"]) == UUID(payload["request_id"])
-    assert body["organization_id"] == 1
-    assert body["currency"] == "ARS"
-    assert body["target_month"] == "2026-07"
-    assert body["status"] == "OK"
+def test_default_predictor_remains_mock(monkeypatch, payload):
+    monkeypatch.delenv("PREDICTOR_MODE", raising=False)
+    with TestClient(app) as test_client:
+        body = test_client.post(URL, json=payload).json()
     assert body["simulated"] is True
+    assert body["organization"]["method"] == "mock"
+    assert body["organization"]["estimated_amount_minor"] == 60000
 
-    assert body["organization"] == {
+
+def test_ses_requires_explicit_mode_and_returns_candidate_metadata(monkeypatch, payload):
+    monkeypatch.setenv("PREDICTOR_MODE", "ses")
+    with TestClient(app) as test_client:
+        response = test_client.post(URL, json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["simulated"] is False
+    assert body["organization"]["method"] == "simple_exponential_smoothing"
+    assert body["organization"]["estimated_amount_minor"] == 40588
+
+
+def test_prediction_returns_contract_response(client, payload):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        predictor_mode="mock",
+        database_url="postgresql://localhost/test",
+        internal_service_token="active-secret",
+        internal_service_token_previous="",
+    )
+    try:
+        response = client.post(URL, json=payload)
+
+        assert response.status_code == 200
+
+        body = response.json()
+
+        assert body["contract_version"] == "1"
+        assert UUID(body["request_id"]) == UUID(payload["request_id"])
+        assert body["organization_id"] == 1
+        assert body["currency"] == "ARS"
+        assert body["target_month"] == "2026-07"
+        assert body["status"] == "OK"
+        assert body["simulated"] is True
+
+        assert body["organization"] == {
         "status": "OK",
         "estimated_amount_minor": 60000,
         "months_used": 6,
@@ -97,7 +124,7 @@ def test_prediction_returns_contract_response(client, payload):
         "model_version": "1",
     }
 
-    assert body["categories"] == [
+        assert body["categories"] == [
         {
             "category_id": 1,
             "status": "OK",
@@ -108,6 +135,8 @@ def test_prediction_returns_contract_response(client, payload):
             "model_version": "1",
         }
     ]
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
 
 
 def test_legacy_callback_endpoint_is_retired(client):
