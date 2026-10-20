@@ -257,7 +257,7 @@ public class AuthServiceImpl implements AuthService {
                     (collection ? "GET".equalsIgnoreCase(method) :
                             "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method));
         }
-        if (path.matches("/api/v1/organizations/\\d+/predictions/monthly")) {
+        if (path.matches("/api/v1/organizations/\\d+/(predictions|analytics)/monthly")) {
             Long organizationId = Long.parseLong(path.split("/")[4]);
             return "GET".equalsIgnoreCase(method) && isOrganizationMember(userId, organizationId);
         }

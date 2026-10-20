@@ -9,7 +9,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y cliente en `api/java.ts`. Funciones existentes: registro con nombre/email/contraseña, login, restauración de sesión al recargar, logout, saludo del usuario, listado de organizaciones, formulario de creación, selección de organización y manejo de carga/error/vacío. Tipos actuales HOUSEHOLD, CONDO y UNIVERSITY. Conservar estas funciones. ARS es la única moneda: no se ofrece un campo de selección y el cliente envía `ARS` al crear una organización.
 
-E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. E2.3 incorpora en la pestaña Gastos el selector alternable entre Historial y Calendario mensual navegable con totales diarios y detalle por fecha. No se implementaron edición de categorías ni analítica. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
+E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. E2.3 incorpora en la pestaña Gastos el selector alternable entre Historial y Calendario mensual navegable con totales diarios y detalle por fecha. E5.2 incorpora la pestaña Panel con analítica real vía Java, gráficos SVG y tablas; la edición de categorías sigue pendiente. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
 
 ## Navegación y vistas requeridas
 
@@ -51,7 +51,19 @@ Conservar cookies same-origin y flujo CSRF actual. No almacenar tokens técnicos
 
 Diseño adaptable móvil/escritorio, labels de campos, teclado, foco visible y errores junto al campo. Gráficos con tabla; comparación sin base previa muestra porcentaje no disponible. Diferenciar cero, carga, error e historial insuficiente. No mostrar resultados simulados como predicciones reales.
 
-Biblioteca gráfica pendiente de selección. No incorporar un framework adicional por defecto.
+E5.2 utiliza SVG nativo con React para gráficos simples, sin dependencias gráficas adicionales. Cada gráfico tiene título accesible y tabla equivalente con valores exactos; la información no depende del color ni del gráfico.
+
+El gráfico de categorías muestra el nombre sobre cada barra, incluida la marca de categoría inactiva. Los nombres extensos se abrevian visualmente, conservando el texto completo en el título del gráfico y la tabla; si falta el nombre se muestra el ID.
+
+## Panel analítico E5.2
+
+La pestaña Panel consulta únicamente Java mediante `GET /api/v1/organizations/{id}/analytics/monthly`. Presenta gasto organizacional, variación absoluta/porcentual, evolución mensual y categorías del último mes. No representa pagos, deudas ni participación individual. No incluye predicciones simuladas ni el modelo real de E6.
+
+La ventana inicial contiene los seis últimos meses cerrados según Buenos Aires. Los filtros Desde/Hasta permiten de 1 a 60 meses cerrados inclusivos; Consultar aplica los filtros y Actualizar repite el período aplicado. El encabezado identifica el período de los resultados, aun si se están editando los filtros. Se comparan los dos últimos meses de la ventana, cuando ambos tienen cobertura confirmada.
+
+Un mes sin cobertura muestra total no disponible y no se dibuja como cero; un mes confirmado sin gastos muestra cero. La insuficiencia de comparación no oculta la evolución disponible ni el total confirmado del último mes. Con base anterior cero, el porcentaje dice No disponible. Las categorías históricas inactivas conservan su nombre y se identifican; si falta su nombre se usa el ID. Los importes se formatean desde centavos enteros mediante BigInt, sin redondeo por división flotante.
+
+Los gráficos SVG tienen tablas con caption y encabezados de fila/columna. Los gráficos largos y tablas permiten desplazamiento horizontal; los controles y tarjetas se adaptan al ancho disponible. Se distinguen carga, error, falta de cobertura y mes confirmado sin gastos. La consulta se invalida al cambiar organización, período, recarga o desmontaje, incluido logout y A→B→A; resultados y errores llevan una clave de consulta que evita mostrar datos anteriores bajo otro período. Volver al panel consulta de nuevo; Actualizar permite observar cambios externos.
 
 ## Pruebas
 

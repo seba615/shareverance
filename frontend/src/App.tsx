@@ -16,13 +16,14 @@ import {
 } from './api/java';
 
 import { ExpenseCalendarView } from './ExpenseCalendar';
+import { AnalyticsPanel } from './AnalyticsPanel';
 import { ExpenseHistory } from './ExpenseHistory';
 import { buenosAiresToday } from './calendarModel';
 import { createOrganizationLoader } from './organizationLoader';
 import { createReceiptLoader } from './receiptLoader';
 
 type AuthMode = 'login' | 'register';
-type OrgTab = 'expenses' | 'members' | 'categories';
+type OrgTab = 'expenses' | 'members' | 'categories' | 'analytics';
 type ExpenseViewMode = 'history' | 'calendar';
 
 const organizationTypeLabels: Record<OrganizationType, string> = {
@@ -605,6 +606,8 @@ export default function App() {
                 </p>
               </div>
               <nav className="tab-nav" aria-label="Secciones de la organización">
+                <button className={`tab-btn${activeTab === 'analytics' ? ' active' : ''}`} type="button"
+                  onClick={() => { setActiveTab('analytics'); setError(''); }}>Panel</button>
                 <button
                   className={`tab-btn${activeTab === 'expenses' ? ' active' : ''}`}
                   type="button"
@@ -633,6 +636,8 @@ export default function App() {
               <p className="muted" role="status">Cargando datos de la organización…</p>
             ) : (
               <>
+                {activeTab === 'analytics' && <AnalyticsPanel key={`analytics-${selectedOrganization.id}`}
+                  organizationId={selectedOrganization.id} categories={categories} refreshToken={historyRefresh} />}
                 {activeTab === 'expenses' && (
                   <div className="tab-pane">
                     <div className="tab-pane-header">

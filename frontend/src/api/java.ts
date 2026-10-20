@@ -387,3 +387,35 @@ export const receiptApi = {
     );
   },
 };
+
+export interface AnalyticsResult {
+  status: 'OK' | 'INSUFFICIENT_HISTORY';
+  previous_amount_minor: number | null;
+  current_amount_minor: number | null;
+  change_amount_minor: number | null;
+  change_percentage: number | null;
+  direction: 'INCREASING' | 'DECREASING' | 'UNCHANGED' | null;
+}
+export interface AnalyticsResponse {
+  contract_version: '2';
+  request_id: string;
+  organization_id: number;
+  currency: 'ARS';
+  status: 'OK' | 'INSUFFICIENT_HISTORY';
+  simulated: false;
+  comparison: { previous_month: string; current_month: string } | null;
+  organization: AnalyticsResult;
+  categories: (AnalyticsResult & { category_id: number })[];
+  evolution: {
+    month: string;
+    covered: boolean;
+    total_amount_minor: number | null;
+    category_totals: { category_id: number; amount_minor: number }[];
+  }[];
+}
+export const analyticsApi = {
+  monthly(organizationId: number, fromMonth: string, toMonth: string): Promise<AnalyticsResponse> {
+    const query = new URLSearchParams({ fromMonth, toMonth });
+    return request(`/api/v1/organizations/${organizationId}/analytics/monthly?${query}`);
+  },
+};
