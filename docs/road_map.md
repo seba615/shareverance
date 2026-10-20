@@ -339,3 +339,5 @@ Relacionado con [#46](https://github.com/seba615/shareverance/issues/46), creado
 Implementado: `POST /internal/v2/analytics/monthly` en Python (`AnalyticsService`, `app/api/analytics.py`, esquemas `InternalAnalyticsRequest` y `MonthlyEvolution`), con reglas en `docs/contratos_api.md`. Sin migraciones, cambios en Java/frontend ni dependencias. Límite: no existe aún ruta pública Java que lo consuma; queda a definir para E5.2.
 
 Verificado: `pytest` en Docker Python 3.13 con `uv sync --locked`: 74 aprobadas, 2 omitidas, 0 fallos. Las omitidas son las pruebas con PostgreSQL real (`PYTHON_TEST_PG_URL` no configurada), incluida la nueva de conciliación contra sumas directas de la vista: **no se ejecutaron**. Aceptación y cierre manuales.
+
+Corrección de arranque (E5.1): ReceiptController (E4.1/E4.2) tenía dos constructores sin @Autowired y java-service no iniciaba (No default constructor found); se anotó el constructor de tres parámetros. Verificado con docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait: postgres, python-service, java-service y frontend en estado healthy. No se ejecutó mvn test.

@@ -1,5 +1,6 @@
 package com.shareverance.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import com.shareverance.dto.OcrResultResponse;
 import com.shareverance.dto.ReceiptResponse;
 import com.shareverance.dto.ReceiptUploadResponse;
@@ -32,6 +33,7 @@ public class ReceiptController {
     private final AuthService authService;
     private final OcrService ocrService;
 
+    @Autowired
     public ReceiptController(ReceiptService receiptService, AuthService authService, OcrService ocrService) {
         this.receiptService = receiptService;
         this.authService = authService;
