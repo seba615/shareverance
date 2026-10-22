@@ -122,6 +122,53 @@ Las rutas siguientes requieren sesión, usuario, organización ARS y membresía 
 
 ## Predicción autenticada y lectura de vistas E3.2
 
+<a id="propuesta-multihorizonte"></a>
+
+### Propuesta P2-H: previsión desde un origen común
+
+Seguimiento [#73](https://github.com/seba615/shareverance/issues/73). **Diseño pendiente de revisión coordinada e implementación**, no rutas disponibles ni contrato aceptado. Consumidores revisados: PredictionPanel/predictionApi.monthly, PredictionController/PredictionService, routers/esquemas Python y ViewsRepository. Se conservan `/predictions/monthly`, DTO v2 y comportamiento de un mes para consumidores existentes. Las operaciones propuestas son aditivas; no introducir una ruta `/v3` ni reemplazar respuestas mensuales como sustituto de coordinar consumidores.
+
+| Operación propuesta | Solicitud | Autorización |
+| --- | --- | --- |
+| Java pública | `GET /api/v1/organizations/{id}/predictions/forecast?originMonth=2024-12&horizonMonths=6` | Sesión, cuenta/organización ARS/membresía activas, igual que monthly |
+| Python interna | `POST /internal/v2/predictions/forecast` | Bearer técnico, organización autorizada por Java y vistas SQL de lectura |
+
+Propuesta de parámetros: `horizonMonths` sólo 4, 5 o 6 (default propuesto 4, por confirmar); `originMonth` es **último mes histórico incluido**, no primer objetivo. Origin omitido: Java usa el último mes cerrado confirmado de esa organización; si no hay cobertura, usa el mes cerrado anterior al actual de Buenos Aires y devuelve insuficiencia. Origen explícito debe ser YYYY-MM válido y anterior al mes actual; la existencia de un gasto no confirma cobertura. Si falta cobertura en el origen, devuelve historial insuficiente, sin desplazar automáticamente el corte. Rechazar cualquier rango cuyos meses proyectados excedan el límite de año 9999. Puede proyectar meses futuros; no aplica la prohibición de fecha futura del alta de gastos.
+
+Java resuelve/valida origen y horizonte antes de llamar Python. Python consulta una sola ventana histórica continua, terminada en el origen, de hasta 60 meses confirmados; mínimo seis por serie. El adaptador puede reutilizar la lectura equivalente a target_month=origin+1, pero nunca leer reales posteriores al corte. Una misma solicitud produce objetivos origin+1…origin+H. No invocar monthly H veces desplazando targetMonth: exigiría cobertura de meses futuros y cambiaría el origen de información.
+
+Ejemplo interno **propuesto**, sin historial enviado por React ni callback:
+
+```json
+{"contract_version":"2","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":2,"origin_month":"2024-12","horizon_months":4}
+```
+
+Respuesta propuesta: metadatos comunes contract_version/request_id/organization_id/currency/status/simulated; `origin_month`, `horizon_months`; una serie `organization` y hasta 100 series `categories`, con category_id único. Cada serie incluye status, method, model_version, months_used, required_months y `forecasts` de longitud H. Cada punto incluye `horizon` (1…H), `target_month`, `estimated_amount_minor` entero seguro no negativo o null, y `quality`. Los objetivos son únicos, consecutivos y ordenados; Java debe validar pertenencia, origen, longitud, horizonte, importes y calidad antes de exponer la respuesta.
+
+Ejemplo de **estructura de serie**, con importes únicamente ilustrativos y sin calidad evaluada:
+
+```json
+{
+  "status":"OK","method":"mock","model_version":"1","months_used":24,"required_months":6,
+  "forecasts":[
+    {"horizon":1,"target_month":"2025-01","estimated_amount_minor":10000,"quality":{"status":"NOT_EVALUATED","evaluation_id":null,"mae_minor":null,"wape_percentage":null,"samples":null}},
+    {"horizon":2,"target_month":"2025-02","estimated_amount_minor":10000,"quality":{"status":"NOT_EVALUATED","evaluation_id":null,"mae_minor":null,"wape_percentage":null,"samples":null}},
+    {"horizon":3,"target_month":"2025-03","estimated_amount_minor":10000,"quality":{"status":"NOT_EVALUATED","evaluation_id":null,"mae_minor":null,"wape_percentage":null,"samples":null}},
+    {"horizon":4,"target_month":"2025-04","estimated_amount_minor":10000,"quality":{"status":"NOT_EVALUATED","evaluation_id":null,"mae_minor":null,"wape_percentage":null,"samples":null}}
+  ]
+}
+```
+
+Propuesta quality: por defecto `NOT_EVALUATED`, campos null (desconocido no equivale a cero). En una entrega posterior, `EXPERIMENTAL` sólo con evaluation_id, muestras positivas y errores por horizonte trazables al método/versión/configuración/dataset; ningún valor identifica confianza individual ni precisión real por ser sintético. WAPE puede ser null con base real total cero aunque haya muestras. Regla de presentación/precisión de mae_minor agregado se coordinará antes de implementar quality evaluado; esta etapa sólo define ausencia de evidencia, sin bandas calibradas ni estados “aceptado”. Los artefactos P4 h=1 no habilitan calidad h=2…6.
+
+Una serie insuficiente mantiene H puntos con importe null, months_used=0 y quality NOT_EVALUATED; no inventa proyecciones por horizonte. Estado general: OK si todas las series son OK, PARTIAL si hay al menos una OK y otra insuficiente, INSUFFICIENT_HISTORY si ninguna es OK. La selección de categorías históricas y ceros confirmados sigue ViewsRepository; categorías/membresías inactivas conservan historial. Total organizacional y suma de estimaciones de categorías son independientes, sin forzar conciliación predictiva. Error técnico no se convierte en insuficiencia o proyección parcial silenciosa.
+
+Errores propuestos coherentes con el circuito vigente: Java 400 por parámetros/rango inválidos, 401/403 por acceso, 503 por indisponibilidad/timeout/respuesta interna inválida; Python 422 por contrato inválido y 401/403 por Bearer. Mantener correlación y no exponer SQL/rutas/secretos. Presupuesto de timeout para seis horizontes queda pendiente de medición y acuerdo, sin cambiar el de monthly incidentalmente. No escribir predicciones como gastos o cobertura ni abrir PostgreSQL/Python al navegador.
+
+Transición propuesta: P3-H implementa/evalúa cálculo offline; luego Python y Java incorporan operación nueva y tests de contrato antes de habilitar frontend P5-H. La UI sigue usando monthly hasta que ambos servidores soporten forecast. Comparar h=1 de forecast con monthly para el mismo corte/método, probar clientes antiguos y casos de insuficiencia/aislamiento. No activar modelo automáticamente. Revisión previa necesaria entre Python/Java/front/QA: DTO, default, calidad y presupuesto; parámetros de aceptación por horizonte siguen abiertos.
+
+### Contrato mensual vigente
+
 Planificación pendiente: el [plan complementario del predictor](road_map.md#predictor-multihorizonte) contempla horizontes de 4/5/6 meses. Las rutas y DTO documentados aquí mantienen el comportamiento vigente de un mes. P2-H debe coordinar Python, Java y frontend y definir compatibilidad/transición antes de implementar campos o rutas; esta nota no introduce un nuevo contrato ni autoriza interpretar varios `targetMonth` como una previsión multihorizonte desde el mismo origen.
 
 En E3.2 se implementa el flujo unidireccional `React → Java → Python → PostgreSQL (vistas)` y se retira el callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`).

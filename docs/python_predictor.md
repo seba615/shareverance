@@ -295,6 +295,34 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 ## Pruebas y operación
 
+<a id="protocolo-multihorizonte"></a>
+
+### Propuesta P2-H: protocolo de desarrollo para 4–6 meses
+
+Relacionado con [#73](https://github.com/seba615/shareverance/issues/73). Diseño para revisión, sin nuevo predictor ejecutable. El [contrato propuesto](contratos_api.md#propuesta-multihorizonte) separa origen histórico de los meses proyectados y conserva monthly. Un pronóstico de H=4/5/6 incluye todos los horizontes 1…H, desde el mismo origen. Mock/último mes y SES sin tendencia producirían valores planos por horizonte; eso no demuestra capacidad multimes ni modela inflación. Una estrategia recursiva sólo puede utilizar estimaciones internas identificadas, nunca reales futuros o cobertura artificial.
+
+Propuesta de validación en desarrollo: comparar h=1…6 sobre orígenes comunes diciembre de 2023 a junio de 2024, cuyos seis objetivos caben en 2024. Son siete orígenes por serie, pendientes de confirmar con el protocolo; incorporar datos observados al avanzar a **otro origen** es válido, incorporarlos entre pasos de la misma previsión no. Mantener calendario Buenos Aires, ventanas continuas confirmadas y mínimo seis meses por serie; registrar exclusiones antes de comparar y no imputar huecos como cero.
+
+El futuro evaluador P3-H debe guardar hash CSV/código/configuración, origen, objetivo, h, método, predicción, real, error absoluto/firmado y muestras. Comparar mismos orígenes/series para todos los métodos y horizontes; reportar MAE/WAPE por h y nivel organizacional/categoría, sin mezclar ambos niveles ni tratar ventanas solapadas como muestras independientes. Conservar error firmado y casos cero. Si un origen no tiene seis reales posteriores, no reducir su horizonte silenciosamente para favorecer el modelo.
+
+No heredar los umbrales 5 %/20 % de la propuesta P2 h=1: falta acordar mejora/degradación por horizonte, regla conjunta para 4/5/6 y mínimo de muestras. Siete orígenes sintéticos pueden ser insuficientes para estimar intervalos o justificar calidad estable. Para bandas debe definirse método, cobertura empírica y conjunto de validación apropiado antes de mostrar probabilidades. 2025 ya fue consultado en P4; no se lo vuelve a declarar reserva intacta. La evaluación final futura necesita otra partición/conjunto acordado y registro previo; todo experimento con V1 sigue sin representar hogares reales.
+
+Cómo revisar **hoy** desde la raíz con Docker Desktop Linux:
+
+```powershell
+# Evaluación offline vigente, únicamente h=1:
+.\scripts\predictor-demo.ps1 test
+.\scripts\predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12
+# Interfaz vigente para comprobar contexto, no multihorizonte:
+.\scripts\predictor-demo.ps1 start
+.\scripts\predictor-demo.ps1 load
+.\scripts\predictor-demo.ps1 check
+# localhost:5176, acceso según la guía P1-D; detener conservando datos:
+.\scripts\predictor-demo.ps1 stop
+```
+
+El rango propuesto de orígenes aún no tiene comando ejecutable; no interpretar los parámetros FromMonth/ToMonth actuales como horizontes futuros. P3-H debe añadir comandos específicos y pruebas de fuga temporal, h=1 equivalente, horizonte exacto, orígenes incompletos y ceros. No se ejecutan servicios ni nuevas pruebas de aplicación para esta propuesta documental.
+
 Conservar pruebas del contrato actual mientras se migra. Cubrir tipos estrictos, campos desconocidos, meses duplicados/discontinuos, recorte, categorías nuevas/inactivas, cero frente a falta de datos, seis meses, límites de enteros y totales. Integración real de vistas y permisos con dos organizaciones; caída SQL, pool y limpieza de contexto entre conexiones. Evaluación reproducible del modelo y circuito Java→Python→PostgreSQL. Logs sin datos de comprobantes ni credenciales.
 
 El POST histórico con historial puede servir para pruebas durante transición; no debe confundirse con el contrato operativo nuevo ni quedar expuesto sin autenticación. Retirar la dependencia inversa Python→Java al completar migración.
