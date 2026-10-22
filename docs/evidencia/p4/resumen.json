@@ -1,0 +1,115 @@
+﻿{
+    "report_version":  1,
+    "dataset_sha256":  "99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996",
+    "code_commit":  "4c25db0462ffc637b616348f3d08e81a7efd8d7e",
+    "evaluator_sha256":  "f81fd16a9839d3c7176275e7bb22716e2a76cd5e01ac2e01c2019ff3833c50ac",
+    "scope":  "synthetic_reserve_evaluation",
+    "configuration":  {
+                          "from_month":  "2025-01",
+                          "to_month":  "2025-12",
+                          "horizon":  1,
+                          "min_history_months":  6,
+                          "alpha":  0.3,
+                          "training":  "continuous_expanding_history_before_target",
+                          "allow_reserve":  true,
+                          "method_versions":  {
+                                                  "ses":  "1",
+                                                  "last_month":  "1",
+                                                  "historical_mean":  "1"
+                                              }
+                      },
+    "accepted":  null,
+    "model_promoted":  false,
+    "reserve_evaluated":  true,
+    "levels":  {
+                   "organization":  {
+                                        "expected_series":  50,
+                                        "complete_series":  50,
+                                        "excluded_series":  0,
+                                        "metrics":  {
+                                                        "ses":  {
+                                                                    "equal_series_mae_ars":  443177.85,
+                                                                    "equal_series_mae_minor_fraction":  {
+                                                                                                            "numerator":  221588927,
+                                                                                                            "denominator":  5
+                                                                                                        },
+                                                                    "pooled_wape_percentage":  12.97,
+                                                                    "series_count":  50,
+                                                                    "samples":  600
+                                                                },
+                                                        "last_month":  {
+                                                                           "equal_series_mae_ars":  199239.68,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  5977190449,
+                                                                                                                   "denominator":  300
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  5.83,
+                                                                           "series_count":  50,
+                                                                           "samples":  600
+                                                                       },
+                                                        "historical_mean":  {
+                                                                                "equal_series_mae_ars":  1555786.14,
+                                                                                "equal_series_mae_minor_fraction":  {
+                                                                                                                        "numerator":  31115722743,
+                                                                                                                        "denominator":  200
+                                                                                                                    },
+                                                                                "pooled_wape_percentage":  45.52,
+                                                                                "series_count":  50,
+                                                                                "samples":  600
+                                                                            }
+                                                    }
+                                    },
+                   "category":  {
+                                    "expected_series":  400,
+                                    "complete_series":  400,
+                                    "excluded_series":  0,
+                                    "metrics":  {
+                                                    "ses":  {
+                                                                "equal_series_mae_ars":  60456.34,
+                                                                "equal_series_mae_minor_fraction":  {
+                                                                                                        "numerator":  29019043651,
+                                                                                                        "denominator":  4800
+                                                                                                    },
+                                                                "pooled_wape_percentage":  14.15,
+                                                                "series_count":  400,
+                                                                "samples":  4800
+                                                            },
+                                                    "last_month":  {
+                                                                       "equal_series_mae_ars":  45195.02,
+                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                               "numerator":  2711701267,
+                                                                                                               "denominator":  600
+                                                                                                           },
+                                                                       "pooled_wape_percentage":  10.58,
+                                                                       "series_count":  400,
+                                                                       "samples":  4800
+                                                                   },
+                                                    "historical_mean":  {
+                                                                            "equal_series_mae_ars":  194480.6,
+                                                                            "equal_series_mae_minor_fraction":  {
+                                                                                                                    "numerator":  23337672077,
+                                                                                                                    "denominator":  1200
+                                                                                                                },
+                                                                            "pooled_wape_percentage":  45.52,
+                                                                            "series_count":  400,
+                                                                            "samples":  4800
+                                                                        }
+                                                }
+                                }
+               },
+    "degradation_analysis":  {
+                                 "organization":  {
+                                                      "total_series":  50,
+                                                      "ses_worse_than_last_month":  50,
+                                                      "ses_worse_percentage":  100,
+                                                      "promotion_criteria_met":  false
+                                                  },
+                                 "category":  {
+                                                  "total_series":  400,
+                                                  "ses_worse_than_last_month":  316,
+                                                  "ses_worse_percentage":  79,
+                                                  "promotion_criteria_met":  false
+                                              }
+                             },
+    "conclusion":  "El candidato SES no satisface los criterios de promocion fijados en el protocolo P2 (mejora \u003e= 5% en MAE y degradacion \u003c= 20% de series). La referencia basal last_month resulta superior y permanece como baseline operativo."
+}

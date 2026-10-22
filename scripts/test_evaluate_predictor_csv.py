@@ -4,6 +4,12 @@ from test_audit_predictor_dataset import fixture
 
 
 class CsvEvaluationTests(unittest.TestCase):
+    def test_allow_reserve_flag_enables_2025_targets(self):
+        report = evaluate(fixture(), '2025-01', '2025-01', 'test', allow_reserve=True)
+        self.assertTrue(report['reserve_evaluated'])
+        self.assertEqual(report['scope'], 'synthetic_reserve_evaluation')
+        self.assertEqual(report['levels']['organization']['complete_series'], 2)
+        self.assertEqual(report['levels']['category']['complete_series'], 16)
     def test_reserve_is_blocked_before_reading_data(self):
         with self.assertRaisesRegex(ValueError, 'reserva'):
             evaluate(b'invalid', '2025-01', '2025-12', 'test')
