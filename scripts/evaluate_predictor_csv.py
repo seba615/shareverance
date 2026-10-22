@@ -1,4 +1,4 @@
-"""P3 inicial: evaluación experimental h=1 sólo en desarrollo, sin promoción."""
+"""Evaluación experimental h=1: desarrollo y exploración explícita de reserva, sin aceptación final."""
 import argparse
 from collections import defaultdict
 import csv
@@ -22,7 +22,7 @@ def money(value):
     return float((value / 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
 
-def evaluate(raw, from_month, to_month, commit, allow_reserve=False):
+def evaluate(raw, from_month, to_month, commit, allow_reserve=False, alpha=0.3):
     development = EXPECTED[:24]
     all_months = EXPECTED
     valid_range = all_months if allow_reserve else development
@@ -30,6 +30,11 @@ def evaluate(raw, from_month, to_month, commit, allow_reserve=False):
         if not allow_reserve and (from_month > '2024-12' or to_month > '2024-12'):
             raise ValueError('El rango objetivo debe ser inclusivo y estar en 2023–2024; reserva 2025 bloqueada.')
         raise ValueError(f'El rango objetivo debe ser inclusivo y estar entre {valid_range[0]} y {valid_range[-1]}.')
+    is_reserve_request = to_month > '2024-12'
+    if is_reserve_request and (from_month != '2025-01' or to_month != '2025-12'):
+        raise ValueError('La reserva exploratoria exige exactamente 2025-01 a 2025-12, sin mezclar desarrollo.')
+    if is_reserve_request and alpha != 0.3:
+        raise ValueError('No ajustar alpha con la reserva: exploración histórica fijada en 0.3.')
     manifest = audit(raw)
     if any(o['category_count'] != 8 for o in manifest['organization_series']):
         raise ValueError('Universo de categorías incompleto: se requieren ocho por organización.')
@@ -44,7 +49,7 @@ def evaluate(raw, from_month, to_month, commit, allow_reserve=False):
             if all(month in values[('category', org, cat)] for cat in cats):
                 values[('organization', org, None)][month] = sum(values[('category', org, cat)][month] for cat in cats)
         values[('organization', org, None)]  # Incluir incluso serie organizacional vacía.
-    models = {'ses': SimpleExponentialSmoothingPredictor(alpha=0.3),
+    models = {'ses': SimpleExponentialSmoothingPredictor(alpha=alpha),
               'last_month': MockPredictor(), 'historical_mean': HistoricalMeanReference()}
     targets = [m for m in (all_months if allow_reserve else development) if from_month <= m <= to_month]
     details, series_reports = [], []
@@ -105,18 +110,50 @@ def evaluate(raw, from_month, to_month, commit, allow_reserve=False):
         summaries[level] = {'expected_series': expected_series, 'complete_series': eligible,
                             'excluded_series': expected_series - eligible, 'metrics': metrics}
     is_reserve = any(t > '2024-12' for t in targets)
+    if is_reserve and any(s['excluded_series'] or not s['complete_series'] for s in summaries.values()):
+        raise ValueError('Reserva incompleta: todos los objetivos y series del universo deben estar presentes; no excluir silenciosamente.')
     return {'report_version': 1, 'dataset_sha256': manifest['dataset_sha256'], 'code_commit': commit,
             'evaluator_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            'scope': 'synthetic_reserve_evaluation' if is_reserve else 'synthetic_development_only',
+            'scope': 'synthetic_reserve_exploratory' if is_reserve else 'synthetic_development_only',
             'coverage_policy': 'synthetic_declared_not_real_coverage',
             'configuration': {'from_month': from_month, 'to_month': to_month, 'horizon': 1,
-                              'min_history_months': 6, 'alpha': 0.3, 'training': 'continuous_expanding_history_before_target',
+                              'min_history_months': 6, 'alpha': alpha, 'training': 'continuous_expanding_history_before_target',
                               'allow_reserve': allow_reserve,
                               'method_versions': {name: model.model_version for name, model in models.items()}},
             'accepted': None, 'model_promoted': False, 'reserve_evaluated': is_reserve,
+            'final_evaluation_accredited': False,
             'levels': summaries, 'series': series_reports, 'points': details,
             'limitations': manifest['pending_evidence'] + ['No representa precisión sobre hogares reales.',
                            'Exclusiones técnicas no son una selección final del universo de aceptación.']}
+
+
+def development_sweep(raw, from_month, to_month, commit):
+    if from_month not in EXPECTED[:24] or to_month not in EXPECTED[:24] or from_month > to_month:
+        raise ValueError('El barrido alpha permite sólo desarrollo 2023–2024.')
+    results = []
+    for alpha in (0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0):
+        report = evaluate(raw, from_month, to_month, commit, alpha=alpha)
+        # Comparar errores exactos sobre las mismas fechas, antes de redondear.
+        grouped = defaultdict(lambda: defaultdict(int))
+        counts = defaultdict(int)
+        for point in report['points']:
+            key = (point['level'], point['organization_id'], point['category_id'])
+            if point['status'] == 'OK':
+                counts[key] += 1
+                for method, prediction in point['predictions'].items():
+                    grouped[key][method] += prediction['absolute_error_minor']
+        target_count = EXPECTED.index(to_month) - EXPECTED.index(from_month) + 1
+        degradation = {}
+        for level in ('organization', 'category'):
+            eligible = [errors for key, errors in grouped.items() if key[0] == level and counts[key] == target_count]
+            differences = [errors['ses'] - min(errors['last_month'], errors['historical_mean']) for errors in eligible]
+            degradation[level] = {'complete_series': len(eligible), 'degraded_series_vs_best_reference': sum(d > 0 for d in differences),
+                                  'max_positive_mae_difference_ars': money(Fraction(max([0] + differences), target_count))}
+        results.append({'alpha': alpha, 'levels': report['levels'], 'degradation': degradation})
+    return {'scope': 'synthetic_development_alpha_sweep', 'dataset_sha256': report['dataset_sha256'],
+            'evaluator_sha256': report['evaluator_sha256'], 'code_commit': commit,
+            'from_month': from_month, 'to_month': to_month, 'horizon': 1, 'results': results,
+            'reserve_evaluated': False, 'accepted': None, 'model_promoted': False}
 
 
 if __name__ == '__main__':
@@ -126,8 +163,16 @@ if __name__ == '__main__':
     parser.add_argument('--to-month', required=True)
     parser.add_argument('--commit', required=True)
     parser.add_argument('--allow-reserve', action='store_true', default=False)
+    parser.add_argument('--alpha', type=float, default=0.3)
+    parser.add_argument('--sweep-alpha', action='store_true')
     args = parser.parse_args()
     try:
-        print(json.dumps(evaluate(args.csv.read_bytes(), args.from_month, args.to_month, args.commit, allow_reserve=args.allow_reserve), indent=2, ensure_ascii=False, allow_nan=False))
+        if args.sweep_alpha and args.alpha != 0.3:
+            raise ValueError('El barrido usa un grid fijo; no combinar con --alpha.')
+        if args.sweep_alpha and args.allow_reserve:
+            raise ValueError('No combinar barrido de alpha con acceso a reserva.')
+        report = (development_sweep(args.csv.read_bytes(), args.from_month, args.to_month, args.commit)
+                  if args.sweep_alpha else evaluate(args.csv.read_bytes(), args.from_month, args.to_month, args.commit, allow_reserve=args.allow_reserve, alpha=args.alpha))
+        print(json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False))
     except (ValueError, OSError) as error:
         raise SystemExit(f'Evaluación fallida: {error}') from None
