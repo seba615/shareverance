@@ -37,6 +37,8 @@ E5.1 tiene implementada la analítica interna Python desde vistas SQL y su verif
 
 ## Inicio rápido
 
+Evaluación experimental del CSV en desarrollo: [guía P3](docs/python_predictor.md#evaluador-p3), `scripts/predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12`. No requiere iniciar servicios y bloquea la reserva de 2025; el resultado no acepta ni activa modelos.
+
 Para pruebas integradas del predictor con datos del CSV, usar la [guía P1-D](docs/python_predictor.md#entorno-demo-predictor): `scripts/predictor-demo.ps1 start`, luego `load` y `check`. Crea un proyecto separado en localhost:5176 con usuario, organización y gastos de 2023–2024, sin alterar el entorno habitual. La guía incluye credenciales sintéticas, filtros históricos, detención y límites; la previsión disponible sigue siendo de un mes.
 
 El [plan complementario del predictor P1–P5](docs/road_map.md#plan-complementario-del-predictor) permite coordinar evaluación e integración con el equipo. Para probar el CSV de demostración sin modificar la base ni los servicios, seguir la [guía de evaluación offline](docs/python_predictor.md#evaluación-con-el-csv-de-demostración). Distingue el comando disponible hoy del evaluador completo y de la aceptación todavía pendientes.
