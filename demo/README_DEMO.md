@@ -24,7 +24,17 @@ El CSV utiliza UTF-8 y punto y coma (`;`) como separador.
 
 Para la organización 1 se verificaron **36 meses**, desde enero de 2023 hasta diciembre de 2025, con **8 categorías y 288 registros**. Cada registro representa un total mensual por categoría, no un gasto individual ni un comprobante.
 
-El dataset se utiliza exclusivamente para demostración. El dataset es público y no contiene información personal. Se adaptó a las especificaciones del proyecto. Fuente: https://www.estadisticaciudad.gob.ar/eyc/categoria-banco-datos/canastas-de-consumo-de-la-ciudad/
+### Procedencia y validez del dataset V1
+
+Fuente directa: **generación sintética**, sin extracción ni calibración con archivos oficiales. El paquete original se identifica como `shareverance_dataset_v1/gastos_mensuales_sinteticos.csv`; el archivo versionado de este repositorio es `demo/gastos_prueba.csv`. El paquete original y una transformación reproducible entre ambos no están disponibles aquí: el hash del archivo local identifica sus bytes, no demuestra equivalencia con el original.
+
+Las 50 entidades originales H001–H050 representan hogares ficticios. El CSV local usa IDs numéricos; la correspondencia exacta debe documentarse antes de atribuir identidades originales. Los supuestos declarados de generación son distribución base ilustrativa por categoría, crecimiento nominal del 4,5 % mensual, variación aleatoria por categoría y una semilla. No están disponibles el código generador, la fórmula exacta ni el valor documentado de esa semilla; no puede reproducirse cada importe desde esos supuestos.
+
+Cobertura declarada para el experimento sintético: 50 hogares ficticios, 36 meses (enero de 2023 a diciembre de 2025) y ocho categorías; cada fila es un total mensual de una categoría de ese universo simulado. La auditoría estructural comprueba las filas del archivo, no que representen gasto real completo. No es una muestra representativa de hogares argentinos ni acredita precisión sobre usuarios reales.
+
+ENGHo 2017–2018 y otras fuentes oficiales fueron identificadas como posibilidades futuras, pero no se descargaron ni aplicaron para calibrar V1. Se retira la atribución anterior a canastas oficiales como fuente directa por ser incorrecta.
+
+No hay evidencia disponible de entrenamiento, comparación o ajuste de modelos con 2025. Esto permite proponerlo como reserva, pero no demuestra por sí solo que nunca se haya utilizado. Registrar responsables, alcance de la revisión y congelación antes de una evaluación final; si aparecen usos previos para selección, revisar la reserva. Partición propuesta: 2023 para entrenamiento inicial, 2024 para validación/selección temporal y 2025 para evaluación final. Es compatible con agrupar 2023–2024 como desarrollo en P2, pero cualquier cambio de ventana concreta debe acordarse antes de evaluar. V1 sirve para pruebas técnicas y experimentos sintéticos; no para aceptación de precisión sobre gastos reales argentinos.
 
 ## Solicitud JSON
 
@@ -57,9 +67,11 @@ Para este ejemplo se considera completo el historial de prueba y se declara `ava
 
 ## Uso en desarrollo
 
+Para auditar estructura y manifiesto del CSV sin cargar la base, seguir [P1: auditoría reproducible](../docs/python_predictor.md#auditoria-p1). El comando `scripts/predictor-demo.ps1 audit` no requiere iniciar servicios; necesita Docker Desktop activo. Existe alternativa con Python local. Un resultado estructural correcto no confirma cobertura real ni acepta el conjunto para evaluación final.
+
 La [guía integrada P1-D](../docs/python_predictor.md#entorno-demo-predictor) permite cargar la organización externa 1 hasta 2024-12 mediante Java en una base aislada y probar con usuario desde localhost:5176. Comandos PowerShell, credenciales, conciliación, repetición y detención están allí; no cargar el SQL local ajeno ni insertar directamente estas filas en la base habitual. Las 50 organizaciones completas y otros cortes todavía no están soportados por el cargador.
 
-Para comparar SES, último mes y media histórica con el CSV, seguir la [guía ejecutable de evaluación](../docs/python_predictor.md#evaluación-con-el-csv-de-demostración). El [plan P1–P5](../docs/road_map.md#plan-complementario-del-predictor) organiza auditoría, protocolo, evaluador CSV, comparación e integración. La prueba actual trabaja offline con 2023–2024 y no carga PostgreSQL; 2025 se propone como reserva. Los datos adaptados no acreditan precisión sobre hogares reales ni aceptación automática del modelo.
+Para comparar SES, último mes y media histórica con el CSV, seguir la [guía ejecutable de evaluación](../docs/python_predictor.md#evaluación-con-el-csv-de-demostración). El [plan P1–P5](../docs/road_map.md#plan-complementario-del-predictor) organiza auditoría, protocolo, evaluador CSV, comparación e integración. La prueba actual trabaja offline con 2023–2024 y no carga PostgreSQL; 2025 se propone como reserva. Los datos sintéticos no acreditan precisión sobre hogares reales ni aceptación automática del modelo.
 
 1. Usar el JSON como entrada compartida para probar la serialización en Java y la validación en Python.
 2. Enviarlo al endpoint cuando esté implementado, inicialmente con el simulador.

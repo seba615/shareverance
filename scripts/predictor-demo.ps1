@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('start', 'load', 'check', 'status', 'stop', 'test')]
+    [ValidateSet('start', 'load', 'check', 'status', 'stop', 'test', 'audit')]
     [string]$Action = 'status'
 )
 $ErrorActionPreference = 'Stop'
@@ -19,6 +19,13 @@ try {
             & docker @composeArgs build python-service
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
             & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" -m unittest discover -s /tools -p test_load_predictor_demo.py -v
+            if ($LASTEXITCODE -ne 0) { throw 'Fallaron pruebas del cargador.' }
+            & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" -m unittest discover -s /tools -p test_audit_predictor_dataset.py -v
+        }
+        'audit' {
+            & docker @composeArgs build python-service
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
+            & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot/audit_predictor_dataset.py,target=/tools/audit.py,readonly" --mount "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos.csv,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" /tools/audit.py --csv /data/gastos.csv
         }
         default {
             $argsRun = @('run', '--rm', '--name', "${project}-loader", '--network', "${project}_default", '--mount', "type=bind,source=$PSScriptRoot/load_predictor_demo.py,target=/tools/load_predictor_demo.py,readonly", '--mount', "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos_prueba.csv,readonly", '--entrypoint', '/app/.venv/bin/python', "$project-python-service", '/tools/load_predictor_demo.py', '--csv', '/data/gastos_prueba.csv')

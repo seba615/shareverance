@@ -106,7 +106,7 @@ El [plan complementario P1–P5](road_map.md#plan-complementario-del-predictor),
 
 ### Datos y límites
 
-`demo/gastos_prueba.csv` contiene totales mensuales, no gastos individuales: 50 organizaciones inventadas, ocho categorías por organización y 36 meses (2023–2025), en centavos ARS. La [procedencia documentada](../demo/README_DEMO.md) es estadística pública de canastas adaptada al proyecto. No equivale a 50 historiales independientes de hogares. P1 debe documentar la transformación y cobertura antes de usarlo como conjunto de aceptación. No se consulta la fuente externa ni se valida su transformación mediante esta guía.
+`demo/gastos_prueba.csv` contiene totales mensuales, no gastos individuales: 50 organizaciones inventadas, ocho categorías por organización y 36 meses (2023–2025), en centavos ARS. La [procedencia documentada](../demo/README_DEMO.md) es generación sintética, sin calibración oficial aplicada. No equivale a 50 historiales independientes de hogares. P1 debe distinguir cobertura del universo sintético de representatividad real y documentar generador/correspondencias pendientes antes de una aceptación experimental. No se consulta la fuente externa ni se valida su transformación mediante esta guía.
 
 No completar huecos con cero ni deducir cobertura del simple hecho de que existan filas. Para esta prueba se adopta la cobertura completa del ejemplo documentado de organización 1; esa convención de demostración no declara cobertura en PostgreSQL. Otros conjuntos requieren una declaración verificable de cobertura.
 
@@ -156,6 +156,35 @@ $report
 La preparación es específica del ejemplo (IDs y ocho categorías); no sustituye al validador general de P3. Para categoría 1, filtrar adicionalmente `category_id -eq '1'`, exigir 24 filas y una fila por mes en vez de 192 y ocho; usar otros nombres de entrada/informe para conservar ambos resultados.
 
 Salida esperada: `series_months:24`, `min_train_months:6`, `alpha:0.3`, `accepted:null`, hash de la entrada JSON y métricas de SES/último mes/media histórica. Cada método evalúa los mismos 18 objetivos, de julio de 2023 a diciembre de 2024, utilizando sólo meses anteriores. `accepted:null` significa que el informe no acepta ni activa ningún modelo. Guardar también hash del CSV, commit (`git rev-parse HEAD`), selección y comandos junto al informe si se comparte evidencia. No publicar datos privados.
+
+<a id="auditoria-p1"></a>
+
+### Auditoría previa P1: cómo ejecutarla
+
+Seguimiento [#67](https://github.com/seba615/shareverance/issues/67). El auditor no calcula predicciones ni errores, no importa gastos y no confirma cobertura real. Desde la raíz, con Docker Desktop Linux iniciado:
+
+```powershell
+.\scripts\predictor-demo.ps1 audit
+.\scripts\predictor-demo.ps1 test
+```
+
+No requiere `start`/`load`: ejecuta un contenedor sin red y CSV en sólo lectura. La construcción de imagen puede necesitar Internet. Para guardar el manifiesto, crear `backend-java/target/p1-audit` y redirigir stdout de `audit` a `manifest.json` allí; comprobar salida satisfactoria antes de usarlo. El entorno integrado y acceso siguen en la [guía P1-D](#entorno-demo-predictor).
+
+Alternativa offline con Python 3 local, sólo biblioteca estándar:
+
+```powershell
+python scripts/audit_predictor_dataset.py --csv demo/gastos_prueba.csv
+python -m unittest discover -s scripts -p test_audit_predictor_dataset.py -v
+python -m unittest discover -s scripts -p test_load_predictor_demo.py -v
+```
+
+Valida columnas UTF-8/`;`, IDs positivos, ARS, importes enteros no negativos dentro del límite de negocio, claves únicas, nombres estables, período 2023–2025, ocho categorías por organización y 36 meses por categoría. Huecos o categorías ausentes generan manifiesto incompleto y salida fallida; campos inválidos abortan. No imputa ceros. Informa cantidad de organizaciones, pero el universo debe contrastarse con la procedencia.
+
+El manifiesto incluye SHA-256, series y meses faltantes. `coverage_confirmed:null` y `final_evaluation_eligible:null` impiden confundir estructura con aceptación. Busca totales organizacionales idénticos o exactamente proporcionales sólo en desarrollo 2023–2024. No encontrar coincidencias no demuestra independencia: puede existir escalado con redondeo, ruido u origen común. No utiliza 2025 para esa comparación ni calcula errores predictivos sobre la reserva.
+
+CSV versionado: 14.400 filas, 50 organizaciones, 400 categorías, ocho por organización, 36 meses completos y cero filas de importe cero. Sin coincidencias idénticas/proporcionales exactas en totales organizacionales de desarrollo. Hash `99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996`.
+
+**Procedencia aclarada para V1:** generación sintética con crecimiento nominal declarado de 4,5 % mensual, variación aleatoria y semilla no documentada; sin calibración INDEC ni fuente oficial directa. La cobertura declarada abarca sólo ocho categorías de hogares ficticios, no gasto real completo. Falta generador/fórmula exacta y correspondencia del paquete original con este CSV. No hay evidencia disponible de uso previo de 2025 para ajustar/comparar; no equivale a garantía de reserva intacta. La partición propuesta 2023 entrenamiento / 2024 selección / 2025 final encaja en desarrollo 2023–2024 de P2, sin alterar automáticamente las ventanas del evaluador. El equipo debe formalizar alcance, congelación y aceptación experimental; V1 no acredita precisión sobre hogares argentinos. P3 puede avanzar con datos sintéticos/desarrollo sin abrir la reserva.
 
 ### Protocolo formal de evaluación y reglas cuantitativas (P2)
 
