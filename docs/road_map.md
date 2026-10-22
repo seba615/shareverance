@@ -1,6 +1,6 @@
 # Roadmap del MVP 1
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). Las evidencias históricas mantienen sus fechas, commits y límites.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
@@ -9,9 +9,13 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 Estados: IMPLEMENTADO significa código observado; PENDIENTE requiere trabajo; VERIFICADO exige ejecución y evidencia vinculada a commit. Este relevamiento no ejecutó pruebas. No asignar PASS por contratos, mocks o inspección estática.
 
-Registro/login/sesión/organizaciones frontend y JDBC Java: IMPLEMENTADO, sin certificación integral. Predictor Python: SIMULADO. OCR, vistas SQL para Python, calendario y panel: PENDIENTES.
+Síntesis vigente de implementación: autenticación, organizaciones, miembros/categorías, gastos y partes individual/iguales, historial, calendario, vistas SQL/cobertura, consumidor Python, comprobantes/OCR, panel analítico y vista predictiva tienen código integrado. El callback Python→Java fue retirado; React consume Java y Java orquesta Python. Existen evidencia automatizada y comprobaciones parciales en las secciones por tarea; esto no equivale a aceptación integral.
+
+Predictor: mock predeterminado y SES candidato experimental, evaluación offline de un mes por origen y vista E6.2 implementados. Siguen pendientes la aceptación predictiva, carga repetible del CSV con usuarios/organizaciones y horizontes de 4–6 meses del plan complementario. Respaldo/restauración tiene herramientas y comprobaciones aisladas; persistencia tras reinicio real y aceptación humana integral requieren evidencia específica.
 
 ## Etapas
+
+La tabla siguiente conserva la planificación inicial y sus estados de seguimiento; no es un inventario vigente de código. La síntesis anterior y las evidencias por tarea distinguen implementación y validación. Esta consolidación documental no cambia estados de otras tareas, no marca entregas aceptadas ni sustituye el cierre manual.
 
 | Etapa / ID | Entrega | Dependencia | Estado | Responsable por función |
 | --- | --- | --- | --- | --- |
@@ -143,6 +147,8 @@ D01 documentación → README/alcance; D02–D04 funciones/vistas/ARS → alcanc
 REGLAS_DE_NEGOCIO.md se sustituye por alcance_mvp.md. ROAD_MAP_PYTHON.md se sustituye por este roadmap y python_predictor.md. CONTRATO_PYTHON_V1.md se conserva como referencia compatible dentro de contratos_api.md. GUIA_DESARROLLO.md se integra en README. ENTORNO_INICIAL.md se sustituye por instrucciones operativas y especificaciones vigentes; sus copias históricas de código no son instrucciones de configuración actual. El historial Git conserva versiones anteriores.
 
 ## Seguimiento de tareas e integración
+
+Consolidación documental del 21/10/2026, [#61](https://github.com/seba615/shareverance/issues/61), base `9ea8ce4`: corregidos resúmenes obsoletos sobre vistas/callback, OCR, calendario, analítica, archivos privados y vista predictiva en README, alcance y documentos por componente. Se aclaran DECIMAL/BigDecimal en negocio y centavos enteros en vistas/contratos. La tabla inicial conserva estados de seguimiento y la evidencia histórica conserva su contexto temporal; las menciones de pendientes en entregas anteriores no sustituyen la síntesis vigente. Continúan pendientes aceptación integral, evaluación predictiva, carga CSV repetible y ampliación multihorizonte. La tarea documental está asignada a `chelofabian` y vinculada al proyecto 3, sin cambiar estados ni cerrar tareas. Revisión estática contra código/migraciones/configuración, enlaces locales y `git diff --check` comprobados; no se ejecutaron nuevas suites de aplicación ni reinicios, y no se alteraron datos o servicios.
 
 Registrar cada tarea concreta en el [proyecto GitHub](https://github.com/users/seba615/projects/3), con título y descripción en español, reutilizando issues equivalentes y asignando a la cuenta autenticada. El agente solo crea/vincula y asigna; estados, finalización y cierre se administran manualmente. La publicación automatizada se limita a commit, push de rama de trabajo y creación de PR; todos los merges son manuales. Evitar referencias que cierren issues automáticamente. Procedimiento y límites en [AGENTS.md](../AGENTS.md).
 
@@ -531,7 +537,7 @@ Restauración validada primero en base/volumen temporales, roles creados antes d
 | **A03** | Validación de titular y permisos | Java | `ExpenseServiceTest` (`userCannotCreateForOtherUser`, `adminCanCreateForOtherMember`). USER solo crea a su nombre; ADMIN puede seleccionar miembros válidos del tenant. | Evidencia parcial; aceptación pendiente |
 | **A04** | Reparto exacto y determinista | Java / DB | `ExpenseServiceTest`, `ExpenseTransactionPostgresTest`. Suma exacta de partes = total en centavos reproducibles (modos INDIVIDUAL e IGUALES). | Evidencia parcial; aceptación pendiente |
 | **A05** | Rollback transaccional ante error | Java / PostgreSQL | `ExpenseTransactionPostgresTest` con inyección de errores vía triggers en PostgreSQL real. Cero registros huérfanos. | Evidencia parcial; aceptación pendiente |
-| **A06** | Importes monetarios y validación | Java / Python / Front | `ExpenseServiceTest`, validadores Pydantic y reglas monetarias Java. Importes en enteros `BIGINT` (centavos), rechazo de importes negativos, cero o decimales inválidos. | Evidencia parcial; aceptación pendiente |
+| **A06** | Importes monetarios y validación | Java / Python / Front | `ExpenseServiceTest`, validadores Pydantic y reglas monetarias Java. Persistencia de gastos/partes en DECIMAL(12,2), Java BigDecimal; vistas amount_minor BIGINT y contratos Python en centavos enteros. Rechazo de negativos, cero o precisión inválida en gastos; ceros confirmados válidos en series analíticas. | Evidencia parcial; aceptación pendiente |
 | **A07** | Edición y anulación lógica | Java / PostgreSQL | `ExpenseConcurrencyPostgresTest`. Anulación con `is_active = FALSE`; gasto anulado excluido de métricas en vistas analíticas y reportes. | Evidencia parcial; aceptación pendiente |
 | **A08** | Historial paginado y filtrado | Java / PostgreSQL / Front | `ExpenseHistoryPostgresTest`, `ExpenseHistory.tsx`. Navegación sin duplicados con ordenación determinista por fecha e ID. | Evidencia parcial; aceptación pendiente |
 | **A09** | Cobertura explícita y ventana | PostgreSQL / Python | `AnalyticsViewsPostgresTest`, `test_analytics.py`, `test_views_repository.py`. Distinción entre ausencia de cobertura y gasto cero; ventana acotada a meses cerrados declarados. | Evidencia parcial; aceptación pendiente |

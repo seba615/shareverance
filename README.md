@@ -1,6 +1,6 @@
 # Shareverance
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
@@ -23,7 +23,7 @@ Sistema de registro, distribución y análisis de gastos para hogares, consorcio
 
 React/TypeScript/Vite; Java Spring Boot/JDBC; Python FastAPI; PostgreSQL; Docker Compose.
 
-Actual: React→Java→PostgreSQL para negocio; Java autoriza y orquesta hacia Python (`POST /internal/v2/predictions/monthly` con Bearer interno) y Python consulta directamente las vistas SQL de PostgreSQL con su rol de solo lectura (`shareverance_python`), devolviendo predicciones simuladas. E4.2 incorpora OCR local Tesseract desde el volumen privado, precarga editable y asociación transaccional del comprobante al confirmar el gasto. La carga manual sigue disponible si falla OCR. E5.2 incorpora la consulta pública Java y el panel analítico con gráficos SVG y tablas accesibles. El modelo predictivo real (E6) y la aceptación integral permanecen pendientes.
+Actual: React→Java→PostgreSQL para negocio; Java autoriza y orquesta hacia Python (`POST /internal/v2/predictions/monthly` con Bearer interno) y Python consulta directamente las vistas SQL de PostgreSQL con su rol de solo lectura (`shareverance_python`), devolviendo predicciones simuladas. E4.2 incorpora OCR local Tesseract desde el volumen privado, precarga editable y asociación transaccional del comprobante al confirmar el gasto. La carga manual sigue disponible si falla OCR. E5.2 incorpora la consulta pública Java y el panel analítico con gráficos SVG y tablas accesibles. SES está implementado como candidato experimental y la vista predictiva E6.2 existe; la aceptación predictiva e integral permanecen pendientes.
 
 E3.1 incorpora V7: vistas analíticas aisladas por contexto transaccional, cobertura explícita por mes cerrado y credenciales separadas para migración, Java y lectura Python. E3.2 incorpora el consumidor Python de vistas (`ViewsRepository` con `psycopg[binary]`), la llamada autenticada `Java → Python` (`GET /api/v1/organizations/{id}/predictions/monthly` → `POST /internal/v2/predictions/monthly`) con soporte de rotación de secreto (`PYTHON_CLIENT_SECRET` / `PYTHON_CLIENT_SECRET_PREVIOUS`) y el retiro del callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`). Contratos y permisos en [PostgreSQL](docs/postgre.md) y [API](docs/contratos_api.md).
 
@@ -96,7 +96,7 @@ docker compose -f compose.yaml -f compose.tools.yaml ps
 
 Los servicios deben aparecer como `healthy`. Las migraciones y los datos de demostración se cargan automáticamente; no crear tablas manualmente.
 
-`database-access` es una excepción: termina con código 0 después de aprovisionar los logins desde variables de entorno, antes de Java. Java ejecuta Flyway con la cuenta administrativa y usa `shareverance_java` para las consultas de negocio. También se aprovisiona el rol de lectura `shareverance_python`, todavía sin conexión desde el contenedor Python. El proceso funciona sobre volúmenes existentes: no borrar la base para aplicar V7. Cambiar las contraseñas de Java/Python requiere volver a ejecutar el aprovisionamiento y recrear sus clientes; cambiar POSTGRES_PASSWORD no cambia la contraseña del propietario de una base ya inicializada.
+`database-access` es una excepción: termina con código 0 después de aprovisionar los logins desde variables de entorno, antes de Java. Java ejecuta Flyway con la cuenta administrativa y usa `shareverance_java` para las consultas de negocio. También se aprovisiona el rol de lectura `shareverance_python`, utilizado por Python para consultar vistas con contexto transaccional de organización. El proceso funciona sobre volúmenes existentes: no borrar la base para aplicar V7. Cambiar las contraseñas de Java/Python requiere volver a ejecutar el aprovisionamiento y recrear sus clientes; cambiar POSTGRES_PASSWORD no cambia la contraseña del propietario de una base ya inicializada.
 
 ### 4. Usar la aplicación
 
@@ -204,11 +204,11 @@ erDiagram
     }
 ```
 
-Se muestran campos principales, no todas las columnas técnicas. El modelo completo y las restricciones están en migraciones y [postgre.md](docs/postgre.md). timezone fue eliminado por V3; no hay tablas de fondos ni pagos en el MVP. La versión optimista se incorpora mediante V6 y debe enviarse al editar; las vistas analíticas siguen pendientes.
+Se muestran campos principales, no todas las columnas técnicas ni la tabla `receipts` de V8/V9. El modelo completo y las restricciones están en migraciones y [postgre.md](docs/postgre.md). timezone fue eliminado por V3; no hay tablas de fondos ni pagos en el MVP. La versión optimista se incorpora mediante V6 y debe enviarse al editar; V7 implementa las vistas analíticas, consumidas por Python desde E3.2.
 
 ## Operación y desarrollo
 
-Compose configura credenciales SQL propias de lectura para Python y el volumen privado `receipts_data` (Java lectura/escritura, Python sólo lectura). Java almacena comprobantes mediante la API documentada en [contratos_api.md](docs/contratos_api.md); V8 incorpora sus metadatos y V9 protege la pertenencia del gasto a la misma organización. La vinculación con el formulario de gastos y el motor OCR siguen pendientes. El diagnóstico confirma infraestructura, no reglas de negocio ni seguridad.
+Compose configura credenciales SQL propias de lectura para Python y el volumen privado `receipts_data` (Java lectura/escritura, Python sólo lectura). Java almacena comprobantes mediante la API documentada en [contratos_api.md](docs/contratos_api.md); V8 incorpora sus metadatos y V9 protege la pertenencia del gasto a la misma organización. El formulario integra carga, OCR y precarga editable; gasto, partes y comprobante se vinculan al confirmar dentro de la transacción Java. El diagnóstico confirma infraestructura, no reglas de negocio ni seguridad.
 
 ## 1. Acceder directamente a los servicios
 

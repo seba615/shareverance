@@ -1,6 +1,6 @@
 # Frontend React
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). Las evidencias históricas mantienen sus fechas y alcances.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
@@ -12,6 +12,8 @@ React/TypeScript/Vite en `frontend/src/App.tsx`, estilos en `style.css` y client
 E2.1 agrega pestañas de gastos, miembros y categorías en la organización activa. Gastos incluye alta manual y listado; Miembros incluye nombres/correos, incorporación por email exacto, cambio de rol, desactivación y reactivación; Categorías incluye alta y desactivación. E2.2 incorpora filtros por período/categoría/estado, paginación servidor, total filtrado, detalle con partes y edición/anulación de gastos. E2.3 incorpora en la pestaña Gastos el selector alternable entre Historial y Calendario mensual navegable con totales diarios y detalle por fecha. E5.2 incorpora la pestaña Panel con analítica real vía Java, gráficos SVG y tablas; la edición de categorías sigue pendiente. El diagnóstico de infraestructura permanece disponible por script/API. Estas funciones observadas en código no acreditan aceptación integral.
 
 ## Navegación y vistas requeridas
+
+E6.2 también implementa la pestaña Predicción: consulta a Java, selección del mes objetivo, resultado organizacional y por categoría, método/versión y avisos de insuficiencia/mock/SES experimental. La consulta actual estima un mes. El gráfico futuro y selector de 4–6 meses están planificados en el [roadmap complementario](road_map.md#predictor-multihorizonte), no implementados. La edición de categorías, presentación de participación individual y aceptación integral permanecen pendientes; la tabla de vistas requeridas no acredita por sí sola su implementación.
 
 | Vista | Contenido y acciones |
 | --- | --- |
@@ -81,7 +83,7 @@ Preservar registro/login/recarga/logout y creación/selección. Recorrido manual
 
 `ExpenseHistory.tsx` consulta la ruta paginada; la carga inicial de la organización deja de descargar todos los gastos. Permite desde/hasta inclusivos, categoría (incluidas inactivas históricas), estado vigente/anulado/todos y tamaños 10/20/50. Cambiar filtros reinicia la página y descarta respuestas previas. El total representa todos los gastos filtrados. Una organización nueva monta una instancia independiente; respuestas de detalles, páginas y operaciones anteriores se descartan al desmontar.
 
-El detalle muestra fecha, categoría, importe, autor, titular, estado, versión y todas las partes como participación, no deuda. No convierte receiptUrl en enlace público: el servicio de comprobantes privados sigue pendiente. Autor o ADMIN ven edición/anulación sólo para gastos vigentes. La edición conserva titular y participantes y puede conservar su categoría inactiva; solicita importe/fecha/descripción/categoría y envía la versión consultada. Ante 409 conserva el formulario local, bloquea el reenvío y ofrece recargar explícitamente. Anulación requiere confirmación y refresca el historial, sin reactivación. Los controles de la UI no sustituyen permisos Java.
+El detalle muestra fecha, categoría, importe, autor, titular, estado, versión y todas las partes como participación, no deuda. No convierte receiptUrl en enlace público. Java ya ofrece descarga privada autorizada de comprobantes; el detalle actual no incorpora ese enlace de descarga. Autor o ADMIN ven edición/anulación sólo para gastos vigentes. La edición conserva titular y participantes y puede conservar su categoría inactiva; solicita importe/fecha/descripción/categoría y envía la versión consultada. Ante 409 conserva el formulario local, bloquea el reenvío y ofrece recargar explícitamente. Anulación requiere confirmación y refresca el historial, sin reactivación. Los controles de la UI no sustituyen permisos Java.
 
 ## Calendario con detalle por fecha E2.3
 

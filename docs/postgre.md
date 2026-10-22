@@ -1,13 +1,13 @@
 # PostgreSQL: modelo, vistas y permisos
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
 
 ## Estado persistido
 
-PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses; V7 agrega cobertura mensual explícita, roles de ejecución y vistas analíticas. No renumerar versiones ni modificar SQL aplicado.
+PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses; V7 agrega cobertura mensual explícita, roles de ejecución y vistas analíticas; V8 incorpora receipts y V9 su integridad por organización/gasto. No renumerar versiones ni modificar SQL aplicado.
 
 | Tabla | Responsabilidad |
 | --- | --- |
@@ -21,7 +21,7 @@ PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/
 | infra_demo | Diagnóstico de infraestructura, sin significado financiero |
 | analytics_month_coverage | Declaración explícita de mes completo por organización, autor, fecha y confirmación lógica |
 
-Las claves compuestas existentes protegen pertenencia de categorías, titulares y partes. amounts son DECIMAL(12,2); amount de partes positivo; par gasto/membresía único. No hay tablas de caja, pagos ni liquidaciones. La columna receipt_url existe pero no acredita servicio de archivos. El DER del [README](../README.md) representa el modelo vigente.
+Las claves compuestas existentes protegen pertenencia de categorías, titulares y partes. amounts son DECIMAL(12,2); amount de partes positivo; par gasto/membresía único. No hay tablas de caja, pagos ni liquidaciones. La columna receipt_url existe pero no acredita servicio de archivos. El DER del [README](../README.md) resume las entidades principales; omite receipts y columnas técnicas, detalladas en las migraciones.
 
 ## Evolución requerida
 
@@ -29,7 +29,7 @@ E4.1 incorpora V8 (`receipts`, metadatos privados de comprobantes) y V9 (FK comp
 
 La asociación JDBC comprueba organización, estados activos y vínculo previo en un único UPDATE condicional. Dos asociaciones diferentes concurrentes no pueden sobrescribirse. E4.2 integra ese flujo al alta: UUID en `receipt_url` exige vinculación dentro de la transacción del gasto y sus partes; referencias anteriores sin UUID se conservan como texto. Las pruebas PostgreSQL cubren migración incremental V8→V9 con datos válidos e inválidos, restricciones, rol Java, asociación concurrente y compensación de archivos ante fallo SQL/rollback. `ReceiptExpenseTransactionPostgresTest` verifica además el alta atómica con comprobante, rechazos 403/404/409, fallo SQL y dos altas concurrentes con un único ganador. No se agregan ni modifican migraciones en esta corrección E4.2.
 
-Nuevas migraciones para restricciones adicionales necesarias, vistas, roles y metadatos de cobertura/adjuntos cuando se concrete su diseño. Comprobar migración desde base existente con datos, no únicamente desde una base vacía. La suma de partes requiere operación transaccional; una FK no garantiza esa igualdad.
+Las vistas, roles y cobertura están implementados en V7; los adjuntos en V8/V9. Cualquier restricción adicional requiere una nueva migración coordinada, sin alterar versiones aplicadas. Comprobar migración desde base existente con datos, no únicamente desde una base vacía. La suma de partes requiere operación transaccional; una FK no garantiza esa igualdad.
 
 ARS única y calendario en configuración de servidor, sin reintroducir timezone por organización. Anulación/desactivación lógica; no purgar datos como mantenimiento. Evitar que cambios en membresías alteren distribuciones históricas.
 
