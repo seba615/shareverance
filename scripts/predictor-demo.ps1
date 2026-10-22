@@ -1,6 +1,8 @@
 param(
-    [ValidateSet('start', 'load', 'check', 'status', 'stop', 'test', 'audit')]
-    [string]$Action = 'status'
+    [ValidateSet('start', 'load', 'check', 'status', 'stop', 'test', 'audit', 'evaluate')]
+    [string]$Action = 'status',
+    [string]$FromMonth = '2024-01',
+    [string]$ToMonth = '2024-12'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -16,14 +18,23 @@ try {
         'status' { & docker @composeArgs ps }
         'stop' { & docker @composeArgs stop }
         'test' {
-            & docker @composeArgs build python-service
+            & docker @composeArgs build python-service 1> $null
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
             & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" -m unittest discover -s /tools -p test_load_predictor_demo.py -v
             if ($LASTEXITCODE -ne 0) { throw 'Fallaron pruebas del cargador.' }
             & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" -m unittest discover -s /tools -p test_audit_predictor_dataset.py -v
+            if ($LASTEXITCODE -ne 0) { throw 'Fallaron pruebas de auditoría.' }
+            & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" -m unittest discover -s /tools -p test_evaluate_predictor_csv.py -v
+        }
+        'evaluate' {
+            & docker @composeArgs build python-service 1> $null
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
+            $commit = & git -C $repo rev-parse HEAD
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo identificar el commit.' }
+            & docker run --rm --network none --env PYTHONPATH=/app --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --mount "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos.csv,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" /tools/evaluate_predictor_csv.py --csv /data/gastos.csv --from-month $FromMonth --to-month $ToMonth --commit $commit
         }
         'audit' {
-            & docker @composeArgs build python-service
+            & docker @composeArgs build python-service 1> $null
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
             & docker run --rm --network none --mount "type=bind,source=$PSScriptRoot/audit_predictor_dataset.py,target=/tools/audit.py,readonly" --mount "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos.csv,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" /tools/audit.py --csv /data/gastos.csv
         }

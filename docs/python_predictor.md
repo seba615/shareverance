@@ -243,6 +243,30 @@ Si el candidato no cumple, conservar la referencia elegida en desarrollo y docum
 
 ### Evaluación final que debe implementar el equipo
 
+<a id="evaluador-p3"></a>
+
+#### P3 inicial: evaluador CSV de desarrollo
+
+Seguimiento [#69](https://github.com/seba615/shareverance/issues/69), basado en la auditoría P1 y propuesta P2. Esta entrega permite experimentar con **h=1 y objetivos sólo de 2023–2024**. Reutiliza los predictores SES alpha 0.3, último mes y media histórica; no selecciona ni activa un modelo. Cualquier rango que alcance 2025 se rechaza. No sustituye la aceptación/congelación pendiente de P2 ni implementa P2-H/P3-H.
+
+Desde la raíz, con Docker Desktop Linux activo:
+
+```powershell
+# No iniciar base ni frontend para evaluar offline.
+New-Item -ItemType Directory -Force backend-java/target/p3 | Out-Null
+.\scripts\predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12 > backend-java/target/p3/desarrollo.json
+# Si el comando falla, no utilizar el archivo parcial.
+.\scripts\predictor-demo.ps1 test
+```
+
+El contenedor ejecuta sin red, scripts/CSV en sólo lectura y dependencias declaradas en el Dockerfile/lock Python. La construcción puede necesitar Internet. Los logs de construcción no se mezclan con stdout del JSON; errores conservan salida fallida. El evaluador no requiere ni altera servicios de aplicación. Para iniciar el entorno integrado seguir [P1-D](#entorno-demo-predictor), cuyo predictor operativo no cambia.
+
+El JSON identifica hash original del CSV, commit proporcionado por Git (base si hay cambios locales sin commit), SHA-256 del archivo evaluador, rango/alpha/mínimo/versión de métodos. Incluye predicción, real, error absoluto/firmado por objetivo y método, métricas por serie y resúmenes **separados** organización/categoría. La media de MAE por nivel usa peso igual por serie y se conserva además como fracción exacta de centavos; WAPE agrupado usa suma de errores/suma de reales. No decidir con importes redondeados. El informe siempre declara `accepted:null`, `model_promoted:false` y `reserve_evaluated:false`.
+
+Cada objetivo recibe sólo el historial continuo anterior hasta el primer hueco, sin completar ceros ni consultar observaciones futuras. Con menos de seis meses: `INSUFFICIENT_HISTORY`; sin real del objetivo: `MISSING_TARGET`. Ambos conservan el punto sin estimación/error inventados. Los resúmenes usan sólo series con todos los objetivos solicitados válidos; informan universo esperado, completo y excluido. Esta exclusión técnica no constituye aceptación del universo final de P2. Una excepción del predictor aborta el informe, no elimina objetivos silenciosamente. El universo organizacional requiere ocho categorías; un mes total sólo existe si las ocho tienen observación. Cobertura se asume **declarada para el experimento sintético**, no real.
+
+La ejecución sobre CSV V1 con objetivos 2024 produjo 50 series organizacionales completas y 400 categorías completas, cero excluidas, 5.400 puntos compartidos por los tres métodos. MAE medio por organización: SES 262.123,06 ARS, último mes 119.270,11 ARS, media histórica 649.680,74 ARS; por categoría: 35.975,26 / 27.109,02 / 81.344,79 ARS respectivamente. SES no mejora último mes en este experimento de desarrollo. No es evaluación final ni precisión demostrada sobre hogares reales; no se ajustaron parámetros con 2025 ni se aplicaron umbrales de promoción.
+
 La propuesta P2 anterior define desarrollo 2023–2024, reserva 2025 y reglas de decisión para revisión. Su aceptación manual, la auditoría P1 y la resolución de cualquier parámetro adicional deben registrarse **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
 
 P3 debe aceptar CSV y rango objetivo explícitos; separar organización/categoría, validar cobertura/continuidad/unidades/límites y emitir hash original, commit/configuración, exclusiones, cantidades de muestras y predicción/error por mes. No basta con pasar sólo los doce valores de 2025 al CLI actual: perdería el entrenamiento anterior y evaluaría sólo los últimos seis. El CLI actual recorre todos los objetivos desde el séptimo mes y no tiene opción de reserva final.
