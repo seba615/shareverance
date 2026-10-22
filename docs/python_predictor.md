@@ -269,9 +269,27 @@ La ejecución sobre CSV V1 con objetivos 2024 produjo 50 series organizacionales
 
 La propuesta P2 anterior define desarrollo 2023–2024, reserva 2025 y reglas de decisión para revisión. Su aceptación manual, la auditoría P1 y la resolución de cualquier parámetro adicional deben registrarse **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
 
-P3 debe aceptar CSV y rango objetivo explícitos; separar organización/categoría, validar cobertura/continuidad/unidades/límites y emitir hash original, commit/configuración, exclusiones, cantidades de muestras y predicción/error por mes. No basta con pasar sólo los doce valores de 2025 al CLI actual: perdería el entrenamiento anterior y evaluaría sólo los últimos seis. El CLI actual recorre todos los objetivos desde el séptimo mes y no tiene opción de reserva final.
+P3 debe aceptar CSV y rango objetivo explícitos; separar organización/categoría, validar cobertura/continuidad/unidades/límites y emitir hash original, commit/configuración, exclusiones, cantidades de muestras y predicción/error por mes. No basta con pasar sólo los doce valores de 2025 al CLI actual: perdería el entrenamiento anterior y evaluaría sólo los últimos seis. El CLI actual admite rango objetivo y exploración explícita de reserva, pero no una evaluación final acreditada.
 
-En P4 se congelan método/parámetros usando desarrollo. Durante la reserva se permite incorporar el valor real de un mes ya transcurrido para predecir el siguiente (ventana progresiva), sin reajustar parámetros con los resultados reservados. Reportar MAE en ARS y WAPE por serie y por nivel; identificar cómo se agrega y evitar que una organización grande o la duplicación entre total y categorías oculten degradaciones. MAE nominal de 2023 y 2025 no implica el mismo poder adquisitivo; cualquier ajuste por inflación requiere fuente y protocolo separados, sin agregarlo silenciosamente.
+#### P4: barrido reproducible y reserva histórica exploratoria
+
+Seguimiento [#71](https://github.com/seba615/shareverance/issues/71). La [evidencia corregida](evidencia/p4/README.md) conserva las métricas ya publicadas de 2025 como exploratorias: no consta aceptación previa de P2 ni manifiesto/configuración congelados antes de abrir la reserva. No se acredita ejecución única, aceptación de calidad o selección operativa independiente. 2025 ya fue consultado y no debe presentarse como intacto en una evaluación posterior. El código no implementa un modo de evaluación final acreditada.
+
+Para reproducir desarrollo desde la raíz, sin iniciar servicios y con Docker Desktop Linux:
+
+```powershell
+New-Item -ItemType Directory -Force backend-java/target/p4 | Out-Null
+.\scripts\predictor-demo.ps1 test
+.\scripts\predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12 -SweepAlpha > backend-java/target/p4/desarrollo-alpha.json
+# Alternativa para un único alpha, sólo desarrollo:
+.\scripts\predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12 -Alpha 0.7
+```
+
+El grid fijo 0.1/0.3/0.5/0.7/0.9/0.99/1.0 se ejecuta únicamente en desarrollo y conserva hashes, configuración, métricas y deterioro exacto frente a la mejor referencia por serie. No combinar SweepAlpha con AllowReserve. Alpha 0.7 mejora el MAE de categorías frente a último mes (26.388,43 vs 27.109,02 ARS), pero no organizaciones; alpha 1 reproduce último mes. No afirmar imposibilidad general de mejora. El candidato histórico alpha 0.3 no se presenta como resultado óptimo de selección.
+
+AllowReserve permanece como acceso **exploratorio explícito**, no como autorización metodológica de evaluación final. Exige enero–diciembre de 2025 completos, todas las series del archivo sin exclusiones y alpha histórico 0.3; rechaza rangos parciales/mixtos, huecos y ajustes de alpha sobre reserva. El informe marca synthetic_reserve_exploratory, accepted:null, model_promoted:false y final_evaluation_accredited:false. El flag no garantiza ejecución única ni verifica por sí solo un universo previamente acordado. Sus controles se prueban con fixtures sintéticos; no se reabre rutinariamente la reserva real.
+
+Los resultados históricos muestran mayor error de SES 0.3 que de último mes, pero no convierten los umbrales propuestos en criterios aceptados ni promueven la referencia ganadora de 2025. Sus frecuencias de deterioro publicadas se comparaban con último mes; se identifican como tales y no como el cálculo P2 frente al mínimo de ambas referencias por serie. Las decisiones de P5 y la evaluación multihorizonte siguen pendientes.
 
 Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 y datos de desarrollo cargados de forma aislada mediante Java/procedimiento acordado, preservando relaciones y cobertura explícita. Este CSV no se carga automáticamente ni el informe cambia `PREDICTOR_MODE`. No modificar el entorno de validación humana para ejecutar esta guía.
 

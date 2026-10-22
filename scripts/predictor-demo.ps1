@@ -2,7 +2,10 @@ param(
     [ValidateSet('start', 'load', 'check', 'status', 'stop', 'test', 'audit', 'evaluate')]
     [string]$Action = 'status',
     [string]$FromMonth = '2024-01',
-    [string]$ToMonth = '2024-12'
+    [string]$ToMonth = '2024-12',
+    [switch]$AllowReserve,
+    [switch]$SweepAlpha,
+    [double]$Alpha = 0.3
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -31,7 +34,11 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo construir la imagen.' }
             $commit = & git -C $repo rev-parse HEAD
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo identificar el commit.' }
-            & docker run --rm --network none --env PYTHONPATH=/app --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --mount "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos.csv,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" /tools/evaluate_predictor_csv.py --csv /data/gastos.csv --from-month $FromMonth --to-month $ToMonth --commit $commit
+            $evalArgs = @('/tools/evaluate_predictor_csv.py', '--csv', '/data/gastos.csv', '--from-month', $FromMonth, '--to-month', $ToMonth, '--commit', $commit)
+            if ($AllowReserve) { $evalArgs += '--allow-reserve' }
+            if ($SweepAlpha) { $evalArgs += '--sweep-alpha' }
+            $evalArgs += @('--alpha', $Alpha.ToString([Globalization.CultureInfo]::InvariantCulture))
+            & docker run --rm --network none --env PYTHONPATH=/app --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --mount "type=bind,source=$repo/demo/gastos_prueba.csv,target=/data/gastos.csv,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" @evalArgs
         }
         'audit' {
             & docker @composeArgs build python-service 1> $null
