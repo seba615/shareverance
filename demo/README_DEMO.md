@@ -57,6 +57,8 @@ Para este ejemplo se considera completo el historial de prueba y se declara `ava
 
 ## Uso en desarrollo
 
+La [guía integrada P1-D](../docs/python_predictor.md#entorno-demo-predictor) permite cargar la organización externa 1 hasta 2024-12 mediante Java en una base aislada y probar con usuario desde localhost:5176. Comandos PowerShell, credenciales, conciliación, repetición y detención están allí; no cargar el SQL local ajeno ni insertar directamente estas filas en la base habitual. Las 50 organizaciones completas y otros cortes todavía no están soportados por el cargador.
+
 Para comparar SES, último mes y media histórica con el CSV, seguir la [guía ejecutable de evaluación](../docs/python_predictor.md#evaluación-con-el-csv-de-demostración). El [plan P1–P5](../docs/road_map.md#plan-complementario-del-predictor) organiza auditoría, protocolo, evaluador CSV, comparación e integración. La prueba actual trabaja offline con 2023–2024 y no carga PostgreSQL; 2025 se propone como reserva. Los datos adaptados no acreditan precisión sobre hogares reales ni aceptación automática del modelo.
 
 1. Usar el JSON como entrada compartida para probar la serialización en Java y la validación en Python.
@@ -68,7 +70,7 @@ Para probar `POST /api/v1/analytics/monthly`, utilizar el mismo cuerpo **elimina
 
 Las predicciones generales y por categoría son independientes: su suma no tiene que coincidir con la predicción general.
 
-La carga del CSV en PostgreSQL es una tarea separada. Debe realizarse mediante un seed de desarrollo repetible, preservando relaciones y evitando duplicados. Si se convierte cada total agregado en un gasto, debe identificarse como representación sintética para demostración.
+P1-D incorpora carga repetible mediante Java para la organización 1 y meses 2023–2024 en PostgreSQL aislado, según la guía enlazada. Las 50 organizaciones completas y otros cortes requieren una ampliación posterior. Cada total agregado se identifica como gasto sintético mensual; no representa la distribución diaria real ni un comprobante.
 
 La especificación completa de campos, validaciones, respuestas y errores se encuentra en [Contrato python](../docs/contratos_api.md).
 
