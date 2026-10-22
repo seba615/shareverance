@@ -157,6 +157,51 @@ La preparación es específica del ejemplo (IDs y ocho categorías); no sustituy
 
 Salida esperada: `series_months:24`, `min_train_months:6`, `alpha:0.3`, `accepted:null`, hash de la entrada JSON y métricas de SES/último mes/media histórica. Cada método evalúa los mismos 18 objetivos, de julio de 2023 a diciembre de 2024, utilizando sólo meses anteriores. `accepted:null` significa que el informe no acepta ni activa ningún modelo. Guardar también hash del CSV, commit (`git rev-parse HEAD`), selección y comandos junto al informe si se comparte evidencia. No publicar datos privados.
 
+### Protocolo formal de evaluación y reglas cuantitativas (P2)
+
+Este protocolo define las reglas vinculantes que debe implementar el evaluador automatizado (P3) y respetar cualquier comparación de candidatos (P4–P5) antes de la evaluación final del Predictor.
+
+#### 1. Partición temporal estricta y blindaje de reserva
+
+- **Conjunto de desarrollo (2023-01 a 2024-12, 24 meses):** reservado exclusivamente para análisis exploratorio, ajuste de parámetros (por ejemplo sintonización de `alpha` en SES) y validación cruzada temporal.
+- **Conjunto de reserva final (2025-01 a 2025-12, 12 meses):** congelado e intocable durante el desarrollo. Solo se evalúa **una única vez** cuando el método y sus hiperparámetros estén formalmente congelados en código.
+- **Aislamiento temporal sin fuga (no data leakage):** en cualquier instante $t$, la predicción solo puede construirse con datos de meses anteriores $\le t-1$. No se permite el ajuste ni la normalización utilizando valores del mes objetivo ni de meses futuros. En evaluación con ventana progresiva sobre la reserva, incorporar el real de un mes transcurrido para predecir el siguiente es válido, pero está terminantemente prohibido reajustar hiperparámetros del modelo con los errores observados en dicha reserva.
+
+#### 2. Condiciones de serie válida y ventana mínima
+
+- **Ventana mínima de historia:** mínimo estricto de **6 meses continuos y cerrados con cobertura confirmada** previos al mes objetivo. Si una serie dispone de menos de 6 meses, emite estado de insuficiencia (`INSUFFICIENT_HISTORY`) y se excluye del cómputo de errores para ese corte.
+- **Continuidad y cobertura explícita:** no se imputan ceros por defecto ante huecos temporales; la serie debe poseer cobertura confirmada en todos los meses del rango evaluado.
+- **Niveles de agregación independientes:** el evaluador debe computar y reportar métricas separadas por nivel:
+  1. *Total mensual por organización:* suma de todas las categorías de la organización para cada mes.
+  2. *Por categoría individual:* series mensuales de cada categoría de la organización.
+  No se permite mezclar o promediar linealmente totales organizacionales con categorías individuales, para evitar duplicación de ponderación y ocultamiento de sesgos.
+
+#### 3. Métricas cuantitativas oficiales
+
+Todas las métricas monetarias se calculan en base a importes exactos en centavos y se expresan en ARS con redondeo `ROUND_HALF_UP` a 2 decimales:
+
+- **Métrica principal — Error Absoluto Medio (MAE en ARS):**
+  $$\text{MAE} = \frac{1}{N} \sum_{t=1}^{N} |y_t - \hat{y}_t|$$
+  Penaliza de forma directa y lineal el desvío monetario en pesos.
+- **Métrica auxiliar de escala — WAPE (Weighted Absolute Percentage Error):**
+  $$\text{WAPE} = \frac{\sum_{t=1}^{N} |y_t - \hat{y}_t|}{\sum_{t=1}^{N} y_t} \times 100$$
+  Medida relativa porcentual robusta frente a meses con gasto cero. Si la suma de valores reales es cero, WAPE es `null` y no se inventa error cero.
+- **Métrica auxiliar de dispersión — Raíz del Error Cuadrático Medio (RMSE en ARS):**
+  $$\text{RMSE} = \sqrt{\frac{1}{N} \sum_{t=1}^{N} (y_t - \hat{y}_t)^2}$$
+  Penaliza desvíos grandes atípicos frente a errores moderados continuos.
+- **MAPE (Mean Absolute Percentage Error):** métrica secundaria informativa, calculada únicamente sobre meses con $y_t > 0$, declarando explícitamente el número de muestras computadas (`mape_samples`).
+
+#### 4. Regla de decisión cuantitativa para promoción de modelos
+
+Para que un candidato (ej. SES u otro modelo) sea aceptado y promovido para reemplazar a las referencias basales (`last_month` / `historical_mean`), debe cumplir **simultáneamente** en el conjunto de reserva:
+
+1. **Superación global en MAE:** el MAE agregado del candidato debe ser menor que el de ambas referencias basales (`last_month` y `historical_mean`) en al menos un **5 %** de mejora relativa:
+   $$\text{MAE}_{\text{candidato}} \le \min(\text{MAE}_{\text{last\_month}}, \text{MAE}_{\text{historical\_mean}}) \times 0.95$$
+2. **Control de degradación por serie (límite de consistencia):** el candidato no debe empeorar el MAE frente a la mejor referencia en más del **20 % de las series válidas evaluadas**.
+3. **Ausencia de sesgo divergente:** en series de tendencia inflacionaria o estacional marcada, si el candidato produce un error sistemático mayor al de la referencia naive de último mes, se mantiene la referencia simple como método operativo o fallback. Si ningún candidato bate el umbral del 5 %, se conserva la referencia basal más precisa documentando la evidencia.
+
+---
+
 ### Evaluación final que debe implementar el equipo
 
 P2 propone desarrollo 2023–2024 y reserva enero–diciembre de 2025. El equipo debe fijar la métrica principal, umbral de mejora y tolerancia de degradación por serie **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
