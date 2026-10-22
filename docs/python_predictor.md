@@ -159,52 +159,62 @@ Salida esperada: `series_months:24`, `min_train_months:6`, `alpha:0.3`, `accepte
 
 ### Protocolo formal de evaluación y reglas cuantitativas (P2)
 
-Este protocolo define las reglas vinculantes que debe implementar el evaluador automatizado (P3) y respetar cualquier comparación de candidatos (P4–P5) antes de la evaluación final del Predictor.
+**Estado: propuesta documental para aceptación manual, condicionada a P1.** Los umbrales del 5 % y 20 % son criterios de decisión propuestos, no resultados empíricos ni valores ya aceptados. P3 puede preparar el evaluador, pero la evaluación final requiere P1, aceptación explícita del protocolo y congelación de su configuración. Esta entrega no acepta ni activa un modelo.
 
-#### 1. Partición temporal estricta y blindaje de reserva
+Este protocolo corresponde a **un mes por origen (h=1)**. Los horizontes de 4–6 meses requieren P2-H y sus criterios por horizonte; no heredan automáticamente estos umbrales.
 
-- **Conjunto de desarrollo (2023-01 a 2024-12, 24 meses):** reservado exclusivamente para análisis exploratorio, ajuste de parámetros (por ejemplo sintonización de `alpha` en SES) y validación cruzada temporal.
-- **Conjunto de reserva final (2025-01 a 2025-12, 12 meses):** congelado e intocable durante el desarrollo. Solo se evalúa **una única vez** cuando el método y sus hiperparámetros estén formalmente congelados en código.
-- **Aislamiento temporal sin fuga (no data leakage):** en cualquier instante $t$, la predicción solo puede construirse con datos de meses anteriores $\le t-1$. No se permite el ajuste ni la normalización utilizando valores del mes objetivo ni de meses futuros. En evaluación con ventana progresiva sobre la reserva, incorporar el real de un mes transcurrido para predecir el siguiente es válido, pero está terminantemente prohibido reajustar hiperparámetros del modelo con los errores observados en dicha reserva.
+#### 1. Partición temporal estricta y reserva final
 
-#### 2. Condiciones de serie válida y ventana mínima
+- Desarrollo: enero de 2023 a diciembre de 2024, para exploración, comparación y ajuste de parámetros mediante validación temporal.
+- Reserva propuesta: enero a diciembre de 2025, evaluada una sola vez tras congelar en código el candidato, sus parámetros, las referencias, la política operativa y el protocolo. P1 debe comprobar procedencia, cobertura y si esos valores ya se usaron para seleccionar métodos; una reserva utilizada para selección deja de ser independiente y exige otra evaluación acordada.
+- Para predecir un mes objetivo, usar solamente meses anteriores. En la reserva progresiva se puede incorporar un real ya transcurrido para el objetivo siguiente, sin reajustar parámetros ni elegir métodos a partir de los errores reservados.
+- Registrar hash del CSV, commit, configuración y manifiesto de series/objetivos antes de ejecutar la reserva. Una corrección de implementación posterior debe declararse; no presentar una segunda ejecución como una primera evaluación intacta.
 
-- **Ventana mínima de historia:** mínimo estricto de **6 meses continuos y cerrados con cobertura confirmada** previos al mes objetivo. Si una serie dispone de menos de 6 meses, emite estado de insuficiencia (`INSUFFICIENT_HISTORY`) y se excluye del cómputo de errores para ese corte.
-- **Continuidad y cobertura explícita:** no se imputan ceros por defecto ante huecos temporales; la serie debe poseer cobertura confirmada en todos los meses del rango evaluado.
-- **Niveles de agregación independientes:** el evaluador debe computar y reportar métricas separadas por nivel:
-  1. *Total mensual por organización:* suma de todas las categorías de la organización para cada mes.
-  2. *Por categoría individual:* series mensuales de cada categoría de la organización.
-  No se permite mezclar o promediar linealmente totales organizacionales con categorías individuales, para evitar duplicación de ponderación y ocultamiento de sesgos.
+#### 2. Series, cobertura y comparabilidad
 
-#### 3. Métricas cuantitativas oficiales
+Una serie es el total mensual de una organización o una categoría identificada por organización y categoría. Cada objetivo requiere al menos seis meses consecutivos, cerrados y con cobertura confirmada, inmediatamente anteriores; se utiliza todo el historial continuo válido disponible del período de entrenamiento acordado. La insuficiencia se registra como `INSUFFICIENT_HISTORY`, sin estimación ni error inventados. No imputar ceros a huecos; cero confirmado sí es una observación válida.
 
-Todas las métricas monetarias se calculan en base a importes exactos en centavos y se expresan en ARS con redondeo `ROUND_HALF_UP` a 2 decimales:
+Para la decisión final propuesta se exige cobertura de los doce objetivos de 2025 y sus antecedentes para cada serie elegible. P1 debe fijar el universo elegible antes de consultar resultados reservados. Informar series esperadas, elegibles, excluidas, motivo y muestras por método; una exclusión no puede depender del error obtenido. Si falta cobertura, no reducir silenciosamente el universo: acordar otro protocolo antes de abrir la reserva.
 
-- **Métrica principal — Error Absoluto Medio (MAE en ARS):**
-  $$\text{MAE} = \frac{1}{N} \sum_{t=1}^{N} |y_t - \hat{y}_t|$$
-  Penaliza de forma directa y lineal el desvío monetario en pesos.
-- **Métrica auxiliar de escala — WAPE (Weighted Absolute Percentage Error):**
-  $$\text{WAPE} = \frac{\sum_{t=1}^{N} |y_t - \hat{y}_t|}{\sum_{t=1}^{N} y_t} \times 100$$
-  Medida relativa porcentual robusta frente a meses con gasto cero. Si la suma de valores reales es cero, WAPE es `null` y no se inventa error cero.
-- **Métrica auxiliar de dispersión — Raíz del Error Cuadrático Medio (RMSE en ARS):**
-  $$\text{RMSE} = \sqrt{\frac{1}{N} \sum_{t=1}^{N} (y_t - \hat{y}_t)^2}$$
-  Penaliza desvíos grandes atípicos frente a errores moderados continuos.
-- **MAPE (Mean Absolute Percentage Error):** métrica secundaria informativa, calculada únicamente sobre meses con $y_t > 0$, declarando explícitamente el número de muestras computadas (`mape_samples`).
+Todos los métodos deben evaluarse en exactamente las mismas series y fechas. Un fallo de cálculo de un candidato sobre un objetivo elegible bloquea su promoción; no se excluye ese objetivo para favorecerlo. Cada nivel requiere al menos una serie elegible; sin ella, la aceptación conjunta queda pendiente.
 
-#### 4. Regla de decisión cuantitativa para promoción de modelos
+Reportar por separado totales organizacionales y categorías. Las organizaciones adaptadas del CSV no son observaciones independientes ni acreditan representatividad de hogares reales; P1 debe identificar su relación y las limitaciones de cualquier conclusión.
 
-Para que un candidato (ej. SES u otro modelo) sea aceptado y promovido para reemplazar a las referencias basales (`last_month` / `historical_mean`), debe cumplir **simultáneamente** en el conjunto de reserva:
+#### 3. Métricas y agregación reproducible
 
-1. **Superación global en MAE:** el MAE agregado del candidato debe ser menor que el de ambas referencias basales (`last_month` y `historical_mean`) en al menos un **5 %** de mejora relativa:
-   $$\text{MAE}_{\text{candidato}} \le \min(\text{MAE}_{\text{last\_month}}, \text{MAE}_{\text{historical\_mean}}) \times 0.95$$
-2. **Control de degradación por serie (límite de consistencia):** el candidato no debe empeorar el MAE frente a la mejor referencia en más del **20 % de las series válidas evaluadas**.
-3. **Ausencia de sesgo divergente:** en series de tendencia inflacionaria o estacional marcada, si el candidato produce un error sistemático mayor al de la referencia naive de último mes, se mantiene la referencia simple como método operativo o fallback. Si ningún candidato bate el umbral del 5 %, se conserva la referencia basal más precisa documentando la evidencia.
+Calcular errores desde importes enteros en centavos. Convertir las métricas monetarias a ARS para presentación con `ROUND_HALF_UP` a dos decimales; las comparaciones de aceptación usan valores sin redondear.
+
+- **MAE por serie:** suma de errores absolutos dividida por cantidad de objetivos.
+- **WAPE por serie:** suma de errores absolutos dividida por suma de reales, multiplicada por 100; `null` si el denominador es cero.
+- **RMSE por serie:** raíz del promedio de errores cuadrados, expresada en ARS.
+- **MAPE informativo:** promedio del error porcentual absoluto solo sobre objetivos con real positivo; declarar `mape_samples` y devolver `null` sin muestras.
+- **MAE de decisión por nivel:** media aritmética de los MAE de sus series elegibles, con el mismo peso por serie. Nunca combinar total organizacional y categorías en una sola métrica. La decisión exige cumplir ambos niveles.
+- WAPE de resumen por nivel: sumar errores absolutos y reales de sus observaciones elegibles antes de dividir; `null` si la suma real es cero. RMSE y MAPE se conservan por serie; no intervienen en el umbral primario.
+
+El peso igual por serie no elimina el efecto de escalas monetarias distintas. Publicar MAE, WAPE, diferencias y muestras por serie, además de resúmenes, para que los totales grandes no oculten degradaciones. Todo se expresa en ARS nominales: no demuestra precisión ajustada por inflación ni permite inferir causas del crecimiento del gasto. Un ajuste por inflación requiere fuente y protocolo separados.
+
+#### 4. Regla propuesta de promoción
+
+Aplicar las condiciones siguientes **por separado en cada nivel**, sin elegir un ganador por serie usando la reserva:
+
+1. **Mejora global:** MAE del candidato menor o igual a 0,95 por el menor MAE de nivel de `last_month` y `historical_mean`. Esto exige al menos 5 % de mejora frente a ambas referencias. Si esa mejor referencia tiene MAE cero, un candidato con MAE cero empata: no demuestra mejora ni se promueve; un error positivo pierde.
+2. **Frecuencia de degradación:** para cada serie, comparar el MAE candidato con el menor MAE de sus dos referencias. Contar como degradada si es estrictamente mayor; un empate no cuenta. Exigir `5 * series_degradadas <= series_elegibles`, equivalente a un máximo del 20 %, sin redondear cantidades. El denominador incluye todas las series elegibles del nivel fijadas previamente.
+3. **Magnitud de degradación:** el 20 % anterior mide frecuencia, no tamaño del error. Informar por serie la diferencia absoluta y relativa contra la mejor referencia, además del máximo deterioro. Con referencia cero y candidato positivo, la degradación relativa es indefinida (`null`), debe señalarse explícitamente y cuenta como serie degradada. No se inventa un límite adicional de magnitud: este riesgo requiere revisión manual antes de aceptar el protocolo; si se exige un tope, fijarlo antes de abrir la reserva.
+4. **Decisión:** cumplir los umbrales solo habilita revisión humana de evidencia; no activa el modelo automáticamente ni demuestra precisión en usuarios reales. Un nivel que incumple impide la promoción conjunta propuesta.
+
+#### 5. Método operativo y control de sesgo
+
+La política operativa se elige exclusivamente en desarrollo y se congela antes de la reserva. Como referencia operativa propuesta, elegir por nivel el método simple con menor MAE de desarrollo; en empate, `last_month`. La selección queda registrada y no se cambia por serie mirando errores de 2025.
+
+Registrar también error medio firmado por serie, definido como promedio de predicción menos real: positivo indica sobreestimación y negativo subestimación. Permite inspeccionar sesgo, pero no se usa la expresión «sesgo divergente» como criterio automático sin umbral definido. Cualquier veto cuantitativo adicional por sesgo debe acordarse y congelarse antes de evaluar la reserva.
+
+Si el candidato no cumple, conservar la referencia elegida en desarrollo y documentar los resultados adversos. No seleccionar retrospectivamente la referencia ganadora de 2025 para presentarla como validación independiente; hacerlo requeriría una nueva evaluación. Cualquier política híbrida o fallback por serie debe definirse con desarrollo y evaluarse como candidato completo congelado.
 
 ---
 
 ### Evaluación final que debe implementar el equipo
 
-P2 propone desarrollo 2023–2024 y reserva enero–diciembre de 2025. El equipo debe fijar la métrica principal, umbral de mejora y tolerancia de degradación por serie **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
+La propuesta P2 anterior define desarrollo 2023–2024, reserva 2025 y reglas de decisión para revisión. Su aceptación manual, la auditoría P1 y la resolución de cualquier parámetro adicional deben registrarse **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
 
 P3 debe aceptar CSV y rango objetivo explícitos; separar organización/categoría, validar cobertura/continuidad/unidades/límites y emitir hash original, commit/configuración, exclusiones, cantidades de muestras y predicción/error por mes. No basta con pasar sólo los doce valores de 2025 al CLI actual: perdería el entrenamiento anterior y evaluaría sólo los últimos seis. El CLI actual recorre todos los objetivos desde el séptimo mes y no tiene opción de reserva final.
 
