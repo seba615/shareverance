@@ -57,6 +57,8 @@ Para este ejemplo se considera completo el historial de prueba y se declara `ava
 
 ## Uso en desarrollo
 
+Para comparar SES, último mes y media histórica con el CSV, seguir la [guía ejecutable de evaluación](../docs/python_predictor.md#evaluación-con-el-csv-de-demostración). El [plan P1–P5](../docs/road_map.md#plan-complementario-del-predictor) organiza auditoría, protocolo, evaluador CSV, comparación e integración. La prueba actual trabaja offline con 2023–2024 y no carga PostgreSQL; 2025 se propone como reserva. Los datos adaptados no acreditan precisión sobre hogares reales ni aceptación automática del modelo.
+
 1. Usar el JSON como entrada compartida para probar la serialización en Java y la validación en Python.
 2. Enviarlo al endpoint cuando esté implementado, inicialmente con el simulador.
 3. Comprobar que la respuesta corresponde a la organización 1 y al mes `2026-01`, y devuelve el mismo `request_id`.

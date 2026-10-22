@@ -51,6 +51,75 @@ Implementar suavizado exponencial simple y compararlo con último mes y media hi
 
 Umbral cuantitativo de aceptación y dataset deben fijarse antes de evaluar. No se exige que un modelo complejo reemplace una referencia que funciona mejor. Mostrar método, versión y simulated=false solo cuando la implementación real esté validada. Predicción del siguiente mes y proyección del cierre del actual son capacidades diferentes; esta última no entra automáticamente.
 
+## Evaluación con el CSV de demostración
+
+Ampliación planificada: [demostración integrada y horizonte de 4–6 meses](road_map.md#predictor-multihorizonte). El código y los comandos de esta guía siguen evaluando **un mes por origen**. No ofrecen todavía previsiones de 4/5/6 meses. La nueva evaluación debe mantener un origen común para todos los meses de cada previsión, sin incorporar reales futuros entre pasos; reportará errores por horizonte. La carga con usuario/organización/gastos en base aislada es P1-D, pendiente de implementación y revisión del plan.
+
+El [plan complementario P1–P5](road_map.md#plan-complementario-del-predictor), seguimiento [#59](https://github.com/seba615/shareverance/issues/59), organiza el trabajo del equipo. Esta guía permite probar el evaluador **existente**; el evaluador CSV completo y la aceptación final todavía son trabajo pendiente.
+
+### Datos y límites
+
+`demo/gastos_prueba.csv` contiene totales mensuales, no gastos individuales: 50 organizaciones inventadas, ocho categorías por organización y 36 meses (2023–2025), en centavos ARS. La [procedencia documentada](../demo/README_DEMO.md) es estadística pública de canastas adaptada al proyecto. No equivale a 50 historiales independientes de hogares. P1 debe documentar la transformación y cobertura antes de usarlo como conjunto de aceptación. No se consulta la fuente externa ni se valida su transformación mediante esta guía.
+
+No completar huecos con cero ni deducir cobertura del simple hecho de que existan filas. Para esta prueba se adopta la cobertura completa del ejemplo documentado de organización 1; esa convención de demostración no declara cobertura en PostgreSQL. Otros conjuntos requieren una declaración verificable de cobertura.
+
+### Prueba exploratoria disponible hoy
+
+Requisito: Docker Desktop con contenedores Linux. Ejecutar PowerShell desde la raíz del repositorio. La construcción utiliza las dependencias declaradas y `uv.lock`; no inicia servicios, publica puertos ni carga/modifica la base. Los resultados quedan en `backend-java/target/predictor-exploracion`, ignorado por Git.
+
+El ejemplo selecciona organización 1 y **sólo 2023–2024** para mantener 2025 reservado. Suma categorías una vez por mes. Para probar una categoría, cambiar la selección como se indica debajo.
+
+```powershell
+$csvPath = (Resolve-Path 'demo/gastos_prueba.csv').Path
+$outputDir = Join-Path $PWD.Path 'backend-java/target/predictor-exploracion'
+New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+$selectedRows = @(Import-Csv -LiteralPath $csvPath -Delimiter ';' | Where-Object {
+    $_.organization_id -eq '1' -and $_.month -ge '2023-01' -and $_.month -le '2024-12'
+})
+if ($selectedRows.Count -ne 192) { throw 'Se esperaban 24 meses por ocho categorías; revisar CSV y cobertura.' }
+if (@($selectedRows | Group-Object month,category_id | Where-Object Count -ne 1).Count) {
+    throw 'Claves mensuales duplicadas.'
+}
+$monthlyGroups = @($selectedRows | Group-Object month | Sort-Object Name)
+$amounts = @($monthlyGroups | ForEach-Object {
+    if ($_.Count -ne 8) { throw 'Mes incompleto para esta demostración.' }
+    [long]$total = 0
+    foreach ($row in $_.Group) {
+        if ($row.currency -ne 'ARS' -or $row.amount_minor -notmatch '^\d+$') {
+            throw 'Moneda o importe inválido.'
+        }
+        $total += [long]$row.amount_minor
+    }
+    $total
+})
+$expectedMonths = @(0..23 | ForEach-Object { ([datetime]'2023-01-01').AddMonths($_).ToString('yyyy-MM') })
+if (($monthlyGroups.Name -join ',') -ne ($expectedMonths -join ',')) { throw 'Meses discontinuos.' }
+$inputFile = Join-Path $outputDir 'organizacion-1-desarrollo.json'
+$inputJson = @{ amounts_minor = $amounts } | ConvertTo-Json -Depth 3
+[IO.File]::WriteAllText($inputFile, $inputJson, [Text.UTF8Encoding]::new($false))
+Get-FileHash -LiteralPath $csvPath -Algorithm SHA256
+docker build -t shareverance-predictor-evaluacion:local service-python
+if ($LASTEXITCODE -ne 0) { throw 'Falló la construcción de la imagen.' }
+$report = docker run --rm --network none --mount "type=bind,source=$outputDir,target=/evaluation,readonly" shareverance-predictor-evaluacion:local /app/.venv/bin/python -m app.predictors.evaluation /evaluation/organizacion-1-desarrollo.json
+if ($LASTEXITCODE -ne 0) { throw 'Falló la evaluación.' }
+$report | Set-Content -LiteralPath (Join-Path $outputDir 'informe-organizacion-1.json') -Encoding utf8
+$report
+```
+
+La preparación es específica del ejemplo (IDs y ocho categorías); no sustituye al validador general de P3. Para categoría 1, filtrar adicionalmente `category_id -eq '1'`, exigir 24 filas y una fila por mes en vez de 192 y ocho; usar otros nombres de entrada/informe para conservar ambos resultados.
+
+Salida esperada: `series_months:24`, `min_train_months:6`, `alpha:0.3`, `accepted:null`, hash de la entrada JSON y métricas de SES/último mes/media histórica. Cada método evalúa los mismos 18 objetivos, de julio de 2023 a diciembre de 2024, utilizando sólo meses anteriores. `accepted:null` significa que el informe no acepta ni activa ningún modelo. Guardar también hash del CSV, commit (`git rev-parse HEAD`), selección y comandos junto al informe si se comparte evidencia. No publicar datos privados.
+
+### Evaluación final que debe implementar el equipo
+
+P2 propone desarrollo 2023–2024 y reserva enero–diciembre de 2025. El equipo debe fijar la métrica principal, umbral de mejora y tolerancia de degradación por serie **antes** de mirar resultados finales. Si 2025 ya se utilizó para seleccionar parámetros, deja de ser una reserva independiente: declararlo y acordar otra evaluación, sin presentarlo como prueba intacta.
+
+P3 debe aceptar CSV y rango objetivo explícitos; separar organización/categoría, validar cobertura/continuidad/unidades/límites y emitir hash original, commit/configuración, exclusiones, cantidades de muestras y predicción/error por mes. No basta con pasar sólo los doce valores de 2025 al CLI actual: perdería el entrenamiento anterior y evaluaría sólo los últimos seis. El CLI actual recorre todos los objetivos desde el séptimo mes y no tiene opción de reserva final.
+
+En P4 se congelan método/parámetros usando desarrollo. Durante la reserva se permite incorporar el valor real de un mes ya transcurrido para predecir el siguiente (ventana progresiva), sin reajustar parámetros con los resultados reservados. Reportar MAE en ARS y WAPE por serie y por nivel; identificar cómo se agrega y evitar que una organización grande o la duplicación entre total y categorías oculten degradaciones. MAE nominal de 2023 y 2025 no implica el mismo poder adquisitivo; cualquier ajuste por inflación requiere fuente y protocolo separados, sin agregarlo silenciosamente.
+
+Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 y datos de desarrollo cargados de forma aislada mediante Java/procedimiento acordado, preservando relaciones y cobertura explícita. Este CSV no se carga automáticamente ni el informe cambia `PREDICTOR_MODE`. No modificar el entorno de validación humana para ejecutar esta guía.
+
 ## Pruebas y operación
 
 Conservar pruebas del contrato actual mientras se migra. Cubrir tipos estrictos, campos desconocidos, meses duplicados/discontinuos, recorte, categorías nuevas/inactivas, cero frente a falta de datos, seis meses, límites de enteros y totales. Integración real de vistas y permisos con dos organizaciones; caída SQL, pool y limpieza de contexto entre conexiones. Evaluación reproducible del modelo y circuito Java→Python→PostgreSQL. Logs sin datos de comprobantes ni credenciales.
