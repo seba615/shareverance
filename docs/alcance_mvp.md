@@ -1,6 +1,6 @@
 # Alcance y reglas del MVP 1
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
@@ -50,13 +50,13 @@ Ediciones concurrentes requieren versión optimista: la edición debe enviar la 
 
 ## Calendario, analítica y OCR
 
-El calendario debe permitir consultar gastos por fecha y abrir su detalle. El diseño mensual con total diario es la propuesta de implementación pendiente de precisar en [front.md](front.md); no agrega recurrencias.
+El calendario debe permitir consultar gastos por fecha y abrir su detalle. El calendario mensual con totales diarios, navegación y consulta de detalle está implementado según [front.md](front.md), con aceptación integral pendiente; no agrega recurrencias.
 
 Analítica usa fecha del gasto y solo gastos vigentes; diferencia entre gasto organizacional y participación individual. Un mes sin cobertura conocida no se transforma automáticamente en cero. Predicción del mes siguiente al último cerrado con cobertura confiable.
 
 Ampliación planificada del predictor: previsiones mensuales de 4, 5 o 6 meses desde un mismo corte confirmado, con seis meses como máximo y avisos de calidad por horizonte sustentados en evaluación. El contrato y la implementación actuales siguen siendo de un mes; la ampliación requiere revisión e implementación coordinadas según el [plan complementario](road_map.md#predictor-multihorizonte). Incluye preparación de un entorno demostrativo separado con usuarios y gastos sintéticos derivados del CSV, sin alterar la validación humana en curso. No se declara implementada ni aceptada.
 
-E3.1 registra cobertura explícita por organización y mes cerrado, declarada por ADMIN activo mediante Java y retirable lógicamente sin borrar el registro. No infiere cobertura por el primer gasto, por crear una organización ni por ausencia de filas. Las vistas SQL usan contexto de organización limitado a la transacción; sin contexto válido no devuelven datos. El consumidor Python y la retirada del callback siguen pendientes de E3.2; esta base SQL no acredita analítica ni predicción reales.
+E3.1 registra cobertura explícita por organización y mes cerrado, declarada por ADMIN activo mediante Java y retirable lógicamente sin borrar el registro. No infiere cobertura por el primer gasto, por crear una organización ni por ausencia de filas. Las vistas SQL usan contexto de organización limitado a la transacción; sin contexto válido no devuelven datos. E3.2 implementa el consumidor Python y retira el callback; E5 incorpora analítica desde las vistas. El predictor predeterminado sigue en mock, con SES experimental opcional y aceptación predictiva pendiente.
 
 OCR opcional: fecha, importe y descripción de hasta 500 caracteres; valor alternativo `Varios` cuando la descripción no es utilizable. No extrae proveedor, razón social ni moneda. El usuario revisa y confirma antes del alta. Un fallo de OCR permite continuar manualmente.
 
@@ -68,4 +68,4 @@ Logs técnicos mínimos con correlación, sin secretos, contraseñas, tokens ni 
 
 ## Precisiones todavía necesarias
 
-Las decisiones de arquitectura no resuelven por sí solas estos parámetros: semántica detallada del calendario, limpieza de archivos sin asociación, biblioteca gráfica, umbral de evaluación predictiva, retención de logs y recuperación de contraseña/verificación de email. E7.1 incorpora herramientas de respaldo/restauración y pruebas aisladas; la aceptación operativa y el cierre permanecen manuales ([postgre.md](postgre.md)). E4.1/E4.2 concretan motor Tesseract, límite de 50 MP, reglas de `Varios` y tiempos de OCR en [python_ocr.md](python_ocr.md); la precisión en un conjunto representativo sigue pendiente de evaluación. La autenticación Java→Python se concreta en [contratos_api.md](contratos_api.md). El aislamiento SQL transaccional y la fuente de cobertura se concretan en E3.1 y [postgre.md](postgre.md). Ver tareas del [roadmap](road_map.md). Ninguno se considera implementado por estar especificado aquí.
+Las decisiones de arquitectura no resuelven por sí solas estos parámetros: limpieza de archivos sin asociación, umbral de evaluación predictiva, retención de logs y recuperación de contraseña/verificación de email. E7.1 incorpora herramientas de respaldo/restauración y pruebas aisladas; la aceptación operativa y el cierre permanecen manuales ([postgre.md](postgre.md)). E4.1/E4.2 concretan motor Tesseract, límite de 50 MP, reglas de `Varios` y tiempos de OCR en [python_ocr.md](python_ocr.md); la precisión en un conjunto representativo sigue pendiente de evaluación. La autenticación Java→Python se concreta en [contratos_api.md](contratos_api.md). El aislamiento SQL transaccional y la fuente de cobertura se concretan en E3.1 y [postgre.md](postgre.md). Calendario mensual y gráficos SVG con tablas ya tienen implementación, sin acreditar aceptación integral. Ver tareas y evidencia del [roadmap](road_map.md); una especificación por sí sola no demuestra implementación.

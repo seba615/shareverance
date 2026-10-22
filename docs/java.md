@@ -1,6 +1,6 @@
 # Backend Java
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
 
 Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
 
@@ -9,7 +9,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 Spring Boot con JDBC, sin JPA. Código en `backend-java/src/main/java/com/shareverance/`. Controladores de autenticación, usuarios, organizaciones, membresías, categorías y gastos; repositorios JDBC; migraciones Flyway. Las APIs existentes no equivalen a cumplimiento integral de permisos y validaciones.
 
-Sesión web mediante cookie; frontend obtiene CSRF antes de mutaciones. El código contiene además autenticación técnica para el circuito histórico Python→Java. Ese circuito debe migrarse al acceso Python→vistas, sin reutilizar sus credenciales automáticamente en sentido inverso.
+Sesión web mediante cookie; frontend obtiene CSRF antes de mutaciones. E3.2 retiró el callback Python→Java y sus rutas técnicas de token/historial. Java autoriza y solicita predicción a Python con Bearer interno; Python consulta vistas SQL con credencial propia de lectura.
 
 Implementación E1.1 integrada mediante PR #25, commit `7733612`: la autorización de rutas exige cuenta, membresía y organización activas; las organizaciones con moneda distinta de ARS no son operables. Java también rechaza moneda no ARS y estados inactivos al crear organizaciones, miembros, categorías y gastos. Esto no certifica aislamiento integral ni aceptación con PostgreSQL.
 
@@ -17,7 +17,7 @@ Implementación E1.1 integrada mediante PR #25, commit `7733612`: la autorizaci�
 
 E3.1 añade `AnalyticsCoverageController` y `AnalyticsCoverageService` para listar, confirmar o retirar cobertura de meses completos, siempre como ADMIN activo de la organización. La identidad proviene de la sesión; no se acepta un autor en el cuerpo. Las escrituras JDBC son transaccionales, bloquean la organización antes de comprobar ADMIN y conservan metadatos al retirar una confirmación. No hay JPA ni interfaz de usuario nueva. Rutas y respuestas en [contratos_api.md](contratos_api.md).
 
-En Compose, Java usa `shareverance_java` para operaciones de aplicación y una conexión Flyway separada con `SPRING_FLYWAY_URL/USER/PASSWORD`. El servicio previo `database-access` aprovisiona los logins; V7 aplica permisos y crea vistas/cobertura. Fuera de Compose deben configurarse explícitamente ambas credenciales. La cuenta de ejecución no puede crear tablas ni consultar el historial Flyway. E3.2 sigue pendiente: el callback Python→Java y los contratos mensuales existentes se conservan.
+En Compose, Java usa `shareverance_java` para operaciones de aplicación y una conexión Flyway separada con `SPRING_FLYWAY_URL/USER/PASSWORD`. El servicio previo `database-access` aprovisiona los logins; V7 aplica permisos y crea vistas/cobertura. Fuera de Compose deben configurarse explícitamente ambas credenciales. La cuenta de ejecución no puede crear tablas ni consultar el historial Flyway. E3.2 implementa la consulta predictiva Java→Python autenticada y retira el callback. E5.2 incorpora la consulta pública de analítica mensual; Python obtiene los datos desde vistas SQL.
 
 Aplicar [alcance_mvp.md](alcance_mvp.md) en servidor, sin confiar en IDs o roles enviados por React. Resolver usuario desde sesión y verificar organización activa, membresía activa y operación permitida.
 
@@ -43,7 +43,7 @@ No modificar migraciones aplicadas. Las restricciones existentes de PostgreSQL c
 - OCR: multipart del navegador, validación y almacenamiento privado; llamada HTTP interna con referencia controlada al archivo; respuesta al formulario. El alta se produce después de confirmación.
 - Analítica/predicción: validar pertenencia, construir contexto organización/período y llamar Python; Python obtiene datos de vistas PostgreSQL. No reenviar un historial como arquitectura definitiva.
 - Python caído no bloquea alta manual ni consulta de gastos. Separar timeout de conexión y lectura por operación; no reintentar altas sin idempotencia.
-- Contratos en [contratos_api.md](contratos_api.md). Nuevas rutas allí son diseño pendiente, no endpoints existentes.
+- Contratos en [contratos_api.md](contratos_api.md). Las rutas implementadas y la referencia histórica se identifican por separado. La ampliación predictiva de 4–6 meses sigue siendo planificación.
 
 ## Archivos, errores y operación
 
@@ -57,7 +57,7 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Pendiente: aceptación de E1.1 con integración y datos persistidos, aceptación integral del historial y de concurrencia, contratos públicos analíticos, cliente Java→Python autenticado y servicio privado de archivos. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. Revisar CUSTOM y las modalidades existentes para alinearlas con individual/iguales sin reinterpretar datos silenciosamente.
+Pendiente: aceptación integral de permisos, historial, concurrencia y archivos, conservando la evidencia automatizada registrada en el roadmap. Los contratos públicos analíticos, el cliente Java→Python autenticado y el servicio privado de comprobantes están implementados. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. E1.2 admite individual/iguales y rechaza CUSTOM; la presencia del enum no habilita ese modo. La carga CSV repetible y la previsión de 4–6 meses siguen el plan complementario pendiente.
 
 ## Implementación E1.2: individual e iguales
 
