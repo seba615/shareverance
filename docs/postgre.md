@@ -7,6 +7,8 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado persistido
 
+P1-D ofrece una [carga integrada del CSV](python_predictor.md#entorno-demo-predictor) sobre el proyecto y base dedicados `shareverance-predictor-demo` / `shareverance_predictor_demo`. La carga usa Java para negocio/cobertura, sin SQL de escritura ni migraciones nuevas. La guía define comandos, aislamiento y límites; no se utiliza la base humana para esta importación.
+
 PostgreSQL 17.11 en Compose. Migraciones en `backend-java/src/main/resources/db/migration/`: V1 crea infra_demo; V2 seis tablas de negocio; V3 elimina timezone y agrega paid_by_membership_id; V5 crea auth_sessions; V6 agrega columna `version` en expenses; V7 agrega cobertura mensual explícita, roles de ejecución y vistas analíticas; V8 incorpora receipts y V9 su integridad por organización/gasto. No renumerar versiones ni modificar SQL aplicado.
 
 | Tabla | Responsabilidad |

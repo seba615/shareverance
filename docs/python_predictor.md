@@ -53,7 +53,54 @@ Umbral cuantitativo de aceptación y dataset deben fijarse antes de evaluar. No 
 
 ## Evaluación con el CSV de demostración
 
-Ampliación planificada: [demostración integrada y horizonte de 4–6 meses](road_map.md#predictor-multihorizonte). El código y los comandos de esta guía siguen evaluando **un mes por origen**. No ofrecen todavía previsiones de 4/5/6 meses. La nueva evaluación debe mantener un origen común para todos los meses de cada previsión, sin incorporar reales futuros entre pasos; reportará errores por horizonte. La carga con usuario/organización/gastos en base aislada es P1-D, pendiente de implementación y revisión del plan.
+<a id="entorno-demo-predictor"></a>
+
+### Entorno integrado P1-D: iniciar, cargar y probar
+
+Implementación de [#63](https://github.com/seba615/shareverance/issues/63), relacionada con #59. Requiere Git y Docker Desktop con contenedores Linux; ejecutar PowerShell desde la raíz. No requiere Python local. Cada entrega posterior debe enlazar este procedimiento e indicar cualquier comando adicional necesario.
+
+```powershell
+# Construir/iniciar sólo la demostración (primera construcción requiere Internet).
+.\scripts\predictor-demo.ps1 start
+# Validar CSV, cargar por Java y verificar integración.
+.\scripts\predictor-demo.ps1 load
+# Comprobar sin crear entidades de negocio ni confirmar cobertura.
+.\scripts\predictor-demo.ps1 check
+.\scripts\predictor-demo.ps1 status
+# Regresiones del cargador sin acceso a la base.
+.\scripts\predictor-demo.ps1 test
+# Detener sólo la demostración, sin borrar datos.
+.\scripts\predictor-demo.ps1 stop
+```
+
+Para volver a usarlo: `start` y `check`. Los errores Docker/HTTP/validación producen fallo; no continuar como si una carga parcial estuviera completa. No hay reintentos automáticos de mutaciones: corregir la causa y repetir `load`. Recupera registros propios ya confirmados por Java y crea los faltantes. No hay atomicidad de toda la importación; cada operación Java es transaccional. El contenedor de carga tiene nombre fijo para impedir ejecuciones simultáneas del wrapper; evitar ediciones manuales concurrentes. Tras un corte abrupto revisar `docker ps -a --filter name=shareverance-predictor-demo-loader` si Docker informa conflicto, sin eliminar recursos ajenos.
+
+Acceso: [http://localhost:5176](http://localhost:5176), ADMIN habitual `admin@shareverance.com`, con la contraseña habitual configurada en desarrollo (no publicada aquí), organización **Demo CSV 1 - desarrollo 2023-2024**. Usuario sin pertenencia: `predictor.sinacceso@example.test`, contraseña sintética `DemoPredictor123!`. El usuario `predictor.admin@example.test` / `DemoPredictor123!` se conserva como autor de la importación; la carga incorpora al ADMIN habitual mediante Java y verifica su membresía activa. El acceso con su contraseña se comprueba en la UI, sin incluirla en el cargador ni en esta guía. Son credenciales públicas exclusivamente de demostración. El seed dev también crea una organización inicial: seleccionar la del CSV, sin asumir sus IDs internos.
+
+El proyecto fijo `shareverance-predictor-demo` usa `demo/predictor.env.example`, base `shareverance_predictor_demo`, red/imágenes propias y volúmenes `shareverance-predictor-demo_postgres_data` y `shareverance-predictor-demo_receipts_data`. El wrapper aísla variables conocidas de la sesión para no heredar configuración habitual. Sólo publica frontend en 127.0.0.1:5176; Java/Python/PostgreSQL son internos. No usa `compose.tools.yaml`, `.env` habitual ni `seed_demo_data.sql`. Si 5176 está ocupado, identificar al dueño; no detener otro entorno ni cambiar destinos silenciosamente.
+
+La selección es organización externa 1, **2023-01 a 2024-12**, ocho categorías y 192 filas, validada antes de escribir. Cada fila es un gasto sintético individual al último día del mes, con descripción identificable y parte exacta; no representa movimientos diarios reales ni tiene comprobante. Java crea usuario, organización, membresía, categorías, gastos y partes; confirma cobertura después de conciliar. No hay SQL de escritura ni nuevas migraciones/contratos. La reserva de 2025 no se carga ni evalúa; el hash del archivo completo sólo identifica su versión.
+
+La salida JSON contiene hash CSV, mapeo de IDs externos/internos, corte y conteos. Se puede guardar localmente:
+
+```powershell
+New-Item -ItemType Directory -Force backend-java/target/p1d | Out-Null
+.\scripts\predictor-demo.ps1 check | Tee-Object backend-java/target/p1d/verificacion.json
+```
+
+Repetir `load` debe mostrar `created_this_run:0`, con **192 gastos, 192 partes, ARS 31.211.212,92 y 24 meses confirmados**. Se rechazan gastos propios modificados/anulados, partes divergentes, gastos ajenos, cobertura fuera del corte o cambio de CSV; no se sobrescribe ni elimina para resolverlos. Para ensayar edición, crear otra organización desde la UI. Los marcadores son identificadores operativos, no firmas ni permisos.
+
+Recorrido manual:
+
+1. Ingresar como ADMIN demo y seleccionar la organización del CSV.
+2. Historial: filtrar 2023-01-01 a 2024-12-31. Calendario: navegar a ese rango; los totales están concentrados artificialmente al cierre mensual.
+3. Panel: elegir enero de 2023 a diciembre de 2024; la ventana predeterminada actual puede no incluir estos datos.
+4. Predicción: resolver automáticamente o elegir **2025-01**. Mock devuelve **ARS 2.114.866,85**, último total de diciembre de 2024, con 24 meses usados. Verifica integración, no precisión ni horizonte de 4–6 meses.
+5. El usuario sin pertenencia no ve la organización; `check` verifica además HTTP 403 al solicitar su predicción.
+
+`check` concilia cada gasto/parte y cobertura, los 24 totales/categorías de la API analítica Java→Python→vistas SQL, la predicción y la denegación. Login/CSRF sí generan sesiones/cookies aunque no se creen entidades de negocio. El wrapper todavía no permite 50 organizaciones, otros cortes ni SES. Las ampliaciones requieren nuevas tareas y guía actualizada. No usar `down -v` ni borrar volúmenes para repetir.
+
+Ampliación planificada: [demostración integrada y horizonte de 4–6 meses](road_map.md#predictor-multihorizonte). El código y los comandos de esta guía siguen evaluando **un mes por origen**. No ofrecen todavía previsiones de 4/5/6 meses. La nueva evaluación debe mantener un origen común para todos los meses de cada previsión, sin incorporar reales futuros entre pasos; reportará errores por horizonte. P1-D tiene una implementación inicial de carga aislada para organización 1 hasta 2024-12, descrita arriba, con aceptación manual pendiente.
 
 El [plan complementario P1–P5](road_map.md#plan-complementario-del-predictor), seguimiento [#59](https://github.com/seba615/shareverance/issues/59), organiza el trabajo del equipo. Esta guía permite probar el evaluador **existente**; el evaluador CSV completo y la aceptación final todavía son trabajo pendiente.
 
