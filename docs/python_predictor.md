@@ -297,6 +297,14 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### P3-H: evaluador multihorizonte offline de desarrollo
+
+Seguimiento [#75](https://github.com/seba615/shareverance/issues/75), basado en el protocolo P2-H ([#73](https://github.com/seba615/shareverance/issues/73)). Se implementó y ejecutó el evaluador multihorizonte offline sobre 7 orígenes comunes de desarrollo (diciembre de 2023 a junio de 2024), proyectando horizontes h=1..6 hacia objetivos enteramente contenidos en 2024 sin tocar la reserva 2025. Evidencia completa y resumen en [docs/evidencia/p3h/README.md](evidencia/p3h/README.md).
+
+- **Comportamiento por horizonte:** para h=1..6, el error MAE en organizaciones de last_month crece desde ARS 104.353,98 (WAPE 5,82 %) en h=1 hasta ARS 513.548,48 (WAPE 23,02 %) en h=6; en categorías crece desde ARS 24.267,09 (WAPE 10,82 %) hasta ARS 65.909,27 (WAPE 23,63 %). SES y media histórica incurren en errores significativamente mayores en todos los horizontes.
+- **Aislamiento temporal:** verificado mediante pruebas unitarias; las proyecciones futuras dependen exclusivamente del corte común y no cambian ante modificaciones en meses posteriores al origen.
+- **Comandos ejecutables:** scripts/predictor-demo.ps1 forecast -FromOrigin 2023-12 -ToOrigin 2024-06 -MaxHorizon 6 o mediante Python directo con scripts/evaluate_forecast_csv.py.
+
 ### Propuesta P2-H: protocolo de desarrollo para 4–6 meses
 
 Relacionado con [#73](https://github.com/seba615/shareverance/issues/73). Diseño para revisión, sin nuevo predictor ejecutable. El [contrato propuesto](contratos_api.md#propuesta-multihorizonte) separa origen histórico de los meses proyectados y conserva monthly. Un pronóstico de H=4/5/6 incluye todos los horizontes 1…H, desde el mismo origen. Mock/último mes y SES sin tendencia producirían valores planos por horizonte; eso no demuestra capacidad multimes ni modela inflación. Una estrategia recursiva sólo puede utilizar estimaciones internas identificadas, nunca reales futuros o cobertura artificial.
