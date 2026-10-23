@@ -297,6 +297,17 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### P5: decisión operativa y formalización frente a umbrales
+
+Seguimiento [#77](https://github.com/seba615/shareverance/issues/77), relacionado con [#59](https://github.com/seba615/shareverance/issues/59). Conforme a la regla de decisión de P5 («Mantener referencia si no hay mejora demostrada») y en base a la evidencia cuantitativa consolidada en [docs/evidencia/p5/README.md](evidencia/p5/README.md):
+
+1. **No promoción de SES:** En la evaluación offline reproducible, el candidato SES ($\alpha=0.3$) no logró superar a la referencia básica de último mes (`last_month`):
+   - En $h=1$ (P4): SES empeoró el MAE un +119,8 % en organizaciones y un +32,7 % en categorías en desarrollo 2024, y degradó en el 100 % de las organizaciones y 79 % de categorías en la reserva 2025.
+   - En $h=1\dots 6$ (P3-H): `last_month` superó sistemáticamente a SES y a media histórica en todos los horizontes analizados.
+   Por tanto, SES no cumple los criterios cuantitativos de mejora mínima del 5 % ni de degradación máxima del 20 %, resolviéndose formalmente no promoverlo a modelo operativo.
+2. **Configuración operativa:** Se mantiene `PREDICTOR_MODE=mock` como valor predeterminado para el funcionamiento habitual y pruebas de integración continua. El modelo `ses` permanece disponible mediante configuración explícita (`PREDICTOR_MODE=ses`) únicamente como candidato experimental de investigación, manteniendo `simulated: false` en su respuesta técnica.
+3. **Claridad en la interfaz:** La vista de Predicción en el frontend (`PredictionMessages.tsx`) refleja explícitamente que el modelo experimental no superó a la referencia en la evaluación, conservando la diferenciación inequívoca entre cálculo simulado y experimental.
+
 ### P3-H: evaluador multihorizonte offline de desarrollo
 
 Seguimiento [#75](https://github.com/seba615/shareverance/issues/75), basado en el protocolo P2-H ([#73](https://github.com/seba615/shareverance/issues/73)). Se implementó y ejecutó el evaluador multihorizonte offline sobre 7 orígenes comunes de desarrollo (diciembre de 2023 a junio de 2024), proyectando horizontes h=1..6 hacia objetivos enteramente contenidos en 2024 sin tocar la reserva 2025. Evidencia completa y resumen en [docs/evidencia/p3h/README.md](evidencia/p3h/README.md).
