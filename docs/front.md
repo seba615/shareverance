@@ -96,6 +96,8 @@ Al seleccionar un día no futuro del mes, `ExpenseCalendar.tsx` consulta `GET /a
 
 ## Vista predictiva E6.2
 
+Propuesta P2-H, todavía no implementada: [contrato y transición](contratos_api.md#propuesta-multihorizonte). En P5-H se propone selector 4/5/6, origen claramente identificado, gráfico con histórico hasta el corte y previsión diferenciada después, más tabla por objetivo/horizonte/categoría. Mantener mensual mientras Java/Python no soporten forecast. La clave de consulta deberá incluir organización, origen y horizonte para evitar respuestas viejas bajo otro contexto. Mostrar “precisión no evaluada para este horizonte” sin evidencia; los errores históricos experimentales deben identificar fuente/muestras, no prometer caída monótona de precisión ni porcentajes de confianza. No dibujar null como cero ni mezclar pronóstico con gastos guardados. La guía de arranque vigente y límites están en [Python P2-H](python_predictor.md#protocolo-multihorizonte); la UI actual sigue siendo de un mes.
+
 La pestaña Predicción consulta únicamente Java mediante `GET /api/v1/organizations/{id}/predictions/monthly?targetMonth=YYYY-MM` (`predictionApi.monthly` en `frontend/src/api/java.ts`). Presenta la estimación de gasto mensual proyectado para la organización y el desglose por categorías.
 
 - **Mes objetivo**: el campo permite ingresar un mes específico (`YYYY-MM`, años 0001 a 9999) o dejarlo vacío para consultar el mes recomendado automáticamente por el backend (el mes siguiente al último mes confirmado en cobertura, o el mes actual en Buenos Aires). El botón *Mes recomendado* limpia la selección manual para volver a la recomendación automática.
