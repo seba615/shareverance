@@ -43,7 +43,7 @@ Para pruebas integradas del predictor con datos del CSV, usar la [guía P1-D](do
 
 El [plan complementario del predictor P1–P5](docs/road_map.md#plan-complementario-del-predictor) permite coordinar evaluación e integración con el equipo. Para probar el CSV de demostración sin modificar la base ni los servicios, seguir la [guía de evaluación offline](docs/python_predictor.md#evaluación-con-el-csv-de-demostración). Distingue el comando disponible hoy del evaluador completo y de la aceptación todavía pendientes.
 
-E6.1 incorpora SES como candidato experimental y un informe offline comparable con último mes/media histórica. El predictor predeterminado sigue siendo simulado (`PREDICTOR_MODE=mock`); activar `ses` explícitamente permite probar el cálculo candidato, sin acreditar aceptación predictiva. Dataset y umbral de aceptación siguen pendientes. Configuración, métricas y comando reproducible en [Python](docs/python_predictor.md).
+E6.1 incorpora SES como candidato experimental. P5 documenta la decisión conservadora de no promover SES 0.3 con la evidencia sintética disponible; no acredita evaluación final ni aceptación predictiva. Se mantiene `PREDICTOR_MODE=mock` predeterminado y SES opcional experimental. P2 conserva umbrales propuestos; P2-H requiere acordar criterios por horizonte. Evidencia y comandos en [Python](docs/python_predictor.md) y [P5](docs/evidencia/p5/README.md).
 
 
 Requisitos: Git y Docker Desktop iniciado, con contenedores Linux y Docker Compose 2.20 o posterior. En Windows se usa WSL 2. No es necesario instalar Java, Python, Node.js o PostgreSQL por separado. La primera ejecución necesita Internet para descargar imágenes y dependencias.

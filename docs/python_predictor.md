@@ -297,6 +297,12 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### P5: decisión conservadora de no promoción
+
+Relacionado con [#77](https://github.com/seba615/shareverance/issues/77). Se mantiene mock predeterminado y SES 0.3 experimental: la evidencia sintética disponible no justifica promoverlo. No se acredita evaluación final ni cierre de aceptación predictiva. P2 conserva umbrales propuestos; P2-H requiere criterios por horizonte y regla conjunta acordados.
+
+En desarrollo 2024, SES 0.3 empeora el MAE agregado frente a último mes en ambos niveles; 50/50 organizaciones y 313/400 categorías empeoran frente a la mejor de ambas referencias por serie. Los resultados de 2025 son históricos exploratorios; sus 316/400 categorías se compararon sólo contra último mes, no contra la regla exacta P2. P3-H aporta comparación descriptiva de MAE agregado por horizonte, sin un nuevo criterio formal de aceptación. [Evidencia, límites y comandos de prueba P5](evidencia/p5/README.md).
+
 ### P3-H: evaluador multihorizonte offline de desarrollo
 
 Seguimiento [#75](https://github.com/seba615/shareverance/issues/75), basado en el protocolo P2-H ([#73](https://github.com/seba615/shareverance/issues/73)). Se implementó y ejecutó el evaluador multihorizonte offline sobre 7 orígenes comunes de desarrollo (diciembre de 2023 a junio de 2024), proyectando horizontes h=1..6 hacia objetivos enteramente contenidos en 2024 sin tocar la reserva 2025. Evidencia completa y resumen en [docs/evidencia/p3h/README.md](evidencia/p3h/README.md).
