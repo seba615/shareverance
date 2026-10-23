@@ -1,0 +1,425 @@
+﻿{
+    "report_version":  1,
+    "dataset_sha256":  "99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996",
+    "code_commit":  "577539071af4ee75b116c1477f68a8b8f77ca5c7",
+    "evaluator_sha256":  "88f3fa71beec737044639c827492a9a661cbfd174dca1c6c6897765f019fd34c",
+    "scope":  "synthetic_development_multihorizon",
+    "configuration":  {
+                          "from_origin":  "2023-12",
+                          "to_origin":  "2024-06",
+                          "origins_count":  7,
+                          "max_horizon":  6,
+                          "min_history_months":  6,
+                          "alpha":  0.3,
+                          "training":  "common_origin_recursive_forecast_without_future_data",
+                          "method_versions":  {
+                                                  "ses":  "1",
+                                                  "last_month":  "1",
+                                                  "historical_mean":  "1"
+                                              }
+                      },
+    "accepted":  null,
+    "model_promoted":  false,
+    "reserve_evaluated":  false,
+    "levels":  {
+                   "organization":  {
+                                        "expected_series":  50,
+                                        "complete_series":  50,
+                                        "excluded_series":  0,
+                                        "horizons":  {
+                                                         "1":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  232366.55,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  4066414647,
+                                                                                                                       "denominator":  175
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  12.95,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  104353.98,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  1826194683,
+                                                                                                                              "denominator":  175
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  5.82,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  512980.48,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  3590863331,
+                                                                                                                                   "denominator":  70
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  28.59,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               },
+                                                         "2":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  309780.81,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  5421164243,
+                                                                                                                       "denominator":  175
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  16.55,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  159459.6,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  2790542914,
+                                                                                                                              "denominator":  175
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  8.52,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  590394.74,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  20663815847,
+                                                                                                                                   "denominator":  350
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  31.55,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               },
+                                                         "3":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  391949.94,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  6859123988,
+                                                                                                                       "denominator":  175
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  20.06,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  236761.38,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  118380691,
+                                                                                                                              "denominator":  5
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  12.12,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  672563.87,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  23539735337,
+                                                                                                                                   "denominator":  350
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  34.42,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               },
+                                                         "4":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  480079.94,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  16802797941,
+                                                                                                                       "denominator":  350
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  23.51,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  324357.58,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  1621787899,
+                                                                                                                              "denominator":  50
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  15.89,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  760693.87,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  13312142651,
+                                                                                                                                   "denominator":  175
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  37.25,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               },
+                                                         "5":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  569225.86,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  19922904929,
+                                                                                                                       "denominator":  350
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  26.71,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  413491.53,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  2894440733,
+                                                                                                                              "denominator":  70
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  19.4,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  849839.78,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  2974439229,
+                                                                                                                                   "denominator":  35
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  39.88,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               },
+                                                         "6":  {
+                                                                   "ses":  {
+                                                                               "equal_series_mae_ars":  669282.8,
+                                                                               "equal_series_mae_minor_fraction":  {
+                                                                                                                       "numerator":  23424898159,
+                                                                                                                       "denominator":  350
+                                                                                                                   },
+                                                                               "pooled_wape_percentage":  30.0,
+                                                                               "series_count":  50,
+                                                                               "samples":  350
+                                                                           },
+                                                                   "last_month":  {
+                                                                                      "equal_series_mae_ars":  513548.48,
+                                                                                      "equal_series_mae_minor_fraction":  {
+                                                                                                                              "numerator":  3594839379,
+                                                                                                                              "denominator":  70
+                                                                                                                          },
+                                                                                      "pooled_wape_percentage":  23.02,
+                                                                                      "series_count":  50,
+                                                                                      "samples":  350
+                                                                                  },
+                                                                   "historical_mean":  {
+                                                                                           "equal_series_mae_ars":  949896.73,
+                                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                                   "numerator":  3324638552,
+                                                                                                                                   "denominator":  35
+                                                                                                                               },
+                                                                                           "pooled_wape_percentage":  42.58,
+                                                                                           "series_count":  50,
+                                                                                           "samples":  350
+                                                                                       }
+                                                               }
+                                                     }
+                                    },
+                   "category":  {
+                                    "expected_series":  400,
+                                    "complete_series":  400,
+                                    "excluded_series":  0,
+                                    "horizons":  {
+                                                     "1":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  32246.07,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  9028898771,
+                                                                                                                   "denominator":  2800
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  14.38,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  24267.09,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  121335469,
+                                                                                                                          "denominator":  50
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  10.82,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  64338.72,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  3602968519,
+                                                                                                                               "denominator":  560
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  28.69,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           },
+                                                     "2":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  40446.47,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  11325012099,
+                                                                                                                   "denominator":  2800
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  17.29,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  29617.46,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  518305497,
+                                                                                                                          "denominator":  175
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  12.66,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  73910.59,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  20694964991,
+                                                                                                                               "denominator":  2800
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  31.59,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           },
+                                                     "3":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  49918.1,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  13977067351,
+                                                                                                                   "denominator":  2800
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  20.44,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  35783.16,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  2504821107,
+                                                                                                                          "denominator":  700
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  14.65,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  84110.52,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  23550946329,
+                                                                                                                               "denominator":  2800
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  34.44,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           },
+                                                     "4":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  60570.19,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  8479827227,
+                                                                                                                   "denominator":  1400
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  23.73,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  44430.04,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  355440307,
+                                                                                                                          "denominator":  80
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  17.41,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  95103.01,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  2662884269,
+                                                                                                                               "denominator":  280
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  37.26,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           },
+                                                     "5":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  71501.03,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  10010144579,
+                                                                                                                   "denominator":  1400
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  26.84,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  54005.35,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  15121498317,
+                                                                                                                          "denominator":  2800
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  20.27,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  106239.55,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  53119777,
+                                                                                                                               "denominator":  5
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  39.88,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           },
+                                                     "6":  {
+                                                               "ses":  {
+                                                                           "equal_series_mae_ars":  83824.47,
+                                                                           "equal_series_mae_minor_fraction":  {
+                                                                                                                   "numerator":  11735425237,
+                                                                                                                   "denominator":  1400
+                                                                                                               },
+                                                                           "pooled_wape_percentage":  30.06,
+                                                                           "series_count":  400,
+                                                                           "samples":  2800
+                                                                       },
+                                                               "last_month":  {
+                                                                                  "equal_series_mae_ars":  65909.27,
+                                                                                  "equal_series_mae_minor_fraction":  {
+                                                                                                                          "numerator":  18454596197,
+                                                                                                                          "denominator":  2800
+                                                                                                                      },
+                                                                                  "pooled_wape_percentage":  23.63,
+                                                                                  "series_count":  400,
+                                                                                  "samples":  2800
+                                                                              },
+                                                               "historical_mean":  {
+                                                                                       "equal_series_mae_ars":  118745.25,
+                                                                                       "equal_series_mae_minor_fraction":  {
+                                                                                                                               "numerator":  16624334771,
+                                                                                                                               "denominator":  1400
+                                                                                                                           },
+                                                                                       "pooled_wape_percentage":  42.58,
+                                                                                       "series_count":  400,
+                                                                                       "samples":  2800
+                                                                                   }
+                                                           }
+                                                 }
+                                }
+               },
+    "conclusion":  "El evaluador multihorizonte P3-H confirma que las proyecciones recursivas con modelos autorregresivos sin tendencia producen trayectorias planas. A medida que h aumenta de 1 a 6 meses, el error monetario absoluto y relativo crece sistematicamente en todos los metodos debido al desvio acumulado respecto a la inflacion/tendencia de la serie. En todos los horizontes evaluados h=1..6, last_month supera a SES y media historica tanto en organizaciones como en categorias."
+}
