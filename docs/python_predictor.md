@@ -297,16 +297,11 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
-### P5: decisión operativa y formalización frente a umbrales
+### P5: decisión conservadora de no promoción
 
-Seguimiento [#77](https://github.com/seba615/shareverance/issues/77), relacionado con [#59](https://github.com/seba615/shareverance/issues/59). Conforme a la regla de decisión de P5 («Mantener referencia si no hay mejora demostrada») y en base a la evidencia cuantitativa consolidada en [docs/evidencia/p5/README.md](evidencia/p5/README.md):
+Relacionado con [#77](https://github.com/seba615/shareverance/issues/77). Se mantiene mock predeterminado y SES 0.3 experimental: la evidencia sintética disponible no justifica promoverlo. No se acredita evaluación final ni cierre de aceptación predictiva. P2 conserva umbrales propuestos; P2-H requiere criterios por horizonte y regla conjunta acordados.
 
-1. **No promoción de SES:** En la evaluación offline reproducible, el candidato SES ($\alpha=0.3$) no logró superar a la referencia básica de último mes (`last_month`):
-   - En $h=1$ (P4): SES empeoró el MAE un +119,8 % en organizaciones y un +32,7 % en categorías en desarrollo 2024, y degradó en el 100 % de las organizaciones y 79 % de categorías en la reserva 2025.
-   - En $h=1\dots 6$ (P3-H): `last_month` superó sistemáticamente a SES y a media histórica en todos los horizontes analizados.
-   Por tanto, SES no cumple los criterios cuantitativos de mejora mínima del 5 % ni de degradación máxima del 20 %, resolviéndose formalmente no promoverlo a modelo operativo.
-2. **Configuración operativa:** Se mantiene `PREDICTOR_MODE=mock` como valor predeterminado para el funcionamiento habitual y pruebas de integración continua. El modelo `ses` permanece disponible mediante configuración explícita (`PREDICTOR_MODE=ses`) únicamente como candidato experimental de investigación, manteniendo `simulated: false` en su respuesta técnica.
-3. **Claridad en la interfaz:** La vista de Predicción en el frontend (`PredictionMessages.tsx`) refleja explícitamente que el modelo experimental no superó a la referencia en la evaluación, conservando la diferenciación inequívoca entre cálculo simulado y experimental.
+En desarrollo 2024, SES 0.3 empeora el MAE agregado frente a último mes en ambos niveles; 50/50 organizaciones y 313/400 categorías empeoran frente a la mejor de ambas referencias por serie. Los resultados de 2025 son históricos exploratorios; sus 316/400 categorías se compararon sólo contra último mes, no contra la regla exacta P2. P3-H aporta comparación descriptiva de MAE agregado por horizonte, sin un nuevo criterio formal de aceptación. [Evidencia, límites y comandos de prueba P5](evidencia/p5/README.md).
 
 ### P3-H: evaluador multihorizonte offline de desarrollo
 

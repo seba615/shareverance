@@ -10,7 +10,7 @@ export function PredictionModelNotice({ simulated, method, version }: {
     </div>
   ) : (
     <div className="prediction-badge experimental" role="note">
-      <strong>Modelo experimental:</strong> {formatPredictionMethod(method, false)}, versión {version}. Su calidad predictiva todavía no está aceptada (no superó a la referencia en la evaluación P5).
+      <strong>Modelo experimental:</strong> {formatPredictionMethod(method, false)}, versión {version}. Su calidad predictiva todavía no está aceptada.
     </div>
   );
 }
