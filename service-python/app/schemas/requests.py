@@ -94,6 +94,23 @@ class InternalAnalyticsRequest(ContractModel):
     to_month: Month
 
 
+class InternalForecastRequest(ContractModel):
+    """Solicitud interna v2 de proyección multihorizonte (H en 4, 5, 6)."""
+
+    contract_version: Literal["2"]
+    request_id: UUID
+    organization_id: PositiveId
+    origin_month: Month
+    horizon_months: Literal[4, 5, 6] = Field(default=4)
+
+
+class ForecastRequest(HistoryRequest):
+    """Solicitud de pronóstico multihorizonte con historial explícito."""
+
+    origin_month: Month
+    horizon_months: Literal[4, 5, 6] = Field(default=4)
+
+
 class InternalOcrRequest(ContractModel):
     """Solicitud interna v1 para procesamiento OCR de un comprobante almacenado."""
 

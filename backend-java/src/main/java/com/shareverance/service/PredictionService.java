@@ -54,6 +54,62 @@ public class PredictionService {
             @JsonProperty("model_version") String modelVersion
     ) {}
 
+
+    public record InternalForecastRequest(
+            @JsonProperty("contract_version") String contractVersion,
+            @JsonProperty("request_id") String requestId,
+            @JsonProperty("organization_id") Long organizationId,
+            @JsonProperty("origin_month") String originMonth,
+            @JsonProperty("horizon_months") int horizonMonths
+    ) {}
+
+    public record ForecastQuality(
+            @JsonProperty("status") String status,
+            @JsonProperty("evaluation_id") String evaluationId,
+            @JsonProperty("mae_minor") Long maeMinor,
+            @JsonProperty("wape_percentage") Double wapePercentage,
+            @JsonProperty("samples") Integer samples
+    ) {}
+
+    public record ForecastPoint(
+            @JsonProperty("horizon") int horizon,
+            @JsonProperty("target_month") String targetMonth,
+            @JsonProperty("estimated_amount_minor") Long estimatedAmountMinor,
+            @JsonProperty("quality") ForecastQuality quality
+    ) {}
+
+    public record ForecastSeriesResult(
+            @JsonProperty("status") String status,
+            @JsonProperty("method") String method,
+            @JsonProperty("model_version") String modelVersion,
+            @JsonProperty("months_used") int monthsUsed,
+            @JsonProperty("required_months") int requiredMonths,
+            @JsonProperty("forecasts") List<ForecastPoint> forecasts
+    ) {}
+
+    public record CategoryForecastResult(
+            @JsonProperty("category_id") Long categoryId,
+            @JsonProperty("status") String status,
+            @JsonProperty("method") String method,
+            @JsonProperty("model_version") String modelVersion,
+            @JsonProperty("months_used") int monthsUsed,
+            @JsonProperty("required_months") int requiredMonths,
+            @JsonProperty("forecasts") List<ForecastPoint> forecasts
+    ) {}
+
+    public record ForecastResponse(
+            @JsonProperty("contract_version") String contractVersion,
+            @JsonProperty("request_id") String requestId,
+            @JsonProperty("organization_id") Long organizationId,
+            @JsonProperty("currency") String currency,
+            @JsonProperty("status") String status,
+            @JsonProperty("simulated") boolean simulated,
+            @JsonProperty("origin_month") String originMonth,
+            @JsonProperty("horizon_months") int horizonMonths,
+            @JsonProperty("organization") ForecastSeriesResult organization,
+            @JsonProperty("categories") List<CategoryForecastResult> categories
+    ) {}
+
     public record PredictionResponse(
             @JsonProperty("contract_version") String contractVersion,
             @JsonProperty("request_id") String requestId,
@@ -169,6 +225,103 @@ public class PredictionService {
                     "El servicio de predicciones no está disponible"
             );
         }
+    }
+
+
+    @Transactional(readOnly = true)
+    public ForecastResponse getForecast(Long organizationId, Long userId, String originMonth, Integer horizonMonths) {
+        if (userId == null || !auth.isOrganizationMember(userId, organizationId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Se requiere membresía activa de la organización");
+        }
+
+        int resolvedHorizon = (horizonMonths == null) ? 4 : horizonMonths;
+        if (resolvedHorizon < 4 || resolvedHorizon > 6) {
+            throw new BusinessRuleException("El horizonte de proyección debe ser de 4, 5 o 6 meses");
+        }
+
+        String resolvedOriginMonth = resolveOriginMonth(organizationId, originMonth);
+
+        if (pythonClientSecret.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "El servicio de predicciones no está disponible"
+            );
+        }
+
+        InternalForecastRequest payload = new InternalForecastRequest(
+                "2",
+                UUID.randomUUID().toString(),
+                organizationId,
+                resolvedOriginMonth,
+                resolvedHorizon
+        );
+
+        try {
+            String requestBody = objectMapper.writeValueAsString(payload);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(pythonServiceUrl + "/internal/v2/predictions/forecast"))
+                    .timeout(Duration.ofMillis(Math.max(100, readTimeoutMs)))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("Authorization", "Bearer " + pythonClientSecret)
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new ResponseStatusException(
+                        HttpStatus.SERVICE_UNAVAILABLE,
+                        "El servicio de predicciones no está disponible"
+                );
+            }
+            return objectMapper.readValue(response.body(), ForecastResponse.class);
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "El servicio de predicciones no está disponible"
+            );
+        } catch (IOException | RuntimeException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "El servicio de predicciones no está disponible"
+            );
+        }
+    }
+
+    private String resolveOriginMonth(Long organizationId, String originMonth) {
+        if (originMonth != null && !originMonth.isBlank()) {
+            String trimmed = originMonth.trim();
+            try {
+                if (!trimmed.matches("[0-9]{4}-(0[1-9]|1[0-2])")) {
+                    throw new DateTimeParseException("", "", 0);
+                }
+                YearMonth parsed = YearMonth.parse(trimmed);
+                if (parsed.getYear() < 1) {
+                    throw new BusinessRuleException("Formato de mes inválido (YYYY-MM, años 0001 a 9999)");
+                }
+                YearMonth currentMonth = YearMonth.now(ZoneId.of("America/Argentina/Buenos_Aires"));
+                if (!parsed.isBefore(currentMonth)) {
+                    throw new BusinessRuleException("El mes de origen debe ser anterior al mes actual de Buenos Aires");
+                }
+                return parsed.toString();
+            } catch (DateTimeParseException ex) {
+                throw new BusinessRuleException("Formato de mes inválido (YYYY-MM, años 0001 a 9999)");
+            }
+        }
+
+        Date latestConfirmed = jdbc.query(
+                "SELECT MAX(covered_month) FROM analytics_month_coverage WHERE organization_id = ? AND is_confirmed = TRUE",
+                rs -> rs.next() ? rs.getDate(1) : null,
+                organizationId
+        );
+        if (latestConfirmed != null) {
+            return YearMonth.from(latestConfirmed.toLocalDate()).toString();
+        }
+        YearMonth current = YearMonth.now(ZoneId.of("America/Argentina/Buenos_Aires"));
+        return current.minusMonths(1).toString();
     }
 
     private String resolveTargetMonth(Long organizationId, String targetMonth) {

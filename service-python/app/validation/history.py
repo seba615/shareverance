@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from app.schemas.errors import DetailCode
 from app.schemas.requests import (
     MAX_SAFE_INTEGER,
+    ForecastRequest,
     HistoryRequest,
     PredictionRequest,
 )
@@ -21,6 +22,13 @@ class HistoryValidationError(Exception):
         super().__init__("El historial no cumple el contrato.")
         self.issues = issues
 
+
+
+
+def index_to_month(index: int) -> str:
+    year = index // 12
+    month = (index % 12) + 1
+    return f"{year:04d}-{month:02d}"
 
 def month_index(month: str) -> int:
     """Convierte un mes válido en un número para comparar distancias."""
@@ -179,5 +187,8 @@ def validate_history(request: HistoryRequest) -> None:
     if isinstance(request, PredictionRequest):
         if month_index(request.target_month) != last_month + 1:
             add("target_month", "INVALID_TARGET_MONTH")
+    elif isinstance(request, ForecastRequest):
+        if month_index(request.origin_month) != last_month:
+            add("origin_month", "INVALID_TARGET_MONTH")
 
     finish()
