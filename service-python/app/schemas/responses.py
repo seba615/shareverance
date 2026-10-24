@@ -112,6 +112,41 @@ class PredictionResponse(ResponseBase):
     categories: list[CategoryPredictionResult] = Field(max_length=100)
 
 
+class ForecastQuality(ContractModel):
+    status: Literal["NOT_EVALUATED", "EXPERIMENTAL"]
+    evaluation_id: str | None = None
+    mae_minor: AmountMinor | None = None
+    wape_percentage: float | None = Field(default=None, allow_inf_nan=False)
+    samples: int | None = None
+
+
+class ForecastPoint(ContractModel):
+    horizon: Annotated[int, Field(strict=True, ge=1, le=6)]
+    target_month: Month
+    estimated_amount_minor: AmountMinor | None
+    quality: ForecastQuality
+
+
+class ForecastSeriesResult(ContractModel):
+    status: ResultStatus
+    method: str = Field(strict=True, min_length=1, max_length=100)
+    model_version: str = Field(strict=True, min_length=1, max_length=100)
+    months_used: MonthCount
+    required_months: Annotated[int, Field(strict=True, ge=1, le=60)]
+    forecasts: list[ForecastPoint] = Field(min_length=4, max_length=6)
+
+
+class CategoryForecastResult(ForecastSeriesResult):
+    category_id: PositiveId
+
+
+class ForecastResponse(ResponseBase):
+    origin_month: Month
+    horizon_months: Annotated[int, Field(strict=True, ge=4, le=6)]
+    organization: ForecastSeriesResult
+    categories: list[CategoryForecastResult] = Field(max_length=100)
+
+
 class InternalOcrResponse(ContractModel):
     contract_version: Literal["1"]
     request_id: UUID

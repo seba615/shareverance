@@ -297,6 +297,17 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### P5-H: integración de previsiones multihorizonte (4 a 6 meses)
+
+Relacionado con [#81](https://github.com/seba615/shareverance/issues/81). Extensión operativa del predictor para admitir previsiones a mediano plazo (horizontes de 4, 5 o 6 meses) proyectadas desde un mes base de origen con cobertura histórica confirmada.
+
+- **Contratos internos y públicos:**
+  - Python: POST /internal/v2/predictions/forecast (protegido por token Bearer compartido interno, consulta de vistas SQL autorizadas acotada por tenant). Soporta hasta 60 meses continuos confirmados hasta origin_month.
+  - Java: GET /api/v1/organizations/{organizationId}/predictions/forecast?originMonth=YYYY-MM&horizonMonths=4|5|6 valida pertenencia autorizada a la organización, resuelve mes de origen predeterminado y orquesta la consulta HTTP hacia Python.
+  - UI React: PredictionPanel.tsx incorpora selector de modalidad entre Próximo mes (1 mes) y Previsión multihorizonte (4 a 6 meses), selector de horizonte (4, 5 o 6), visualización de trayectorias multimes para la organización y desglose por categorías, y advertencias explícitas de calidad NOT_EVALUATED e incertidumbre creciente.
+- **Calidad predictiva e incertidumbre:** conforme a las conclusiones de P2-H, P4-H y P5, al no existir modelos de tendencia/inflación promovidos ni calibración de intervalos de confianza, las estimaciones multimes se emiten en estado quality.status: NOT_EVALUATED sin declarar intervalos de probabilidad.
+- **Compatibilidad aditiva:** los contratos y endpoints vigentes de monthly no sufren alteraciones.
+
 ### P4-H: comparación descriptiva y estabilidad multihorizonte
 
 Relacionado con [#79](https://github.com/seba615/shareverance/issues/79). `scripts/compare_forecast_csv.py` reutiliza P3-H con seis horizontes y una cohorte completa común para todas las ventanas 4/5/6, métodos y orígenes. Informa MAE exacto con igual peso por serie, WAPE agrupado, muestras, exclusiones y deterioro de SES contra la mejor de ambas referencias por serie. La selección de referencia es descriptiva, no una política de producción.

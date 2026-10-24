@@ -1,6 +1,7 @@
 package com.shareverance.controller;
 
 import com.shareverance.service.PredictionService;
+import com.shareverance.service.PredictionService.ForecastResponse;
 import com.shareverance.service.PredictionService.PredictionResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,18 @@ public class PredictionController {
 
     public PredictionController(PredictionService predictionService) {
         this.predictionService = predictionService;
+    }
+
+
+    @GetMapping("/forecast")
+    public ForecastResponse getForecast(
+            @PathVariable Long organizationId,
+            @RequestParam(required = false) String originMonth,
+            @RequestParam(required = false) Integer horizonMonths,
+            HttpServletRequest request
+    ) {
+        Long userId = (Long) request.getAttribute("authenticatedUserId");
+        return predictionService.getForecast(organizationId, userId, originMonth, horizonMonths);
     }
 
     @GetMapping("/monthly")

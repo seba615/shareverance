@@ -6,6 +6,8 @@ import psycopg
 from app.schemas.requests import (
     CategoryCoverage,
     CategoryTotal,
+    InternalForecastRequest,
+    ForecastRequest,
     InternalPredictionRequest,
     MonthlyHistory,
     PredictionRequest,
@@ -206,6 +208,100 @@ class ViewsRepository:
             organization_id=internal_request.organization_id,
             currency="ARS",
             target_month=internal_request.target_month,
+            categories=categories,
+            history=history,
+        )
+
+    def build_forecast_request(
+        self,
+        internal_request: InternalForecastRequest,
+    ) -> ForecastRequest:
+        try:
+            origin_idx = month_index(internal_request.origin_month)
+        except ValueError as exc:
+            raise HistoryValidationError(
+                [HistoryIssue(field="origin_month", code="INVALID_VALUE")]
+            ) from exc
+
+        covered_months, expense_rows = self.fetch_organization_views(
+            internal_request.organization_id
+        )
+
+        covered_set = set(covered_months)
+        contiguous_Descending: list[str] = []
+        cursor_idx = origin_idx
+
+        while cursor_idx >= 0 and len(contiguous_Descending) < MAX_HISTORY_MONTHS:
+            candidate_month = index_to_month(cursor_idx)
+            if candidate_month not in covered_set:
+                break
+            contiguous_Descending.append(candidate_month)
+            cursor_idx -= 1
+
+        contiguous_months = list(reversed(contiguous_Descending))
+
+        if not contiguous_months or contiguous_months[-1] != internal_request.origin_month:
+            return ForecastRequest(
+                contract_version="1",
+                request_id=internal_request.request_id,
+                organization_id=internal_request.organization_id,
+                currency="ARS",
+                origin_month=internal_request.origin_month,
+                horizon_months=internal_request.horizon_months,
+                categories=[],
+                history=[],
+            )
+
+        contiguous_set = set(contiguous_months)
+        available_from: dict[int, str] = {}
+        totals_by_month_cat: dict[tuple[str, int], int] = {}
+
+        for month_str, category_id, amount_minor in expense_rows:
+            if month_str not in contiguous_set:
+                continue
+            if (
+                category_id not in available_from
+                or month_str < available_from[category_id]
+            ):
+                available_from[category_id] = month_str
+            totals_by_month_cat[(month_str, category_id)] = (
+                totals_by_month_cat.get((month_str, category_id), 0)
+                + amount_minor
+            )
+
+        sorted_category_ids = sorted(available_from.keys())
+        categories = [
+            CategoryCoverage(
+                category_id=cat_id,
+                available_from_month=available_from[cat_id],
+            )
+            for cat_id in sorted_category_ids
+        ]
+
+        history = [
+            MonthlyHistory(
+                month=month_str,
+                category_totals=[
+                    CategoryTotal(
+                        category_id=cat_id,
+                        amount_minor=totals_by_month_cat.get(
+                            (month_str, cat_id), 0
+                        ),
+                    )
+                    for cat_id in sorted_category_ids
+                    if month_str >= available_from[cat_id]
+                ],
+            )
+            for month_str in contiguous_months
+        ]
+
+        return ForecastRequest(
+            contract_version="1",
+            request_id=internal_request.request_id,
+            organization_id=internal_request.organization_id,
+            currency="ARS",
+            origin_month=internal_request.origin_month,
+            horizon_months=internal_request.horizon_months,
             categories=categories,
             history=history,
         )

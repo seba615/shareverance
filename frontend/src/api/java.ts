@@ -434,6 +434,48 @@ export interface CategoryPredictionResult extends PredictionResult {
   category_id: number;
 }
 
+
+export interface ForecastQuality {
+  status: 'NOT_EVALUATED' | 'EXPERIMENTAL';
+  evaluation_id: string | null;
+  mae_minor: number | null;
+  wape_percentage: number | null;
+  samples: number | null;
+}
+
+export interface ForecastPoint {
+  horizon: number;
+  target_month: string;
+  estimated_amount_minor: number | null;
+  quality: ForecastQuality;
+}
+
+export interface ForecastSeriesResult {
+  status: 'OK' | 'INSUFFICIENT_HISTORY';
+  method: string;
+  model_version: string;
+  months_used: number;
+  required_months: number;
+  forecasts: ForecastPoint[];
+}
+
+export interface CategoryForecastResult extends ForecastSeriesResult {
+  category_id: number;
+}
+
+export interface ForecastResponse {
+  contract_version: '2';
+  request_id: string;
+  organization_id: number;
+  currency: 'ARS';
+  status: 'OK' | 'PARTIAL' | 'INSUFFICIENT_HISTORY';
+  simulated: boolean;
+  origin_month: string;
+  horizon_months: 4 | 5 | 6;
+  organization: ForecastSeriesResult;
+  categories: CategoryForecastResult[];
+}
+
 export interface PredictionResponse {
   contract_version: '2';
   request_id: string;
@@ -447,8 +489,15 @@ export interface PredictionResponse {
 }
 
 export const predictionApi = {
-  monthly(organizationId: number, targetMonth?: string): Promise<PredictionResponse> {
+    monthly(organizationId: number, targetMonth?: string): Promise<PredictionResponse> {
     const query = targetMonth ? `?targetMonth=${encodeURIComponent(targetMonth)}` : '';
     return request<PredictionResponse>(`/api/v1/organizations/${organizationId}/predictions/monthly${query}`);
+  },
+
+  forecast(organizationId: number, originMonth?: string, horizonMonths: 4 | 5 | 6 = 4): Promise<ForecastResponse> {
+    const params = new URLSearchParams();
+    if (originMonth) params.set('originMonth', originMonth);
+    params.set('horizonMonths', horizonMonths.toString());
+    return request<ForecastResponse>(`/api/v1/organizations/${organizationId}/predictions/forecast?${params.toString()}`);
   },
 };

@@ -12,6 +12,16 @@ export function validatePredictionTargetMonth(targetMonth: string): string {
   return '';
 }
 
+export function validatePredictionOriginMonth(originMonth: string): string {
+  const trimmed = originMonth.trim();
+  if (!trimmed) return '';
+  const valid = /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(trimmed) && !trimmed.startsWith('0000');
+  if (!valid) {
+    return 'Ingresá un mes de origen válido con formato YYYY-MM (años 0001 a 9999).';
+  }
+  return '';
+}
+
 export function formatPredictionMonth(month: string): string {
   if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) return month;
   const date = new Date('2000-01-15T12:00:00Z');

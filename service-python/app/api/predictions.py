@@ -5,10 +5,15 @@ from fastapi import APIRouter, Depends, Request
 from app.api.error_handlers import InternalAuthError
 from app.config import Settings, load_settings
 from app.schemas.requests import (
+    ForecastRequest,
+    InternalForecastRequest,
     InternalPredictionRequest,
     PredictionRequest,
 )
-from app.schemas.responses import PredictionResponse
+from app.schemas.responses import (
+    ForecastResponse,
+    PredictionResponse,
+)
 from app.services.predictions import PredictionService
 from app.services.views_repository import ViewsRepository
 
@@ -119,3 +124,31 @@ def predict_internal_monthly(
     request.state.contract_request_id = payload.request_id
     prediction_request = views_repository.build_prediction_request(payload)
     return service.predict(prediction_request, contract_version="2")
+
+@router.post(
+    "/forecast",
+    response_model=ForecastResponse,
+)
+def predict_forecast(
+    payload: ForecastRequest,
+    request: Request,
+    service: PredictionService = Depends(get_prediction_service),
+) -> ForecastResponse:
+    request.state.contract_request_id = payload.request_id
+    return service.predict_forecast(payload)
+
+
+@internal_router.post(
+    "/forecast",
+    response_model=ForecastResponse,
+    dependencies=[Depends(verify_internal_service_auth)],
+)
+def predict_internal_forecast(
+    payload: InternalForecastRequest,
+    request: Request,
+    service: PredictionService = Depends(get_prediction_service),
+    views_repository: ViewsRepository = Depends(get_views_repository),
+) -> ForecastResponse:
+    request.state.contract_request_id = payload.request_id
+    forecast_request = views_repository.build_forecast_request(payload)
+    return service.predict_forecast(forecast_request, contract_version="2")
