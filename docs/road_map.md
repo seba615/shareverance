@@ -603,6 +603,8 @@ Limitaciones operativas: proyecto explícito y confirmación de reemplazo obliga
 
 ### Implementación — política y procedimiento de limpieza de comprobantes temporales y huérfanos, 24/10/2026
 
+Registro inicial de la entrega; la corrección y evidencia vigente se detallan a continuación del registro.
+
 Relacionado con [#83](https://github.com/seba615/shareverance/issues/83), asignado a la cuenta autenticada `Ale2611`. Rama de trabajo `feat/limpieza-comprobantes-temporales` creada desde `origin/main` (`3757851`). Sin ramas remotas ni PRs abiertos en conflicto. La vinculación al proyecto 3 requiere gestión manual por falta del scope `read:project` en el token CLI.
 
 Implementado:
@@ -621,3 +623,12 @@ Verificado:
 - Suite de respaldo existente: `PYTHONPATH=scripts python3 -m unittest scripts/test_backup_engine.py`: **11 pruebas aprobadas**, cero fallos.
 - Verificación de sintaxis de shell: `bash -n scripts/cleanup-receipts.sh` correcto.
 - Compose y git status revisados; cambios acotados a herramientas y documentación operativa sin alterar contratos HTTP ni migraciones Flyway. Aceptación operativa y cierre del issue permanecen manuales.
+
+
+#### Corrección de limpieza #83 / PR #84, 24/10/2026
+
+Base revisada `d231b68`. La aplicación requiere proyecto explícito, Java/Python y otros usuarios del volumen detenidos, escritores externos cerrados y respaldo previo. Se reutiliza resolución por etiquetas/montajes y el bloqueo de backup/restauración; ACCESS EXCLUSIVE en receipts permanece en la misma sesión SQL hasta COMMIT tras el borrado. Auditoría predeterminada sin modificar comprobantes/filas; candidatos recalculados al aplicar. Retención por created_at y mtime; protección de asociados activos/anulados, validación sin symlinks en padres/raíz y metadatos revalidados, sin retirar directorios. Desactivación condicional y cantidad comprobada. Corregido envío de bytes por input, parámetros PowerShell y propagación de errores de construcción/ejecución. El proceso no reinicia servicios ni promete atomicidad SQL/filesystem.
+
+Comprobaciones ejecutadas: 12 pruebas unitarias de limpieza y 11 regresiones de respaldo aprobadas dentro de la imagen Linux, sin omisiones. Verificador nuevo `python scripts/verify_cleanup_receipts.py` ejecutado en PostgreSQL 17.11 real con migraciones vigentes, tmpfs, volumen y contenedores propios sin puertos: dry-run sin cambios, rechazo con aplicación activa, retención, preservación de asociados a gastos activos/anulados, asociación entre auditoría y aplicación protegida, bloqueo SQL concurrente, exclusión de mantenimiento, repetición idempotente y fallo SQL previo al borrado con rollback. Una segunda ejecución incluyó fallo COMMIT diferido después del borrado: termina con error sin APPLIED, revierte SQL pero no archivos; recuperación sintética explícita sólo en la base aislada y repetición correcta. Se documenta esa limitación y la recuperación desde respaldo con servicios detenidos.
+
+Wrappers PowerShell y Bash ejecutados contra recursos temporales del verificador en auditoría/aplicación; Bash dentro de Linux Docker, no en host nativo macOS/Linux. Parser PowerShell y propagación de fallo de build/ejecución comprobados; regresión de backup no altera herramientas existentes. Recursos temporales retirados tras comprobar etiquetas de propiedad. Ninguna base/volumen/comprobante del entorno habitual fue usado o eliminado; SQL local ajeno preservado. README, alcance, Java y OCR actualizados con start/stop de mantenimiento y verificación reproducible. No se repitieron suites Java/React/OCR ni se acredita aceptación integral. Issue #83 vinculado al proyecto 3, conservando Ale2611 y sin cambiar estados ni cerrar tareas. Integración y aceptación manuales.

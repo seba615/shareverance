@@ -50,7 +50,33 @@ Para fotos con fondo oscuro se busca un componente claro dominante en una vista 
 
 El normalizador admite espacios entre separador decimal y centavos y variantes acotadas de la etiqueta TOTAL (letras separadas, cero por O y prefijos degradados). No sustituye dígitos de importes ni fechas. Ignora fechas de inicio de actividades, vencimiento y CAE; sin TOTAL requiere moneda explícita y excluye líneas fiscales para no convertir números aislados en gastos. La revisión humana sigue siendo obligatoria.
 
-Conservar comprobantes asociados incluso tras anulación. No limpiar tablas de negocio. La limpieza de archivos sin asociación se formaliza mediante la política operativa de retención de 24 horas predeterminadas (mínimo configurable de 1 hora) implementada en `scripts/cleanup_receipts.py` (`scripts/cleanup-receipts.sh` / `scripts/cleanup-receipts.ps1`). El procedimiento no ejecuta purga en segundo plano dentro del backend web: se ejecuta como tarea de mantenimiento con auditoría simulada (`--dry-run` predeterminado) y aplicación explícita (`--apply`), eliminando archivos físicos huérfanos o temporales expirados y desactivando lógicamente los registros no vinculados en PostgreSQL (`is_active = FALSE`).
+<a id="limpieza-operativa"></a>
+
+### Limpieza operativa de temporales y huérfanos
+
+Relacionado con [#83](https://github.com/seba615/shareverance/issues/83). Conservar comprobantes vinculados a gastos activos o anulados. No purgar tablas de negocio. `scripts/cleanup_receipts.py` y sus wrappers proporcionan auditoría predeterminada y aplicación manual explícita; no hay tarea automática en el backend web.
+
+Retención: 24 horas predeterminadas, mínimo 1 hora. Para una fila sin gasto, `created_at` debe ser anterior al corte y el archivo, si existe, también debe tener `mtime` anterior. Una fila antigua con archivo recién modificado queda protegida. Un huérfano sin fila usa `mtime`. Ausencia de archivo no habilita eliminar una fila vinculada. Rutas o referencias duplicadas/ambiguas provocan fallo antes de borrar.
+
+El proyecto Compose es obligatorio y se valida por etiquetas y montajes, reutilizando la resolución de backup. Todas las operaciones de limpieza comparten con backup/restauración un contenedor de bloqueo por proyecto. La auditoría crea/retira ese bloqueo temporal, pero no modifica comprobantes ni filas; sobre un entorno activo es una fotografía informativa, no una autorización ni instantánea transaccional de la próxima aplicación.
+
+`--apply` exige Java/Python y todos los contenedores que monten comprobantes detenidos. No los detiene/reinicia silenciosamente. El operador debe mantener cerrados otros escritores SQL/host y no iniciar aplicaciones durante la ventana. Se adquiere ACCESS EXCLUSIVE en receipts en una sesión SQL mantenida hasta COMMIT: una asociación concurrente se serializa y, si ya se confirmó antes del bloqueo, queda protegida. Espera máxima de adquisición 5 segundos; timeout SQL 30 segundos e inactividad de sesión 120 segundos. Ante timeout/error no se informa APPLIED.
+
+Los candidatos se recalculan bajo bloqueo. La desactivación SQL exige ID válido, estado activo, `expense_id IS NULL` y antigüedad; se comprueba la cantidad afectada. El borrado usa descriptores de directorio con O_NOFOLLOW en cada componente, incluidos raíz/padres, y comprueba tamaño, inode y mtime en nanosegundos antes de borrar. Rechaza symlinks, archivos especiales y cambios de inventario. No elimina directorios vacíos. El worker funciona en Linux dentro de la imagen; no se exige soporte dir_fd del Python nativo Windows. Ninguna comprobación sustituye el control de accesos al volumen: procesos externos con escritura deben permanecer cerrados.
+
+Base y filesystem no son atómicos. Antes de aplicar, disponer de respaldo consistente. Un error SQL previo al borrado no elimina archivos; un error de filesystem, desconexión o fallo de COMMIT después de borrar puede dejar archivos ausentes y filas sin desactivar. El proceso termina con error; las aplicaciones deben seguir detenidas mientras se cotejan archivos/filas y se recupera desde respaldo. No se declara rollback distribuido. Un bloqueo residual tras caída requiere inspección manual; no se retira un bloqueo ajeno.
+
+Comandos de operación en [README](../README.md#limpieza-de-comprobantes-temporales-y-huérfanos). Ejemplo con entorno aislado ya iniciado: `scripts/cleanup-receipts.ps1 -Project shareverance-predictor-demo -Json`. Aplicar sólo en ventana de mantenimiento con ese proyecto explícito; para iniciar/detener la demo ver [P1-D](python_predictor.md#entorno-demo-predictor), conservando volúmenes. Esta tarea no requiere iniciar el entorno habitual.
+
+Verificación aislada reproducible, desde raíz con Docker Desktop Linux y Python 3 local (biblioteca estándar; crea sus propios recursos):
+
+```powershell
+docker build -t shareverance-backup-tools:local -f scripts/backup-tools.Dockerfile .
+if ($LASTEXITCODE -ne 0) { throw "No se construyó la imagen" }
+python scripts/verify_cleanup_receipts.py
+```
+
+El verificador utiliza PostgreSQL 17.11 en tmpfs, sin puertos publicados, volumen y contenedores únicos etiquetados. Sólo retira recursos propios tras verificar etiquetas; nunca selecciona la base de desarrollo. `--keep` conserva recursos propios de una ejecución satisfactoria para probar wrappers; deben retirarse después comprobando identidad y etiquetas.
 
 ## Pruebas
 

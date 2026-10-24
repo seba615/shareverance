@@ -414,30 +414,35 @@ El manifiesto corregido utiliza versión 2 con SHA-256 global y por archivo, con
 
 ### Limpieza de comprobantes temporales y huérfanos
 
-Para auditar y depurar archivos temporales no asociados a gastos (`expense_id IS NULL`) y archivos huérfanos en disco sin fila en PostgreSQL transcurrida la ventana de retención operativa (por defecto 24 horas, configurable mediante `--retention-hours`):
+Procedimiento manual; no hay purga en segundo plano. Retención predeterminada 24 horas, mínimo 1 hora. Un registro sin gasto sólo es candidato si `created_at` y el `mtime` del archivo, cuando existe, son anteriores al corte; un archivo sin registro usa `mtime`. Los comprobantes vinculados a gastos activos o anulados se conservan.
 
-Desde Bash (Linux / macOS):
-```bash
-# Auditoría simulada (dry-run predeterminado, no modifica disco ni base de datos)
-bash scripts/cleanup-receipts.sh --project shareverance
+Desde la raíz con Docker Desktop Linux activo y PostgreSQL del proyecto ejecutándose:
 
-# Aplicación efectiva de la limpieza
-bash scripts/cleanup-receipts.sh --project shareverance --apply
-```
-
-Desde PowerShell (Windows):
 ```powershell
-# Auditoría simulada (dry-run)
-.\scripts\cleanup-receipts.ps1 -Project shareverance
-
-# Aplicación efectiva
-.\scripts\cleanup-receipts.ps1 -Project shareverance -Apply
+# Auditoría sin modificación de comprobantes ni filas (crea un bloqueo temporal de mantenimiento).
+.\scripts\cleanup-receipts.ps1 -Project shareverance -RetentionHours 24 -Json
 ```
 
-Garantías de seguridad:
-- **Protección estricta:** Nunca altera ni elimina comprobantes asociados a gastos (activos o anulados), ni archivos creados/modificados dentro de la ventana de retención.
-- **Auditoría por defecto:** El modo `--dry-run` es predeterminado y reporta candidatos y bytes a liberar sin aplicar cambios.
-- **Integridad de negocio:** Al aplicar (`--apply`), elimina los archivos físicos no vinculados y desactiva lógicamente sus registros en PostgreSQL (`is_active = FALSE`), preservando el historial sin purgar tablas de negocio.
+Antes de aplicar: disponer de un respaldo de base y comprobantes, detener Java/Python y cualquier otro contenedor que utilice el volumen, cerrar escritores SQL y accesos externos al volumen. Los comandos Compose deben usar el mismo proyecto y configuración con que se inició el entorno:
+
+```powershell
+docker compose --project-name shareverance -f compose.yaml stop frontend java-service python-service
+.\scripts\cleanup-receipts.ps1 -Project shareverance -Apply -RetentionHours 24 -Json
+# Sólo después de resultado APPLIED y revisión satisfactoria:
+docker compose --project-name shareverance -f compose.yaml start python-service java-service frontend
+```
+
+El proyecto es obligatorio; sustituirlo explícitamente si corresponde a otro entorno. El motor no detiene ni reinicia servicios automáticamente. Si falla, revisar antes de iniciarlos: SQL y filesystem no constituyen una transacción atómica y puede requerirse recuperar archivos del respaldo. Una auditoría previa no fija candidatos: se recalculan bajo bloqueo al aplicar.
+
+Equivalente Bash (Linux/macOS con Docker):
+
+```bash
+bash scripts/cleanup-receipts.sh --project shareverance --retention-hours 24 --json
+# Con aplicaciones y demás usuarios del volumen detenidos:
+bash scripts/cleanup-receipts.sh --project shareverance --apply --retention-hours 24 --json
+```
+
+La aplicación comparte exclusión de mantenimiento con backup/restauración, mantiene un bloqueo SQL de `receipts` desde la lectura hasta el borrado y actualización, comprueba rutas sin seguir enlaces y revalida metadatos antes de eliminar. Las filas expiradas se desactivan lógicamente; no se purgan tablas de negocio. Errores de construcción o ejecución se propagan, sin reutilizar una imagen anterior como si la construcción hubiera funcionado. Límites, pruebas y recuperación en [OCR](docs/python_ocr.md#limpieza-operativa).
 
 ## 6. Incorporar bibliotecas en Java
 

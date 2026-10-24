@@ -130,40 +130,55 @@ class CleanupRulesTest(unittest.TestCase):
         self.assertEqual(res["totals"]["files_to_delete_count"], 1)
         self.assertEqual(res["totals"]["bytes_to_free"], 3000)
 
-    def test_local_execution_dry_run_vs_apply(self):
+    def test_delete_revalidates_metadata_and_parent_symlinks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            org_dir = root / "org_1"
-            org_dir.mkdir(parents=True)
+            (root / 'org_1').mkdir()
+            f = root / 'org_1' / 'expirado.jpg'
+            f.write_bytes(b'old')
+            manifest = cleanup.scan_local_directory(root)
+            f.write_bytes(b'changed')
+            with self.assertRaisesRegex(RuntimeError, 'cambió'):
+                cleanup.delete_files(root, manifest)
+            self.assertTrue(f.exists())
+            manifest = cleanup.scan_local_directory(root)
+            self.assertEqual(cleanup.delete_files(root, manifest), ['org_1/expirado.jpg'])
+            self.assertTrue((root / 'org_1').is_dir())
 
-            f1 = org_dir / "expirado.jpg"
-            f1.write_bytes(b"CONTENIDO_EXPIRADO")
-            f2 = org_dir / "protegido.jpg"
-            f2.write_bytes(b"CONTENIDO_PROTEGIDO")
+    def test_recent_mtime_protects_old_database_row(self):
+        now = 1700000000.0
+        old = now - 48 * 3600
+        files = {'org_1/recent.jpg': {'size': 10, 'mtime': now}}
+        state = {'linked': [], 'unlinked': [{'id': 'old', 'path': 'org_1/recent.jpg',
+                 'size': 10, 'created_at': old, 'is_active': True}]}
+        result = cleanup.evaluate_cleanup(files, state, 24, now)
+        self.assertEqual(result['totals']['files_to_delete_count'], 0)
+        self.assertEqual(result['totals']['rows_to_deactivate_count'], 0)
 
-            evaluation = {
-                "candidates": {
-                    "files_to_delete": ["org_1/expirado.jpg"],
-                    "rows_to_deactivate": ["uuid-1"],
-                },
-                "totals": {"files_to_delete_count": 1, "rows_to_deactivate_count": 1, "bytes_to_free": 18},
-            }
+    def test_duplicate_path_cannot_override_linked_protection(self):
+        state = {'linked': ['org_1/same.jpg'], 'unlinked': [{'id': 'old',
+                 'path': 'org_1/same.jpg', 'created_at': 0, 'size': 1, 'is_active': True}]}
+        with self.assertRaisesRegex(RuntimeError, 'duplicadas'):
+            cleanup.evaluate_cleanup({}, state, 24)
 
-            db_mock = MagicMock()
+    def test_parent_link_rejected_at_delete_after_scan(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / 'org_1').mkdir()
+            (root / 'org_1' / 'file.jpg').write_bytes(b'keep')
+            manifest = cleanup.scan_local_directory(root)
+            (root / 'org_1').rename(root / 'saved')
+            (root / 'org_1').symlink_to(root / 'saved', target_is_directory=True)
+            with self.assertRaises(OSError):
+                cleanup.delete_files(root, manifest)
+            self.assertEqual((root / 'saved' / 'file.jpg').read_bytes(), b'keep')
 
-            # 1. Modo dry-run: ningún archivo debe eliminarse
-            simulated = cleanup.execute_local_cleanup(root, evaluation, dry_run=True, db_deactivate_fn=db_mock)
-            self.assertEqual(simulated["status"], "SIMULATED")
-            self.assertTrue(f1.exists())
-            self.assertTrue(f2.exists())
-            db_mock.assert_not_called()
-
-            # 2. Modo apply: el archivo expirado debe eliminarse y la fila desactivarse
-            applied = cleanup.execute_local_cleanup(root, evaluation, dry_run=False, db_deactivate_fn=db_mock)
-            self.assertEqual(applied["status"], "APPLIED")
-            self.assertFalse(f1.exists())
-            self.assertTrue(f2.exists())
-            db_mock.assert_called_once_with(["uuid-1"])
+    def test_docker_bytes_use_input_not_stdin(self):
+        fake = MagicMock(returncode=0, stdout=b'[]')
+        with patch('cleanup_receipts.subprocess.run', return_value=fake) as run:
+            self.assertEqual(cleanup.docker('run', source=b'{}'), '[]')
+        self.assertEqual(run.call_args.kwargs['input'], b'{}')
+        self.assertNotIn('stdin', run.call_args.kwargs)
 
     def test_scan_local_directory_rejects_symlinks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
