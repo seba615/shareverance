@@ -297,6 +297,12 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### P4-H: comparación descriptiva y estabilidad multihorizonte
+
+Relacionado con [#79](https://github.com/seba615/shareverance/issues/79). `scripts/compare_forecast_csv.py` reutiliza P3-H con seis horizontes y una cohorte completa común para todas las ventanas 4/5/6, métodos y orígenes. Informa MAE exacto con igual peso por serie, WAPE agrupado, muestras, exclusiones y deterioro de SES contra la mejor de ambas referencias por serie. La selección de referencia es descriptiva, no una política de producción.
+
+Desde la raíz con PowerShell y Docker Desktop Linux: `scripts/predictor-demo.ps1 compare` y `test`, sin iniciar servicios ni reevaluar 2025. [Evidencia, resultados, formato y comandos completos](evidencia/p4h/README.md). Se registran configuración y hashes; no son congelación previa para evaluación final. Datos sintéticos, umbrales multihorizonte pendientes, sin aceptación o promoción automática. La aplicación continúa en monthly/mock; su ejecución start/load/check/stop permanece en la [guía P1-D](#entorno-demo-predictor).
+
 ### P5: decisión conservadora de no promoción
 
 Relacionado con [#77](https://github.com/seba615/shareverance/issues/77). Se mantiene mock predeterminado y SES 0.3 experimental: la evidencia sintética disponible no justifica promoverlo. No se acredita evaluación final ni cierre de aceptación predictiva. P2 conserva umbrales propuestos; P2-H requiere criterios por horizonte y regla conjunta acordados.
