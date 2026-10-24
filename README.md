@@ -412,6 +412,38 @@ La restauración reemplaza la base y los archivos del proyecto explícito. Prime
 
 El manifiesto corregido utiliza versión 2 con SHA-256 global y por archivo, conteos y archivos sin referencia identificados/preservados. La versión 1 del PR inicial se rechaza antes de modificar datos; no se sobrescribe ni convierte automáticamente. Detalles, limitaciones y pruebas en [PostgreSQL](docs/postgre.md).
 
+### Limpieza de comprobantes temporales y huérfanos
+
+Procedimiento manual; no hay purga en segundo plano. Retención predeterminada 24 horas, mínimo 1 hora. Un registro sin gasto sólo es candidato si `created_at` y el `mtime` del archivo, cuando existe, son anteriores al corte; un archivo sin registro usa `mtime`. Los comprobantes vinculados a gastos activos o anulados se conservan.
+
+Desde la raíz con Docker Desktop Linux activo y PostgreSQL del proyecto ejecutándose:
+
+```powershell
+# Auditoría sin modificación de comprobantes ni filas (crea un bloqueo temporal de mantenimiento).
+.\scripts\cleanup-receipts.ps1 -Project shareverance -RetentionHours 24 -Json
+```
+
+Antes de aplicar: disponer de un respaldo de base y comprobantes, detener Java/Python y cualquier otro contenedor que utilice el volumen, cerrar escritores SQL y accesos externos al volumen. Los comandos Compose deben usar el mismo proyecto y configuración con que se inició el entorno:
+
+```powershell
+docker compose --project-name shareverance -f compose.yaml stop frontend java-service python-service
+.\scripts\cleanup-receipts.ps1 -Project shareverance -Apply -RetentionHours 24 -Json
+# Sólo después de resultado APPLIED y revisión satisfactoria:
+docker compose --project-name shareverance -f compose.yaml start python-service java-service frontend
+```
+
+El proyecto es obligatorio; sustituirlo explícitamente si corresponde a otro entorno. El motor no detiene ni reinicia servicios automáticamente. Si falla, revisar antes de iniciarlos: SQL y filesystem no constituyen una transacción atómica y puede requerirse recuperar archivos del respaldo. Una auditoría previa no fija candidatos: se recalculan bajo bloqueo al aplicar.
+
+Equivalente Bash (Linux/macOS con Docker):
+
+```bash
+bash scripts/cleanup-receipts.sh --project shareverance --retention-hours 24 --json
+# Con aplicaciones y demás usuarios del volumen detenidos:
+bash scripts/cleanup-receipts.sh --project shareverance --apply --retention-hours 24 --json
+```
+
+La aplicación comparte exclusión de mantenimiento con backup/restauración, mantiene un bloqueo SQL de `receipts` desde la lectura hasta el borrado y actualización, comprueba rutas sin seguir enlaces y revalida metadatos antes de eliminar. Las filas expiradas se desactivan lógicamente; no se purgan tablas de negocio. Errores de construcción o ejecución se propagan, sin reutilizar una imagen anterior como si la construcción hubiera funcionado. Límites, pruebas y recuperación en [OCR](docs/python_ocr.md#limpieza-operativa).
+
 ## 6. Incorporar bibliotecas en Java
 
 Las dependencias se declaran en `backend-java/pom.xml`, dentro de `<dependencies>`. Usar las coordenadas indicadas por la documentación oficial de la biblioteca. Este fragmento es una plantilla, no una dependencia real:
