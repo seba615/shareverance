@@ -50,7 +50,7 @@ Para fotos con fondo oscuro se busca un componente claro dominante en una vista 
 
 El normalizador admite espacios entre separador decimal y centavos y variantes acotadas de la etiqueta TOTAL (letras separadas, cero por O y prefijos degradados). No sustituye dígitos de importes ni fechas. Ignora fechas de inicio de actividades, vencimiento y CAE; sin TOTAL requiere moneda explícita y excluye líneas fiscales para no convertir números aislados en gastos. La revisión humana sigue siendo obligatoria.
 
-Conservar comprobantes asociados incluso tras anulación. No limpiar tablas de negocio. La limpieza de archivos sin asociación necesita una política explícita; 24 horas sigue siendo un valor propuesto, no una tarea automática habilitada.
+Conservar comprobantes asociados incluso tras anulación. No limpiar tablas de negocio. La limpieza de archivos sin asociación se formaliza mediante la política operativa de retención de 24 horas predeterminadas (mínimo configurable de 1 hora) implementada en `scripts/cleanup_receipts.py` (`scripts/cleanup-receipts.sh` / `scripts/cleanup-receipts.ps1`). El procedimiento no ejecuta purga en segundo plano dentro del backend web: se ejecuta como tarea de mantenimiento con auditoría simulada (`--dry-run` predeterminado) y aplicación explícita (`--apply`), eliminando archivos físicos huérfanos o temporales expirados y desactivando lógicamente los registros no vinculados en PostgreSQL (`is_active = FALSE`).
 
 ## Pruebas
 

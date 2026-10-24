@@ -600,3 +600,24 @@ Restauración validada primero en base/volumen temporales, roles creados antes d
 - README, alcance, PostgreSQL y matriz actualizados, sin declarar cierre ni A12/A16/A18 completos. El seguimiento #57 se vinculó al proyecto 3, conservando la asignación a `Ale2611` y sin modificar estados. No se crea otra tarea. Main consultado en `741601d`, únicamente PR #58 abierto al revisar. Se preserva `scripts/seed_demo_data.sql` ajeno y el entorno humano en 5175; sus datos y volúmenes no fueron usados por estas pruebas.
 
 Limitaciones operativas: proyecto explícito y confirmación de reemplazo obligatorios; formato v2 nuevo, v1 rechazado sin conversión automática; cerrar escritores SQL externos durante la ventana. No hay atomicidad entre base y filesystem, firma de autenticidad de los backups, aceptación predictiva ni certificación integral. La recuperación operativa y aceptación final permanecen manuales.
+
+### Implementación — política y procedimiento de limpieza de comprobantes temporales y huérfanos, 24/10/2026
+
+Relacionado con [#83](https://github.com/seba615/shareverance/issues/83), asignado a la cuenta autenticada `Ale2611`. Rama de trabajo `feat/limpieza-comprobantes-temporales` creada desde `origin/main` (`3757851`). Sin ramas remotas ni PRs abiertos en conflicto. La vinculación al proyecto 3 requiere gestión manual por falta del scope `read:project` en el token CLI.
+
+Implementado:
+- Política formal de retención (24 horas predeterminadas, configurable con mínimo de 1 hora) para resolver el parámetro pendiente registrado en `docs/alcance_mvp.md` y `docs/python_ocr.md`.
+- Motor operativo `scripts/cleanup_receipts.py` con:
+  - Modo auditoría `--dry-run` predeterminado (seguro, no altera disco ni base de datos).
+  - Modo `--apply` para ejecutar la limpieza física y actualización lógica.
+  - Parámetro `--retention-hours` y salida estructurada `--json` para monitoreo o pipelines.
+  - Clasificación de archivos: protección estricta de comprobantes con gasto asociado (`expense_id IS NOT NULL`, tanto activos como anulados), protección de temporales/huérfanos recientes (`mtime` o `created_at` dentro de la ventana), purga física de temporales no asociados expirados y huérfanos sin registro en BD, y desactivación lógica (`is_active = FALSE`) en la tabla `receipts` para preservar auditoría sin purgar tablas de negocio.
+- Wrappers ejecutables `scripts/cleanup-receipts.sh` (Linux / macOS) y `scripts/cleanup-receipts.ps1` (Windows).
+- Actualización de `scripts/backup-tools.Dockerfile` para empaquetar el motor de limpieza en la imagen común de mantenimiento.
+- Documentación normativa y operativa en `docs/alcance_mvp.md`, `docs/python_ocr.md`, `docs/java.md` y `README.md`.
+
+Verificado:
+- Suite de pruebas del motor de limpieza: `PYTHONPATH=scripts python3 -m unittest scripts/test_cleanup_receipts.py`: **8 pruebas aprobadas**, cero fallos y cero omisiones. Cubre validación de rutas seguras, rechazo de enlaces simbólicos, rechazo de retención menor a 1 hora, preservación estricta de gastos vinculados (incluso anulados), protección de cargas recientes, detección de huérfanos y expirados por corte temporal, y simulación dry-run vs ejecución apply.
+- Suite de respaldo existente: `PYTHONPATH=scripts python3 -m unittest scripts/test_backup_engine.py`: **11 pruebas aprobadas**, cero fallos.
+- Verificación de sintaxis de shell: `bash -n scripts/cleanup-receipts.sh` correcto.
+- Compose y git status revisados; cambios acotados a herramientas y documentación operativa sin alterar contratos HTTP ni migraciones Flyway. Aceptación operativa y cierre del issue permanecen manuales.

@@ -412,6 +412,33 @@ La restauración reemplaza la base y los archivos del proyecto explícito. Prime
 
 El manifiesto corregido utiliza versión 2 con SHA-256 global y por archivo, conteos y archivos sin referencia identificados/preservados. La versión 1 del PR inicial se rechaza antes de modificar datos; no se sobrescribe ni convierte automáticamente. Detalles, limitaciones y pruebas en [PostgreSQL](docs/postgre.md).
 
+### Limpieza de comprobantes temporales y huérfanos
+
+Para auditar y depurar archivos temporales no asociados a gastos (`expense_id IS NULL`) y archivos huérfanos en disco sin fila en PostgreSQL transcurrida la ventana de retención operativa (por defecto 24 horas, configurable mediante `--retention-hours`):
+
+Desde Bash (Linux / macOS):
+```bash
+# Auditoría simulada (dry-run predeterminado, no modifica disco ni base de datos)
+bash scripts/cleanup-receipts.sh --project shareverance
+
+# Aplicación efectiva de la limpieza
+bash scripts/cleanup-receipts.sh --project shareverance --apply
+```
+
+Desde PowerShell (Windows):
+```powershell
+# Auditoría simulada (dry-run)
+.\scripts\cleanup-receipts.ps1 -Project shareverance
+
+# Aplicación efectiva
+.\scripts\cleanup-receipts.ps1 -Project shareverance -Apply
+```
+
+Garantías de seguridad:
+- **Protección estricta:** Nunca altera ni elimina comprobantes asociados a gastos (activos o anulados), ni archivos creados/modificados dentro de la ventana de retención.
+- **Auditoría por defecto:** El modo `--dry-run` es predeterminado y reporta candidatos y bytes a liberar sin aplicar cambios.
+- **Integridad de negocio:** Al aplicar (`--apply`), elimina los archivos físicos no vinculados y desactiva lógicamente sus registros en PostgreSQL (`is_active = FALSE`), preservando el historial sin purgar tablas de negocio.
+
 ## 6. Incorporar bibliotecas en Java
 
 Las dependencias se declaran en `backend-java/pom.xml`, dentro de `<dependencies>`. Usar las coordenadas indicadas por la documentación oficial de la biblioteca. Este fragmento es una plantilla, no una dependencia real:
