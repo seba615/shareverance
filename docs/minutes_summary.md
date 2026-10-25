@@ -1,5 +1,7 @@
 # Shareverance - Resumen de Minutas de Seguimiento
 
+Nota de alcance documental (25/10/2026, base 1486354): registro histórico, no evidencia autónoma de aceptación ni sustituto del [roadmap vigente](road_map.md). Las precisiones siguientes distinguen propuestas y comprobaciones; no reconstruyen acuerdos no acreditados.
+
 ## Minuta 1 — Sábado 26 de septiembre de 2026
 - **Objetivo:** Alineación inicial y kick-off del proyecto Shareverance.
 - **Temas tratados y acuerdos:**
@@ -41,12 +43,12 @@
 ## Minuta 6 — Miércoles 21 de octubre de 2026
 - **Objetivo:** Cierre de Analítica, OCR y lanzamiento del Plan Complementario del Predictor (P1 a P5).
 - **Temas tratados y acuerdos:**
-  1. *Balance de E4 y E5:* Aprobada la integración del motor OCR Tesseract con volumen compartido protegido y el panel analítico con métricas mensuales comparativas.
+  1. *Balance de E4 y E5:* Se revisó la integración del motor OCR Tesseract con volumen compartido protegido y del panel analítico con métricas mensuales comparativas. La aceptación integral se distingue de la implementación y evidencia parcial en el roadmap.
   2. *Entorno Demo del Predictor:* Se acuerda crear un entorno aislado con Docker y un dataset sintético auditado de 24 meses (2023–2024) para evaluar formalmente el comportamiento predictivo sin alterar datos de usuarios reales.
-  3. *Protocolo de evaluación:* Se acuerda que para promover cualquier modelo sobre la referencia de último mes, debe evaluarse en desarrollo y superar umbrales cuantitativos estrictos, manteniendo 2025 como partición de reserva.
+  3. *Protocolo de evaluación:* Se planteó evaluar candidatos en desarrollo frente a referencias y reservar 2025. Los documentos metodológicos conservan umbrales propuestos (5 % y 20 %), sin constancia de aceptación previa. Posteriormente P4 consultó 2025 en una exploración; no corresponde describirlo hoy como reserva independiente intacta. Véase [protocolo y evidencia](python_predictor.md).
 
 ## Minuta 7 — Sábado 24 de octubre de 2026
 - **Objetivo:** Evaluación de resultados predictivos, decisión conservadora (P5) e integración multihorizonte (P5-H).
 - **Temas tratados y acuerdos:**
   1. *Decisión operativa del modelo (P5):* Se revisan los resultados de los evaluadores offline.
-  2. *Previsiones multihorizonte:* Se aprobó y verificó la integración end-to-end de la proyección a 4, 5 y 6 meses.
+  2. *Previsiones multihorizonte:* Se incorporó la integración de la proyección a 4, 5 y 6 meses. Las comprobaciones ejecutadas y sus límites se registran en la [evidencia de demostración](evidencia/demo-sintetica/README.md); no acreditan por sí solas aceptación integral o predictiva. PR #87 corrigió el recorrido y PR #89 añadió después el gráfico combinado.

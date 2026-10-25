@@ -1,8 +1,12 @@
 # Backend Java
 
-Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
+Fecha de revisión: 25/10/2026. Base inspeccionada: `1486354` (main; PR #87, #89 y #90 integrados).
 
-Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+Revisión documental estática: distingue implementación observada, evidencia de ejecuciones anteriores y aceptación pendiente. No se ejecutaron pruebas funcionales nuevas en esta consolidación.
+
+## Síntesis vigente
+
+Java implementa las consultas públicas monthly y forecast (4/5/6 meses), analítica mensual, cobertura, comprobantes y OCR; autoriza sesión y pertenencia antes de llamar a Python. Forecast conserva monthly y exige GET con membresía activa. La carga CSV de la demo usa APIs Java en PostgreSQL aislado y es repetible. No se planifican esas rutas como trabajo futuro; aceptación integral y parámetros operativos siguen sujetos a revisión.
 
 
 ## Responsabilidad y código actual
@@ -43,7 +47,7 @@ No modificar migraciones aplicadas. Las restricciones existentes de PostgreSQL c
 - OCR: multipart del navegador, validación y almacenamiento privado; llamada HTTP interna con referencia controlada al archivo; respuesta al formulario. El alta se produce después de confirmación.
 - Analítica/predicción: validar pertenencia, construir contexto organización/período y llamar Python; Python obtiene datos de vistas PostgreSQL. No reenviar un historial como arquitectura definitiva.
 - Python caído no bloquea alta manual ni consulta de gastos. Separar timeout de conexión y lectura por operación; no reintentar altas sin idempotencia.
-- Contratos en [contratos_api.md](contratos_api.md). Las rutas implementadas y la referencia histórica se identifican por separado. La ampliación predictiva de 4–6 meses sigue siendo planificación.
+- Contratos en [contratos_api.md](contratos_api.md). Las rutas implementadas y la referencia histórica se identifican por separado. La previsión forecast de 4/5/6 meses está implementada de forma aditiva respecto de monthly.
 
 ## Archivos, errores y operación
 
@@ -57,7 +61,7 @@ Pruebas de reglas con casos límite; integración JDBC con PostgreSQL real para 
 
 ## Brechas
 
-Pendiente: aceptación integral de permisos, historial, concurrencia y archivos, conservando la evidencia automatizada registrada en el roadmap. Los contratos públicos analíticos, el cliente Java→Python autenticado y el servicio privado de comprobantes están implementados. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. E1.2 admite individual/iguales y rechaza CUSTOM; la presencia del enum no habilita ese modo. La carga CSV repetible y la previsión de 4–6 meses siguen el plan complementario pendiente.
+Pendiente: aceptación integral de permisos, historial, concurrencia y archivos, conservando la evidencia automatizada registrada en el roadmap. Los contratos públicos analíticos, el cliente Java→Python autenticado y el servicio privado de comprobantes están implementados. Para la base local con registros previos a la regla ARS, se acordó una eliminación única de toda la base antes de iniciar esta versión; no se migran ni convierten esos datos. Los reinicios ordinarios conservan los datos en el volumen. E1.2 admite individual/iguales y rechaza CUSTOM; la presencia del enum no habilita ese modo. La carga CSV repetible de la demo y la previsión de 4/5/6 meses están implementadas; su aceptación integral sigue pendiente.
 
 ## Implementación E1.2: individual e iguales
 
