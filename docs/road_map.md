@@ -649,3 +649,6 @@ Ejecutado: Python 135 aprobadas y 2 omitidas (integración SQL de esa suite); sc
 
 
 Ajuste de presentación MVP de #85: retirados avisos técnicos de experimental/calidad y columnas de método/versión del frontend; se mantienen metadatos HTTP, información normativa y aviso de simulación explícita. Texto breve de estimación y conservación de insuficiencia/errores. Verificación posterior: 41 pruebas frontend aprobadas, cero omitidas y build TypeScript/Vite correcto; reemplaza las pruebas anteriores de avisos experimentales, sin atribuir un fallo a la reducción de cantidad. No cambia aceptación ni estados de tareas.
+
+
+Corrección de entrada #85 / PR #87: la vista inicial conservaba monthly y mostraba un solo mes. Ahora inicia forecast con cuatro meses; cinco/seis siguen seleccionables y monthly permanece disponible. Sin cambios de API, modelo o datos. Compilación y pruebas frontend registradas con esta corrección; aceptación manual pendiente.

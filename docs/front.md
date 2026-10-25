@@ -116,3 +116,6 @@ La pestaña Predicción consulta únicamente Java mediante `GET /api/v1/organiza
 ### Presentación del predictor en el MVP (#85)
 
 La pantalla usa «Proyección de gastos» y «Estimación basada en tus gastos anteriores. Los importes pueden variar». No muestra etiquetas de experimental, aceptación/calidad, versión, método ni métricas técnicas. La API conserva method, model_version, simulated y quality sin cambios: la información técnica y sus límites quedan en documentación. Si simulated es true, se identifica «Simulación»; no se presenta mock como cálculo real. Se conservan errores operativos, historial insuficiente y período/origen de la proyección. El conjunto sintético se identifica mediante la organización de demostración y su guía. Esta presentación sustituye los avisos técnicos de la vista descritos en secciones históricas; no implica aceptación de precisión.
+
+
+La pestaña Predicción abre directamente la proyección de cuatro meses, con selector de cinco o seis meses. La consulta de próximo mes se conserva como opción secundaria. Para comprobarlo, ejecutar start del wrapper demo, abrir localhost:5176 y entrar a Predicción: debe aparecer el selector en cuatro meses sin cambiar de modo.

@@ -74,3 +74,6 @@ La UI integrada muestra tablas de organización y categorías. El gráfico que c
 La vista ya no muestra método, versión, experimental ni NOT_EVALUATED. Se conserva la aclaración de estimación y el aviso de simulación cuando corresponde. La captura 04 y las anteriores son históricas; la captura 05 registra el diseño final. Pruebas posteriores al cambio: 41 frontend aprobadas y build correcto. Los resultados técnicos de evaluación se conservan en esta documentación y en el contrato, sin traducirse en una certificación de calidad al usuario.
 
 ![Proyección con mensajes del MVP](05-proyeccion-mvp.jpg)
+
+
+La pestaña Predicción abre directamente la proyección de cuatro meses, con selector de cinco o seis meses. La consulta de próximo mes se conserva como opción secundaria. Para comprobarlo, ejecutar start del wrapper demo, abrir localhost:5176 y entrar a Predicción: debe aparecer el selector en cuatro meses sin cambiar de modo.

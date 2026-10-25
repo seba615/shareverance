@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function PredictionPanel({ organizationId, categories, refreshToken }: Props) {
-  const [mode, setMode] = useState<'monthly' | 'forecast'>('monthly');
+  const [mode, setMode] = useState<'monthly' | 'forecast'>('forecast');
 
   // Modo mensual
   const [targetMonthInput, setTargetMonthInput] = useState('');
