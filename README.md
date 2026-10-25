@@ -22,6 +22,7 @@ Sistema de registro, distribución y análisis de gastos para hogares, consorcio
 - [Frontend](docs/front.md)
 - [Contratos API](docs/contratos_api.md)
 - [Roadmap y aceptación](docs/road_map.md)
+- [Demo única y guion de presentación](docs/demo_presentacion.md)
 - [Justificación tecnológica](docs/justificacion_tecnologica.md)
 
 ## Arquitectura y estado
@@ -40,7 +41,29 @@ La corrección OCR permite solicitar procesamiento con sesión/CSRF, mejora foto
 
 E5.1 tiene implementada la analítica interna Python desde vistas SQL y su verificación con PostgreSQL real: 95 pruebas Python aprobadas, sin omisiones, sobre datos sintéticos aislados. E5.2 incorpora la consulta pública Java y el panel React, con períodos de meses cerrados, cobertura explícita y gráficos SVG sin dependencias nuevas. Evidencia y límites en el [roadmap](docs/road_map.md), con el conjunto de comprobación en [PostgreSQL](docs/postgre.md).
 
-## Inicio rápido
+## Demo única de presentación
+
+**Un solo entorno: http://localhost:5176.** Usar la organización **Demo presentación Shareverance** y las cuentas de presentación ADMIN/USER de la [guía completa](docs/demo_presentacion.md). Incluye historial, individuales/iguales, categorías históricas, comprobante sintético/OCR, resumen por miembro, analítica y previsión 4/5/6. El historial conserva los importes del CSV con fechas desplazadas para el recorrido; no es una evaluación nueva de precisión.
+
+```powershell
+# Preparar una vez o verificar/completar referencias ausentes, sin sobrescribir divergencias:
+./scripts/presentation-demo.ps1 prepare
+# El día de la presentación, conservar lo ensayado:
+./scripts/presentation-demo.ps1 start
+./scripts/presentation-demo.ps1 check
+# Al terminar:
+./scripts/presentation-demo.ps1 stop
+```
+
+Requiere Docker Desktop Linux. Start reutiliza el mismo proyecto shareverance-predictor-demo y stop conserva sus volúmenes; no iniciar otro entorno. Prepare carga por Java y no restaura ni purga datos. Las cuentas de presentación sólo necesitan esa organización; los conjuntos técnicos anteriores se conservan para regresión y no forman parte del guion. Comprobantes de prueba en demo/presentacion, sin boletas reales.
+
+## Resumen individual
+
+La pestaña **Mi resumen** muestra las partes asignadas al usuario conectado (USER) o al miembro que seleccione ADMIN, por fechas y categoría, en los gastos vigentes de la organización. No equivale a lo pagado por el titular ni a deudas. No requiere cobertura mensual. [Contrato](docs/contratos_api.md#resumen-individual-de-participación-95), [reglas](docs/alcance_mvp.md#resumen-individual-95).
+
+Para probar, usar la demo única descrita arriba: Mi resumen, selector de miembro para ADMIN y filtros de fechas. Los comandos anteriores predictor-demo load/load-summary siguen disponibles para conjuntos técnicos históricos; no hay que ejecutarlos para preparar la presentación. [Casos y evidencia del resumen](docs/evidencia/resumen-individual/README.md).
+
+## Herramientas de desarrollo y referencia técnica
 
 Presentación con el CSV sintético: [recorrido, verificaciones y capturas](docs/evidencia/demo-sintetica/README.md). El objetivo de esta entrega es demostrar el circuito integrado; conseguir datos reales no es un requisito. Para verificar 4/5/6 meses después de start/load, ejecutar `scripts/predictor-demo.ps1 check-forecast`. El modo predeterminado es log_trend: aprende la tendencia histórica y proyecta cada horizonte directamente. [Evaluación y límites](docs/evidencia/tendencia/README.md).
 

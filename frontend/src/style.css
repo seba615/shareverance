@@ -1015,3 +1015,8 @@ select:focus {
   background: #fef3c7;
   color: #92400e;
 }
+
+
+.individual-summary h3 { overflow-wrap: anywhere; }
+.individual-summary .analytics-filters label { min-width: 0; max-width: 100%; }
+.individual-summary select { max-width: 100%; }

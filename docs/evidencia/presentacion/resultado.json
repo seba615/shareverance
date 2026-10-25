@@ -1,0 +1,28 @@
+{
+  "organization_id": 5,
+  "organization_name": "Demo presentación Shareverance",
+  "created_expenses": 0,
+  "reference_expenses": 197,
+  "csv_sha256": "99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996",
+  "date_shift_months": 21,
+  "history_from": "2024-10",
+  "cutoff": "2026-09",
+  "covered_months": 24,
+  "forecast_horizons": [
+    4,
+    5,
+    6
+  ],
+  "history_total_ars": "31211212.92",
+  "current_month": "2026-10",
+  "admin_total": "16901818.21",
+  "user_total": "14310759.28",
+  "admin_expenses": 122,
+  "user_expenses": 124,
+  "receipt_id": "3362bb2b-761c-49a2-8b58-1e27a67a7aa9",
+  "ocr_date": "2026-10-15",
+  "ocr_amount": "1234.56",
+  "user_other_status": 403,
+  "outsider_status": 403,
+  "synthetic": true
+}

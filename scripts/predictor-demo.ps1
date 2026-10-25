@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('start', 'load', 'check', 'check-forecast', 'status', 'stop', 'test', 'audit', 'evaluate', 'forecast', 'evaluate-trend', 'compare')]
+    [ValidateSet('start', 'load', 'check', 'check-forecast', 'status', 'stop', 'test', 'audit', 'evaluate', 'forecast', 'evaluate-trend', 'compare', 'load-summary')]
     [string]$Action = 'status',
     [string]$FromMonth = '2024-01',
     [string]$ToMonth = '2024-12',
@@ -21,6 +21,9 @@ try {
     foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name); Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
     switch ($Action) {
         'start' { & docker @composeArgs up --build -d --wait --wait-timeout 300 }
+        'load-summary' {
+            & docker run --rm --network "${project}_default" --env-file (Join-Path $repo 'demo/predictor.env.example') --mount "type=bind,source=$PSScriptRoot,target=/tools,readonly" --entrypoint /app/.venv/bin/python "$project-python-service" /tools/load_individual_summary_demo.py
+        }
         'status' { & docker @composeArgs ps }
         'stop' { & docker @composeArgs stop }
         'test' {

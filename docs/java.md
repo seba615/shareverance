@@ -148,3 +148,15 @@ Se incorporan `OcrService` y su implementación `OcrServiceImpl`:
 ## Validación de la demostración multihorizonte
 
 Relacionado con #85/#81. El autorizador admite sólo GET en predictions/forecast para miembros activos, usando las mismas comprobaciones de pertenencia de monthly. No habilita POST ni analytics/forecast. La [prueba integrada sintética](evidencia/demo-sintetica/README.md) comprueba horizontes 4/5/6, equivalencia mensual, insuficiencia y 400/403/503; no equivale a validación exhaustiva de respuestas internas malformadas ni aceptación integral. Sin nuevas rutas, DTO o migraciones en esta corrección.
+
+
+## Resumen individual (#95)
+
+IndividualSummaryController/Service y JdbcIndividualSummaryRepository incorporan GET /api/v1/organizations/{id}/expenses/my-summary. Usuario de sesión, validación de membresía/organización activa y fechas; no se acepta autor/titular como identidad. El parámetro membershipId permite consultar otra membresía sólo a ADMIN activo y siempre dentro de la misma organización; para historial puede estar inactiva. USER no obtiene partes ajenas modificando el parámetro. Agregación parametrizada sobre expense_splits y gastos vigentes con uniones por organización y conservación de categorías históricas. Total/cantidad derivados del mismo resultado agrupado, dentro de lectura transaccional; sin Python, nuevas migraciones, JPA o cambios de guardado.
+
+IndividualSummaryPostgresTest usa exclusivamente JAVA_SUMMARY_TEST_JDBC_URL con base cuyo nombre contiene shareverance_summary_test. Crea fixtures sintéticos y migraciones; no ejecutar contra datos habituales. Comandos reproducibles y resultados en el roadmap. IndividualSummaryServiceTest verifica rechazo antes de leer importes y fechas invertidas.
+
+
+### Entorno único de presentación
+
+Para el recorrido integrado se utiliza sólo localhost:5176 y la organización Demo presentación Shareverance, con las cuentas sintéticas ADMIN/USER de la [guía de presentación](demo_presentacion.md). scripts/presentation-demo.ps1 prepare carga/verifica datos por Java en el proyecto aislado ya existente; start/check/stop sirven para el día de presentación y conservan volúmenes. Incluye historial con fechas desplazadas de forma explícita, individuales/iguales, categoría histórica inactiva y comprobante sintético. No modifica el CSV, contratos o algoritmo, no crea otra base y no acredita aceptación integral. Los conjuntos técnicos anteriores se preservan para regresión.

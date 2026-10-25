@@ -1,0 +1,12 @@
+{
+  "date": null,
+  "amount": null,
+  "description": "Varios",
+  "warnings": [
+    "No se pudo extraer texto del comprobante.",
+    "No se pudo reconocer la fecha del comprobante.",
+    "No se pudo reconocer el importe del comprobante."
+  ],
+  "expenses_before": 197,
+  "expenses_after": 197
+}
