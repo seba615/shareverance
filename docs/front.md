@@ -1,8 +1,12 @@
 # Frontend React
 
-Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). Las evidencias históricas mantienen sus fechas y alcances.
+Fecha de revisión: 25/10/2026. Base inspeccionada: `1486354` (main; PR #87, #89 y #90 integrados).
 
-Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+Revisión documental estática: distingue implementación observada, evidencia de ejecuciones anteriores y aceptación pendiente. No se ejecutaron pruebas funcionales nuevas en esta consolidación.
+
+## Síntesis vigente
+
+PredictionPanel abre forecast de cuatro meses, permite cinco/seis y conserva monthly. PredictionCombinedChart integra histórico reciente desde analyticsApi.monthly y estimaciones del mismo origen, con barras históricas y trayectoria proyectada; null no equivale a cero. La UI muestra «Proyección de gastos», aclaración de estimación, permisos/errores e insuficiencia; no muestra método, versión, experimental ni NOT_EVALUATED. Si simulated es true se identifica Simulación. Implementación observada; aceptación integral de accesibilidad, carreras y revisión humana no acreditada por esta revisión.
 
 
 ## Inventario actual
@@ -13,7 +17,7 @@ E2.1 agrega pestañas de gastos, miembros y categorías en la organización acti
 
 ## Navegación y vistas requeridas
 
-E6.2 también implementa la pestaña Predicción: consulta a Java, selección del mes objetivo, resultado organizacional y por categoría, método/versión y avisos de insuficiencia/mock/SES experimental. La vista permite consulta mensual y selector de 4/5/6 meses con tablas. El gráfico combinado sigue pendiente en el [roadmap complementario](road_map.md#predictor-multihorizonte). La edición de categorías, presentación de participación individual y aceptación integral permanecen pendientes; la tabla de vistas requeridas no acredita por sí sola su implementación.
+E6.2/P5-H implementan Predicción: consulta mensual y previsión de 4/5/6 meses, gráfico combinado histórico/proyección y tablas por organización/categoría. La vista inicial usa cuatro meses. Avisos operativos e insuficiencia permanecen; detalles de método/versión/calidad quedan en API/documentación. La edición de categorías, presentación de participación individual y aceptación integral permanecen pendientes.
 
 | Vista | Contenido y acciones |
 | --- | --- |
@@ -100,22 +104,14 @@ P5-H incorpora `GET /api/v1/organizations/{id}/predictions/forecast?originMonth=
 
 La presentación usa el CSV sintético y calidad NOT_EVALUATED; no promete crecimiento monótono del error ni porcentajes de confianza. No dibujar null como cero ni mezclar proyecciones con gastos guardados. El gráfico combinado de histórico/previsión está implementado mediante el componente SVG accesible PredictionCombinedChart, que dibuja las barras de gasto histórico confirmado y la trayectoria multimes proyectada en una escala continua. [Comandos, recorrido y capturas](evidencia/demo-sintetica/README.md).
 
-La pestaña Predicción consulta únicamente Java mediante `GET /api/v1/organizations/{id}/predictions/monthly?targetMonth=YYYY-MM` (`predictionApi.monthly` en `frontend/src/api/java.ts`). Presenta la estimación de gasto mensual proyectado para la organización y el desglose por categorías.
+La pestaña Predicción consulta únicamente Java: forecast para previsión multimes, monthly para próximo mes y analytics/monthly para el histórico del gráfico. No consulta Python desde el navegador.
 
 - **Mes objetivo**: el campo permite ingresar un mes específico (`YYYY-MM`, años 0001 a 9999) o dejarlo vacío para consultar el mes recomendado automáticamente por el backend (el mes siguiente al último mes confirmado en cobertura, o el mes actual en Buenos Aires). El botón *Mes recomendado* limpia la selección manual para volver a la recomendación automática.
-- **Identificación del modelo (A12)**: se identifica con claridad si la respuesta corresponde a un cálculo simulado (`simulated: true`, mock de prueba para verificación de contratos) o al modelo real (`simulated: false`, candidatos experimentales Tendencia log-lineal (predeterminado) o Suavizado Exponencial Simple - SES, versión 1). No se presentan resultados de mock como si fueran cálculos reales.
+- **Simulación y metadatos (A12)**: la API identifica método, versión y simulated. La UI sólo muestra el aviso Simulación si simulated es true; no muestra versión, método ni avisos de aceptación/calidad. La aceptación predictiva se registra en documentación, no se infiere del aviso.
 - **Estados de insuficiencia (A11)**: si la organización o una categoría no cuenta con al menos 6 meses consecutivos con cobertura confirmada inmediatamente anteriores al mes objetivo, el estado devuelto es `INSUFFICIENT_HISTORY` y la estimación es nula (`null`). La interfaz informa el mínimo requerido y que el modelo no se ejecutó, con importe *No disponible*. `months_used=0` significa que no se usaron meses para ejecutar el modelo; no permite inferir cuántos meses confirmados existen. Para categorías insuficientes se muestra historial no utilizado y el mínimo exigido; sólo los resultados OK muestran meses efectivamente utilizados. No se inventa un contador de cobertura disponible ni se dirige a una interfaz de administración de cobertura que todavía no existe.
 - **Desglose por categorías**: tabla accesible con `caption`, encabezados semánticos y formato de importes exacto desde centavos enteros con `formatMinor`. Identifica nombres de categorías activas e inactivas históricas; si falta el nombre en la lista autorizada se utiliza el ID.
 - **Resiliencia (A13)**: ante caídas del servicio predictivo, timeouts o indisponibilidad interna (HTTP 503), la vista presenta un mensaje de degradación controlado (*El servicio de predicciones no está disponible en este momento. Intentá nuevamente más tarde.*), sin bloquear la navegación entre pestañas ni la gestión de gastos. Respuestas 401 y 403 muestran sus avisos correspondientes.
 - **Control de ciclo de vida**: `createPredictionLoader` en `predictionModel.ts` administra la clave de consulta `[organizationId, appliedTargetMonth, refreshToken, refresh]`. Al alternar de organización o de mes se descartan inmediatamente respuestas y errores tardíos (A→B→A, respuestas fuera de orden y desmontaje).
 - **Pruebas automatizadas**: `frontend/tests/predictionModel.test.mjs` verifica validaciones de formato de mes, formateo en huso horario neutro con soporte de años 0001–0099, etiquetas de métodos y carreras del cargador reactivo mediante promesas controladas.
 
-`PredictionMessages.tsx` contiene los mensajes usados por la vista y comprobados mediante renderizado React en `predictionMessages.test.mjs`. El aviso mock explica que el método reutiliza el último importe del historial consultado cuando hay historial suficiente; no describe los datos como sintéticos. Ambos modos muestran versión; el modo experimental conserva la advertencia de aceptación predictiva pendiente. Las pruebas renderizan insuficiencia con months_used=0, historial OK y avisos mock/SES usando Vite y react-dom/server existentes, sin dependencias nuevas. No sustituyen revisión visual ni integración HTTP de la vista completa.
-
-
-### Presentación del predictor en el MVP (#85)
-
-La pantalla usa «Proyección de gastos» y «Estimación basada en tus gastos anteriores. Los importes pueden variar». No muestra etiquetas de experimental, aceptación/calidad, versión, método ni métricas técnicas. La API conserva method, model_version, simulated y quality sin cambios: la información técnica y sus límites quedan en documentación. Si simulated es true, se identifica «Simulación»; no se presenta mock como cálculo real. Se conservan errores operativos, historial insuficiente y período/origen de la proyección. El conjunto sintético se identifica mediante la organización de demostración y su guía. Esta presentación sustituye los avisos técnicos de la vista descritos en secciones históricas; no implica aceptación de precisión.
-
-
-La pestaña Predicción abre directamente la proyección de cuatro meses, con selector de cinco o seis meses. La consulta de próximo mes se conserva como opción secundaria. Para comprobarlo, ejecutar start del wrapper demo, abrir localhost:5176 y entrar a Predicción: debe aparecer el selector en cuatro meses sin cambiar de modo.
+`PredictionMessages.tsx` contiene los avisos de simulación e insuficiencia comprobados con renderizado React. Los modelos reales no muestran aviso técnico; los meses usados no se confunden con cobertura disponible. Estas pruebas no sustituyen revisión visual ni integración HTTP completa.

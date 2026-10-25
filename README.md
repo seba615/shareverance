@@ -1,8 +1,12 @@
 # Shareverance
 
-Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). La evidencia histórica conserva sus fechas y alcances.
+Fecha de revisión: 25/10/2026. Base inspeccionada: `1486354` (main; PR #87, #89 y #90 integrados).
 
-Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+Revisión documental estática: distingue implementación observada, evidencia de ejecuciones anteriores y aceptación pendiente. No se ejecutaron pruebas funcionales nuevas en esta consolidación.
+
+## Síntesis vigente
+
+El código integrado incluye negocio Java/JDBC, OCR, analítica, previsión mensual y de 4/5/6 meses y gráfico combinado histórico/proyección. React consume sólo Java; Python lee vistas SQL con rol propio. El predictor predeterminado es log_trend; mock y SES requieren selección explícita. La presentación utiliza V1 sintético, sin exigir datos reales ni acreditar precisión sobre hogares argentinos. La aceptación integral y humana permanece pendiente.
 
 
 Sistema de registro, distribución y análisis de gastos para hogares, consorcios y universidades. MVP: organizaciones, roles, miembros, categorías, carga manual/OCR, historial, calendario, panel y predicción. ARS única; sin tesorería ni liquidaciones.
@@ -42,11 +46,11 @@ Presentación con el CSV sintético: [recorrido, verificaciones y capturas](docs
 
 Comparación descriptiva de ventanas 4/5/6 meses en desarrollo: `scripts/predictor-demo.ps1 compare`, sin iniciar servicios. [Guía P4-H, resultados y límites](docs/evidencia/p4h/README.md). No acepta modelos; la operación multimes integrada se comprueba por separado con check-forecast.
 
-Evaluación experimental del CSV en desarrollo: [guía P3](docs/python_predictor.md#evaluador-p3), `scripts/predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12`. No requiere iniciar servicios y bloquea la reserva de 2025; el resultado no acepta ni activa modelos.
+Evaluación experimental del CSV en desarrollo: [guía P3](docs/python_predictor.md#evaluador-p3), `scripts/predictor-demo.ps1 evaluate -FromMonth 2024-01 -ToMonth 2024-12`. No requiere iniciar servicios y excluye 2025 por defecto; ese período ya fue consultado en exploraciones previas; el resultado no acepta ni activa modelos.
 
 Para pruebas integradas del predictor con datos del CSV, usar la [guía P1-D](docs/python_predictor.md#entorno-demo-predictor): `scripts/predictor-demo.ps1 start`, luego `load` y `check`. Crea un proyecto separado en localhost:5176 con usuario, organización y gastos de 2023–2024, sin alterar el entorno habitual. La guía incluye credenciales sintéticas, filtros históricos, detención y límites; la interfaz permite consulta mensual y previsión de 4/5/6 meses.
 
-El [plan complementario del predictor P1–P5](docs/road_map.md#plan-complementario-del-predictor) permite coordinar evaluación e integración con el equipo. Para probar el CSV de demostración sin modificar la base ni los servicios, seguir la [guía de evaluación offline](docs/python_predictor.md#evaluación-con-el-csv-de-demostración). Distingue el comando disponible hoy del evaluador completo y de la aceptación todavía pendientes.
+El [plan complementario del predictor P1–P5](docs/road_map.md#plan-complementario-del-predictor) permite coordinar evaluación e integración con el equipo. Para probar el CSV de demostración sin modificar la base ni los servicios, seguir la [guía de evaluación offline](docs/python_predictor.md#evaluación-con-el-csv-de-demostración). Distingue las herramientas disponibles de los criterios y la aceptación todavía pendientes.
 
 E6.1 incorpora SES como candidato experimental. P5 documenta la decisión conservadora de no promover SES 0.3 con la evidencia sintética disponible; no acredita evaluación final ni aceptación predictiva. La decisión histórica no promovió SES; #85 incorpora después log_trend predeterminado para la demostración experimental. Mock y SES continúan como opciones explícitas. P2 conserva umbrales propuestos; P2-H requiere acordar criterios por horizonte. Evidencia y comandos en [Python](docs/python_predictor.md) y [P5](docs/evidencia/p5/README.md).
 
@@ -130,7 +134,6 @@ docker compose -f compose.yaml -f compose.tools.yaml up --build -d --wait --wait
 ```
 
 No agregar `-v` al comando `down` durante el uso habitual: esa opción también elimina el volumen y los datos de la base.
-
 
 
 ## Modelo de datos vigente

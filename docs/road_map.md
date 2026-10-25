@@ -1,8 +1,12 @@
 # Roadmap del MVP 1
 
-Fecha de revisión: 21/10/2026. Base revisada: `9ea8ce4` (main, incluye PR #60). Las evidencias históricas mantienen sus fechas, commits y límites.
+Fecha de revisión: 25/10/2026. Base inspeccionada: `1486354` (main; PR #87, #89 y #90 integrados).
 
-Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+Revisión documental estática: distingue implementación observada, evidencia de ejecuciones anteriores y aceptación pendiente. No se ejecutaron pruebas funcionales nuevas en esta consolidación.
+
+## Síntesis vigente
+
+Implementados en main: negocio, repartos individual/iguales, historial/calendario, cobertura y vistas SQL, OCR, analítica, predicción mensual y 4/5/6 meses, tendencia log-lineal y gráfico histórico/proyección (PR #89). PR #87 fija log_trend y la apertura inicial en cuatro meses. Esto es inventario de código, no cambio de estados del tablero ni aceptación. La evidencia por tarea conserva fecha, base y límites. Pendientes de aceptación: revisión humana integral, evaluación metodológica y operación; no falta implementar el gráfico.
 
 
 ## Estado y dependencias
@@ -11,11 +15,16 @@ Estados: IMPLEMENTADO significa código observado; PENDIENTE requiere trabajo; V
 
 Síntesis vigente de implementación: autenticación, organizaciones, miembros/categorías, gastos y partes individual/iguales, historial, calendario, vistas SQL/cobertura, consumidor Python, comprobantes/OCR, panel analítico y vista predictiva tienen código integrado. El callback Python→Java fue retirado; React consume Java y Java orquesta Python. Existen evidencia automatizada y comprobaciones parciales en las secciones por tarea; esto no equivale a aceptación integral.
 
-Predictor: tendencia log-lineal experimental predeterminada, mock y SES opcionales explícitos; evaluación offline mensual/multihorizonte, entorno sintético P1-D con carga repetible y rutas/tablas de previsión 4/5/6 implementadas. #85 registra la corrección y verificación integrada del recorrido de demostración. El objetivo de presentación usa V1 sintético, sin exigir datos reales. Siguen pendientes gráfico combinado histórico/previsión, revisión humana y aceptación; no se acredita precisión real. Respaldo/restauración y limpieza tienen evidencia aislada; no sustituyen aceptación integral.
+Predictor: tendencia log-lineal experimental predeterminada, mock y SES opcionales explícitos; evaluación offline mensual/multihorizonte, entorno sintético P1-D con carga repetible y rutas/tablas de previsión 4/5/6 implementadas. #85 registra la corrección y verificación integrada del recorrido de demostración. El objetivo de presentación usa V1 sintético, sin exigir datos reales. El gráfico combinado ya está integrado; siguen pendientes revisión humana y aceptación; no se acredita precisión real. Respaldo/restauración y limpieza tienen evidencia aislada; no sustituyen aceptación integral.
 
-## Etapas
+<a id="etapas"></a>
+
+## Etapas — planificación histórica
 
 La tabla siguiente conserva la planificación inicial y sus estados de seguimiento; no es un inventario vigente de código. La síntesis anterior y las evidencias por tarea distinguen implementación y validación. Esta consolidación documental no cambia estados de otras tareas, no marca entregas aceptadas ni sustituye el cierre manual.
+
+<details>
+<summary>Plan inicial y estados históricos (no representan el inventario vigente)</summary>
 
 | Etapa / ID | Entrega | Dependencia | Estado | Responsable por función |
 | --- | --- | --- | --- | --- |
@@ -39,7 +48,38 @@ La tabla siguiente conserva la planificación inicial y sus estados de seguimien
 
 E3 y E4 pueden progresar independientemente una vez estabilizado E1 y sus contratos. Cada tarea incorpora pruebas de su componente, actualización documental y evidencia. Personas y fechas se asignan al iniciar; no se inventan compromisos.
 
+</details>
+
 ## Plan complementario del predictor
+
+El circuito P1-D (carga aislada), evaluadores P3/P3-H, comparaciones P4/P4-H y rutas P5-H están implementados. El modo actual log_trend se documenta en [Python](python_predictor.md), con [evidencia sintética de tendencia](evidencia/tendencia/README.md). El gráfico está integrado desde PR #89. P2/P2-H conservan propuestas de criterios, no aceptación acreditada; el trabajo metodológico #77 mantiene su alcance y responsable.
+
+Para reproducir el entorno desde raíz con Docker Desktop Linux y PowerShell:
+
+```powershell
+./scripts/predictor-demo.ps1 start
+./scripts/predictor-demo.ps1 load
+./scripts/predictor-demo.ps1 check-forecast
+# Abrir http://localhost:5176, organización Demo CSV 1, pestaña Predicción.
+./scripts/predictor-demo.ps1 stop
+```
+
+Stop conserva volúmenes. Acceso sintético, selección y límites en la [guía de demostración](evidencia/demo-sintetica/README.md). La UI abre cuatro meses; cinco/seis y próximo mes son opciones. Esta revisión no ejecutó esos comandos ni certifica el gráfico por inspección.
+
+### Trabajo y aceptación pendientes
+
+- Revisión humana integral de permisos, sesión, OCR, gastos, calendario, panel y proyección; registrar evidencia por criterio A01–A19.
+- Revisar en navegador el gráfico y su integración, accesibilidad, cambios rápidos de organización/origen y errores; la presencia del componente no acredita esos casos.
+- Formalizar criterios metodológicos aún propuestos y limitaciones del conjunto sintético; 2025 ya fue consultado y no es reserva independiente intacta. No se exige conseguir datos reales para la presentación.
+- Resolver parámetros operativos y de cuenta aún abiertos; no confundir herramientas implementadas de respaldo/limpieza con aceptación operativa.
+- Revisar las brechas de producto identificadas en alcance/frontend (edición de categorías y presentación individual) y decidir su aceptación conforme al alcance. No se agregan aquí funciones nuevas.
+
+### Antecedentes del plan y evidencia por entrega
+
+<details>
+<summary>Plan original P1–P5/P1-H–P5-H y comprobaciones históricas</summary>
+
+Los estados, defaults y pendientes de este bloque corresponden a la fecha/base de cada entrega; no sustituyen la síntesis vigente. En particular, mock predeterminado, gráfico pendiente y 2025 como reserva describen etapas anteriores. No son instrucciones actuales ni aceptación de umbrales.
 
 Preparación de presentación sintética, [#85](https://github.com/seba615/shareverance/issues/85), base `380fd72`: V1 sintético es el conjunto previsto para la entrega demostrativa; no se exige conseguir datos reales para finalizar esa presentación. No implica precisión aceptada sobre hogares argentinos. Se corrigen en P5-H los campos UI points/horizon_step incompatibles con DTO forecasts/horizon, el cierre que retenía horizonte 4 y la autorización GET forecast ausente. Se conserva asignación de #81; sin nuevas rutas, migraciones ni promoción de modelo. [Recorrido reproducible y evidencia](evidencia/demo-sintetica/README.md), con start/load/check/check-forecast/stop.
 
@@ -131,9 +171,17 @@ Inspección documental del 20/10/2026: CSV versionado con 14.400 filas, 50 organ
 
 Comprobación de la guía #59, 20/10/2026, base `43c1472`: ejecutado el bloque PowerShell de `python_predictor.md`, construcción con Dockerfile/lock existentes y evaluación en contenedor sin red. CSV SHA-256 `99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996`; entrada JSON derivada `bef4fc3b271de8b782524fc17b17adfa17fd56a25b569ecf2ec4bb637b36e730`. Organización 1, total mensual, 24 meses de desarrollo, 18 objetivos: MAE SES 189.134,60 ARS, último mes 102.926,39 ARS, media histórica 414.275,29 ARS; WAPE respectivamente 13,02 %, 7,09 % y 28,52 %. `accepted:null`. No se evaluó 2025 ni se ajustaron parámetros. Resultado limitado a esa serie de desarrollo; no acredita superioridad general. Informe local en `backend-java/target/predictor-exploracion/informe-organizacion-1.json`, no versionado. Sin cambios de código, contratos, base o servicios humanos; no se ejecutaron suites de aplicación por esta entrega documental. #59 creado/asignado a `chelofabian` y vinculado al proyecto 3, sin cambiar estados.
 
+
+</details>
+
 ## Parámetros que faltan precisar
 
 El desarrollo complementario del predictor se desglosa en [Plan complementario del predictor](#plan-complementario-del-predictor), relacionado con E6.1/A12. No sustituye la aceptación humana de E7.1.
+
+<details>
+<summary>Registro original de parámetros y propuestas por etapa</summary>
+
+Parte de estos parámetros ya se concretó en código (OCR, vistas, autenticación y gráficos). Los pendientes actuales se distinguen arriba y en los documentos de componente.
 
 | Tema | Propuesta / condición de cierre |
 | --- | --- |
@@ -147,6 +195,9 @@ El desarrollo complementario del predictor se desglosa en [Plan complementario d
 | Evaluación | E6.1 incorpora evaluación offline SES/último mes/media histórica; dataset temporal, métrica de decisión, umbral y selección para aceptación siguen pendientes |
 | Operación | Tiempos/reintentos definitivos y retención de logs; E7.1 incorpora procedimiento y pruebas aisladas de respaldo/restauración; aceptación operativa pendiente |
 | Cuenta | Explicitar inclusión/exclusión de recuperación de contraseña y verificación de email |
+
+
+</details>
 
 ## Criterios integrales de aceptación
 
@@ -173,8 +224,11 @@ El desarrollo complementario del predictor se desglosa en [Plan complementario d
 | A19 | Copia y restauración | Recuperar base y archivos coherentes mediante procedimiento probado. |
 
 
-
 A20 adicional: calendario concilia totales diarios/mensuales con historial, respeta organización/estado y abre el gasto correcto. Los 19 criterios anteriores se conservan y se complementan para cubrir calendario.
+
+## Evidencia histórica por tarea
+
+Las secciones siguientes registran implementaciones y ejecuciones en sus fechas/bases originales. Sus pendientes y defaults no reemplazan la síntesis vigente; no se repitieron pruebas funcionales en la consolidación #91.
 
 ## Evidencia y cierre
 
@@ -657,3 +711,8 @@ Corrección de entrada #85 / PR #87: la vista inicial conservaba monthly y mostr
 ### Gráfico combinado histórico + previsión #88 (P5-H), 25/10/2026
 
 Sobre 9f40768, se incorpora en rontend/src/PredictionPanel.tsx el componente SVG accesible PredictionCombinedChart.tsx, que consulta el historial reciente de hasta seis meses confirmados previos al corte y los conecta en una escala continua con las proyecciones multimes (4 a 6 meses). Se diferencian visualmente las barras históricas (azul continuo) de las proyecciones estimadas (verde/turquesa con trazo punteado e indicador de horizonte h). Incluye roles accesibles, etiquetas descriptivas y navegación. Pruebas de servicio Python (3 aprobadas) y de evaluación multihorizonte (7 aprobadas) verificadas. Sin alteraciones a contratos ni bases de datos. Aceptación y cierre manuales.
+
+
+### Consolidación documental #91, 25/10/2026
+
+Base inspeccionada 1486354: PR #87 predictor/avisos, #89 gráfico y #90 justificación integrados. Síntesis vigente unificada y antecedentes identificados; sin cambios de estados del tablero, cierres, criterios de aceptación, API, migraciones ni código. Se revisan enlaces y coherencia estática; no se atribuye ejecución nueva de suites a esta entrega.

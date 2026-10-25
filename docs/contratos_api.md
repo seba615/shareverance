@@ -1,13 +1,21 @@
 # Contratos de integración
 
-Fecha de revisión: 17/10/2026. Base de implementación: `bc7cb4d7d0e9d2b391878f97b4565ae49101347a`.
+Fecha de revisión: 25/10/2026. Base inspeccionada: `1486354` (main; PR #87, #89 y #90 integrados).
 
-Esta especificación define el comportamiento requerido del MVP 1. La sección de estado distingue código existente de trabajo pendiente. La revisión es estática; no acredita ejecución de pruebas.
+Revisión documental estática: distingue implementación observada, evidencia de ejecuciones anteriores y aceptación pendiente. No se ejecutaron pruebas funcionales nuevas en esta consolidación.
 
+## Síntesis vigente
+
+Las rutas vigentes monthly, forecast, analytics/monthly, cobertura y OCR están implementadas; sus contratos actuales se describen primero. Forecast es aditivo (4/5/6 meses desde el mismo origen); mantiene DTO y rutas monthly. log_trend devuelve method log_linear_trend y simulated false; quality permanece NOT_EVALUATED con métricas null. La UI no muestra esos metadatos técnicos y ya incluye gráfico combinado. La sección v1 con historial es referencia histórica/de prueba y no restablece el callback Python→Java ni reemplaza las vistas SQL.
+
+
+### Identificación del cálculo vigente
+
+La configuración actual #85 usa PREDICTOR_MODE=log_trend por defecto: method log_linear_trend, versión 1, simulated false. Se extrapola cada horizonte desde el mismo origen y puede variar por mes; no cambia ningún campo ni ruta. Mock y SES son opciones explícitas experimentales. Mock devuelve `simulated:true`/`method:"mock"`; SES devuelve `simulated:false`/`method:"simple_exponential_smoothing"`/`model_version:"1"`, sin que esa marca certifique aceptación predictiva. Dataset, umbral y selección operativa siguen pendientes según [python_predictor.md](python_predictor.md). No cambian rutas, autenticación ni DTO; las métricas y referencias de evaluación son offline y no se agregan a respuestas HTTP.
 
 ## Principios
 
-React consume exclusivamente Java. Java autoriza usuario/organización y llama a Python internamente. Python consulta vistas PostgreSQL o lee la imagen del volumen según operación. Nuevos contratos descritos abajo son diseño pendiente de implementación. No reutilizar silenciosamente contract_version=1 para un cuerpo incompatible.
+React consume exclusivamente Java. Java autoriza usuario/organización y llama a Python internamente. Python consulta vistas PostgreSQL o lee la imagen del volumen según operación. Las operaciones vigentes se identifican en la superficie siguiente; propuestas metodológicas y referencias históricas no se presentan como rutas pendientes. No reutilizar silenciosamente contract_version=1 para un cuerpo incompatible.
 
 ## Superficie existente
 
@@ -15,9 +23,9 @@ React consume exclusivamente Java. Java autoriza usuario/organización y llama a
 | --- | --- |
 | Java, sesión | GET /api/v1/auth/csrf; POST /login, /register, /logout y GET /me bajo /api/v1/auth |
 | Java, negocio | /api/v1/users, /organizations, /memberships, /categories, /expenses; métodos según controladores |
-| Java, cobertura y predicción | GET/PUT/DELETE /api/v1/organizations/{organizationId}/analytics/coverage; GET /api/v1/organizations/{organizationId}/predictions/monthly |
+| Java, cobertura y predicción | GET/PUT/DELETE /api/v1/organizations/{organizationId}/analytics/coverage; GET /api/v1/organizations/{organizationId}/predictions/monthly y /predictions/forecast |
 | Java, panel analítico E5.2 | GET /api/v1/organizations/{organizationId}/analytics/monthly?fromMonth=YYYY-MM&toMonth=YYYY-MM |
-| Python, interno y contrato | POST /internal/v2/predictions/monthly (Bearer interno, lee vistas SQL); POST /api/v1/predictions/monthly (contrato v1 con historial en cuerpo para pruebas) |
+| Python, interno y contrato | POST /internal/v2/predictions/monthly y /internal/v2/predictions/forecast (Bearer interno, leen vistas SQL); POST /api/v1/predictions/monthly (contrato v1 con historial en cuerpo para pruebas) |
 | Salud | Python /health; Java /actuator/health y readiness |
 
 Un controlador presente no acredita autorización uniforme. Revisar DTO y controladores antes de modificar consumidores. En E3.2 se retiran el callback `GET /api/v1/predictions/organization/{organization_id}/monthly` de Python y los endpoints `/api/v1/auth/token` y `/api/v1/expenses/organization/{organizationId}/history` de Java.
@@ -165,7 +173,7 @@ Una serie insuficiente mantiene H puntos con importe null, months_used=0 y quali
 
 Errores propuestos coherentes con el circuito vigente: Java 400 por parámetros/rango inválidos, 401/403 por acceso, 503 por indisponibilidad/timeout/respuesta interna inválida; Python 422 por contrato inválido y 401/403 por Bearer. Mantener correlación y no exponer SQL/rutas/secretos. Presupuesto de timeout para seis horizontes queda pendiente de medición y acuerdo, sin cambiar el de monthly incidentalmente. No escribir predicciones como gastos o cobertura ni abrir PostgreSQL/Python al navegador.
 
-Estado de transición: monthly y forecast están implementados de forma aditiva. La demo #85 verifica h=1 equivalente a monthly para el mismo corte en mock y posteriormente log_trend, junto con insuficiencia, permisos y errores 400/403/503; no sustituye pruebas exhaustivas de todos los consumidores y DTO malformados. El gráfico combinado sigue pendiente. Mantener calidad NOT_EVALUATED y métricas null; la activación experimental de log_trend no implica aceptación ni traslado de métricas sintéticas al contrato como confianza. Aceptación, evaluación por horizonte y presupuesto de timeout permanecen sujetos a revisión, sin cambiar monthly incidentalmente.
+Estado de transición: monthly y forecast están implementados de forma aditiva. La demo #85 verifica h=1 equivalente a monthly para el mismo corte en mock y posteriormente log_trend, junto con insuficiencia, permisos y errores 400/403/503; no sustituye pruebas exhaustivas de todos los consumidores y DTO malformados. El gráfico combinado está integrado en React desde PR #89, sin alterar el contrato. Mantener calidad NOT_EVALUATED y métricas null; la activación experimental de log_trend no implica aceptación ni traslado de métricas sintéticas al contrato como confianza. Aceptación, evaluación por horizonte y presupuesto de timeout permanecen sujetos a revisión, sin cambiar monthly incidentalmente.
 
 ### Contrato mensual vigente
 
@@ -185,7 +193,9 @@ Reglas de E3.2:
 - **Lectura transaccional de vistas en Python (`ViewsRepository`)**: Python conecta como `shareverance_python` y ejecuta cada lectura dentro de `BEGIN READ ONLY`, `SELECT set_config('shareverance.organization_id', $1, true)`, lectura de `analytics.v_monthly_coverage` y `analytics.v_monthly_expenses`, y `COMMIT` (o `ROLLBACK` en bloque de error antes de cerrar o devolver la conexión), garantizando que ninguna conexión conserve `shareverance.organization_id` fuera de la transacción.
 - **Armado de ventana histórica**: Python toma el tramo continuo más reciente de meses confirmados en `analytics.v_monthly_coverage` inmediatamente anterior a `target_month` (terminado en `target_month - 1`, recortado a un máximo de 60 meses). Para cada categoría con gastos dentro de ese tramo continuo, `available_from_month` es su primer mes con gasto en el tramo y los meses confirmados posteriores sin gasto se completan explícitamente con `amount_minor = 0`. Si `target_month - 1` no está confirmado en `v_monthly_coverage`, el historial continuo queda vacío y Python responde `200 OK` con `status: "INSUFFICIENT_HISTORY"`.
 
-## Contrato interno objetivo (E3.2 y OCR)
+<a id="contrato-interno-objetivo-e32-y-ocr"></a>
+
+## Contrato interno vigente (E3.2 y OCR)
 
 Rutas internas (E3.2 implementa predicciones v2, E4.2 incorpora OCR, E5.1 implementa analítica v2):
 
@@ -324,7 +334,9 @@ Añadir rutas internas autenticadas y acceso de vistas; adaptar Java; verificar 
 
 Pruebas: ejemplos contra esquemas, versiones desconocidas, IDs/tipos, campos extra, importes, errores y correlación; dos organizaciones; tiempo agotado; cero datos; OCR parcial; cambios de versión y consumidores. Contrato v1 histórico detallado a continuación: conserva el formato con historial para código existente, no describe el acceso definitivo a datos.
 
-## Referencia de transición: contrato mensual v1 con historial
+<a id="referencia-de-transición-contrato-mensual-v1-con-historial"></a>
+
+## Referencia histórica y de pruebas: contrato mensual v1 con historial
 
 Todo el contenido siguiente describe exclusivamente el circuito v1 existente. Las responsabilidades de obtención del historial se sustituyen por el acceso a vistas al migrar; no prevalecen sobre la arquitectura requerida de los apartados anteriores. Las rutas analíticas enumeradas en esta referencia son contrato, no prueba de router implementado.
 
@@ -334,6 +346,8 @@ Todo el contenido siguiente describe exclusivamente el circuito v1 existente. La
 **Alcance:** analítica mensual y predicción del próximo mes por organización y categoría.
 **Formato:** HTTP con JSON UTF-8.
 **Estado:** contrato en implementación; la integración OAuth Python-Java usa actualmente el predictor simulado.
+
+> Los apartados numerados 1–12 siguientes conservan el contrato v1 con historial en cuerpo y sus entregables originales como referencia histórica/de prueba. No son la arquitectura vigente de integración Java→Python→vistas ni una lista actual de pendientes. La superficie actual y forecast se describen arriba; recuperar un callback o cambiar DTO requeriría coordinación nueva.
 
 ## 1. Objetivo y responsabilidades
 
@@ -524,7 +538,6 @@ Ejemplo de estructura, con importes ilustrativos que no son resultados de un mod
 
 El modelo candidato inicial es el suavizado exponencial simple. Su configuración y evaluación se documentan en el módulo predictivo; este contrato no fija el algoritmo ni sus parámetros. Un cambio de método compatible con los mismos campos no exige cambiar la versión del contrato, pero sí identificar la nueva versión del modelo.
 
-La configuración actual #85 usa PREDICTOR_MODE=log_trend por defecto: method log_linear_trend, versión 1, simulated false. Se extrapola cada horizonte desde el mismo origen y puede variar por mes; no cambia ningún campo ni ruta. Mock y SES son opciones explícitas experimentales. Mock devuelve `simulated:true`/`method:"mock"`; SES devuelve `simulated:false`/`method:"simple_exponential_smoothing"`/`model_version:"1"`, sin que esa marca certifique aceptación predictiva. Dataset, umbral y selección operativa siguen pendientes según [python_predictor.md](python_predictor.md). No cambian rutas, autenticación ni DTO; las métricas y referencias de evaluación son offline y no se agregan a respuestas HTTP.
 
 No se devuelven intervalos ni porcentajes de confianza hasta implementar y evaluar un procedimiento que los sustente. Los resultados expresan ARS nominales; no se ajustan por inflación. El incremento de gasto no identifica por sí solo mayor consumo ni su causa.
 
@@ -673,8 +686,3 @@ Referencia mantenida dentro de `docs/contratos_api.md`. Entregables complementar
 - Pruebas de contrato ejecutables por ambos servicios.
 
 El contrato se considera integrado cuando ambos servicios procesan los mismos ejemplos, reproducen los estados especificados y manejan errores de comunicación sin alterar su significado.
-
-
-### Presentación del predictor en el MVP (#85)
-
-La pantalla usa «Proyección de gastos» y «Estimación basada en tus gastos anteriores. Los importes pueden variar». No muestra etiquetas de experimental, aceptación/calidad, versión, método ni métricas técnicas. La API conserva method, model_version, simulated y quality sin cambios: la información técnica y sus límites quedan en documentación. Si simulated es true, se identifica «Simulación»; no se presenta mock como cálculo real. Se conservan errores operativos, historial insuficiente y período/origen de la proyección. El conjunto sintético se identifica mediante la organización de demostración y su guía. Esta presentación sustituye los avisos técnicos de la vista descritos en secciones históricas; no implica aceptación de precisión.
