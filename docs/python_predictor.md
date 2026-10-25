@@ -387,3 +387,8 @@ El rango propuesto de orígenes aún no tiene comando ejecutable; no interpretar
 Conservar pruebas del contrato actual mientras se migra. Cubrir tipos estrictos, campos desconocidos, meses duplicados/discontinuos, recorte, categorías nuevas/inactivas, cero frente a falta de datos, seis meses, límites de enteros y totales. Integración real de vistas y permisos con dos organizaciones; caída SQL, pool y limpieza de contexto entre conexiones. Evaluación reproducible del modelo y circuito Java→Python→PostgreSQL. Logs sin datos de comprobantes ni credenciales.
 
 El POST histórico con historial puede servir para pruebas durante transición; no debe confundirse con el contrato operativo nuevo ni quedar expuesto sin autenticación. Retirar la dependencia inversa Python→Java al completar migración.
+
+
+### Entorno único de presentación
+
+Para el recorrido integrado se utiliza sólo localhost:5176 y la organización Demo presentación Shareverance, con las cuentas sintéticas ADMIN/USER de la [guía de presentación](demo_presentacion.md). scripts/presentation-demo.ps1 prepare carga/verifica datos por Java en el proyecto aislado ya existente; start/check/stop sirven para el día de presentación y conservan volúmenes. Incluye historial con fechas desplazadas de forma explícita, individuales/iguales, categoría histórica inactiva y comprobante sintético. No modifica el CSV, contratos o algoritmo, no crea otra base y no acredita aceptación integral. Los conjuntos técnicos anteriores se preservan para regresión.

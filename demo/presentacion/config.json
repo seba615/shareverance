@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Demo presentación Shareverance",
+  "cutoff": "2026-09",
+  "admin_email": "admin@shareverance.com",
+  "user_email": "usuario@shareverance.com",
+  "invite_email": "invitado@shareverance.com",
+  "outsider_email": "ajeno@shareverance.com",
+  "receipt_date": "2026-10-15",
+  "presentation_dates": [
+    "2026-11-12",
+    "2026-11-19"
+  ]
+}

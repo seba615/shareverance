@@ -72,7 +72,7 @@ Stop conserva volúmenes. Acceso sintético, selección y límites en la [guía 
 - Revisar en navegador el gráfico y su integración, accesibilidad, cambios rápidos de organización/origen y errores; la presencia del componente no acredita esos casos.
 - Formalizar criterios metodológicos aún propuestos y limitaciones del conjunto sintético; 2025 ya fue consultado y no es reserva independiente intacta. No se exige conseguir datos reales para la presentación.
 - Resolver parámetros operativos y de cuenta aún abiertos; no confundir herramientas implementadas de respaldo/limpieza con aceptación operativa.
-- Revisar las brechas de producto identificadas en alcance/frontend (edición de categorías y presentación individual) y decidir su aceptación conforme al alcance. No se agregan aquí funciones nuevas.
+- Revisar las brechas de producto identificadas en alcance/frontend (edición de categorías y presentación individual (esta última implementada por #95, pendiente de aceptación)) y decidir su aceptación conforme al alcance. No se agregan aquí funciones nuevas.
 
 ### Antecedentes del plan y evidencia por entrega
 
@@ -721,3 +721,42 @@ Sobre 9f40768, se incorpora en rontend/src/PredictionPanel.tsx el componente SV
 ### Consolidación documental #91, 25/10/2026
 
 Base inspeccionada 1486354: PR #87 predictor/avisos, #89 gráfico y #90 justificación integrados. Síntesis vigente unificada y antecedentes identificados; sin cambios de estados del tablero, cierres, criterios de aceptación, API, migraciones ni código. Se revisan enlaces y coherencia estática; no se atribuye ejecución nueva de suites a esta entrega.
+
+
+### Resumen individual #95, 25/10/2026
+
+Base d18408d, tarea propia asignada a chelofabian y vinculada al proyecto. Mi resumen del usuario conectado: partes vigentes, cantidad de gastos, fechas inclusivas y desglose por categoría histórica. Contrato Java aditivo, sin cobertura/Python, migraciones ni pagos/deudas. Incluye selección de otro miembro de la misma organización para ADMIN; USER queda limitado a su propia membresía. No incluye administración de cobertura. Sin modificar estados ni cierre de tareas.
+
+Entorno integrado desde raíz: scripts/predictor-demo.ps1 start, load; localhost:5176, Mi resumen. Cuenta técnica de la guía P1-D. Enero–diciembre 2024 muestra las partes de la demo; limpiar fechas consulta todo el historial. stop conserva volúmenes. Para probar reparto igualitario y permisos se utiliza una base efímera exclusiva:
+
+```powershell
+docker run -d --name shareverance-summary-test-db --label shareverance.task=summary-95 --tmpfs /var/lib/postgresql/data -e POSTGRES_DB=shareverance_summary_test -e POSTGRES_USER=e12 -e POSTGRES_PASSWORD=e12-local-test postgres:17.11-bookworm
+# Esperar pg_isready antes de continuar.
+docker exec shareverance-summary-test-db pg_isready -U e12 -d shareverance_summary_test
+$summarySource = (Resolve-Path backend-java).Path
+docker run --rm --network container:shareverance-summary-test-db -e JAVA_SUMMARY_TEST_JDBC_URL=jdbc:postgresql://localhost:5432/shareverance_summary_test --mount "type=bind,source=$summarySource,target=/app" -w /app maven:3.9.11-eclipse-temurin-21 mvn --batch-mode --no-transfer-progress test
+```
+
+Sólo base temporal inicialmente vacía; la prueba inserta datos y cambia membresías. Para repetir, crear otra instancia temporal vacía. Al terminar comprobar etiqueta summary-95 antes de retirar ese contenedor con docker rm -f shareverance-summary-test-db; no tocar proyectos/volúmenes habituales. Frontend: npm --prefix frontend test y npm --prefix frontend run build. Esta guía registra comandos ejecutables, no atribuye PASS antes de obtener resultados.
+
+
+Comprobaciones #95 ejecutadas: frontend 45 aprobadas, cero omisiones y build correcto; Java 144 casos, 94 ejecutados y 50 omitidos, cero fallos/errores. Incluye cuatro pruebas con PostgreSQL 17.11 temporal real y tres unitarias nuevas. La primera compilación de test falló por importación faltante, corregida antes de repetir. Verificados reparto/centavos, origen de participación, categorías históricas, rangos, vacío, separación de organización, identidad de sesión y rechazo de accesos/métodos. Revisión visual de todo el historial y diciembre 2024 en localhost:5176; [evidencia y captura](evidencia/resumen-individual/README.md). No se declara aceptación integral ni se repiten las integraciones SQL omitidas. La demo permanece disponible, con stop documentado; base temporal retirada tras verificar propiedad.
+
+
+Ampliación de #95: selector ADMIN de miembro propio/ajeno en la misma organización, incluidas membresías inactivas para historial. Parámetro membershipId autorizado en Java; USER no accede a otro miembro. La clave de carga React incluye miembro y descarta respuestas antiguas. La acción load-summary del wrapper crea casos sintéticos por API en organización separada del CSV, comprueba partes, resúmenes y rechazo USER→otro; repetición sin sobrescrituras de datos divergentes. Credenciales y recorrido en la evidencia de resumen individual.
+
+
+Verificación ampliada ADMIN #95: 146 casos Java, 96 ejecutados/50 omitidos, cero fallos; seis pruebas PostgreSQL reales. Frontend 48 aprobadas y build correcto. load-summary comprobó dos repartos (10,01 y 100 ARS), un individual de 20 ARS y un anulado excluido: ADMIN 55,01/2 gastos, USER 75,00/3; intento USER→otro rechazado 403. Repetición creó cero gastos. Evidencia y límites en la guía del resumen, sin afirmar aceptación humana integral.
+
+
+### Demo única de presentación, complemento de #95
+
+Para el 12 o 19/11/2026: scripts/presentation-demo.ps1 prepare/start/check/status/stop, sobre el proyecto existente y localhost:5176. Una organización principal, cuentas ADMIN/USER/invitado/ajeno sintéticas. Historial CSV org 1 desplazado 21 meses (octubre 2024–septiembre 2026), mismas 192 filas/importes y hash; repartos individuales/iguales y categoría histórica inactiva. Cinco casos de octubre, incluido anulado y OCR sintético vinculado. Sin otra base, migraciones, datos personales, purgas ni cambios al CSV/modelo.
+
+Ejecutado: tres pruebas del plan aprobadas; prepare y repetición (cero nuevos gastos), check integrado sobre Java/Python/PostgreSQL/Tesseract; 24 meses de analítica conciliada, horizontes 4/5/6 y resumen por partes, 403 USER→otro y ajeno. Imagen sin texto devolvió campos vacíos sin registrar gasto. Revisión visual de cuenta con una organización, panel y previsión; pasos humanos de edición/registro/invitación/concurrencia preparados, sin atribuirlos como ejecutados. Los períodos quedan fijos para ambas fechas y se seleccionan según guion; no se desplazan al llegar noviembre. [Guía única](demo_presentacion.md), [evidencia](evidencia/presentacion/README.md). Sin aceptación/cierre automáticos.
+
+
+Actualización visual #95, 25/10/2026: repetidas las capturas del panel, previsión de seis meses, resumen propio y consulta ADMIN→otro miembro en la demo única, con viewport de escritorio 1440 × 1000 y página completa. Sustituidas las imágenes móviles de esta entrega local y actualizados sus contextos/valores en la evidencia. Sólo navegación/consulta y archivos de evidencia; no se cambiaron datos ni se repitieron suites funcionales por las capturas. No se afirma aceptación integral.
+
+
+Accesos confirmados para presentación #95: reutilizar admin@shareverance.com y usuario@shareverance.com con la clave habitual local, sin publicarla ni cambiar credenciales existentes. El conjunto oficial se prepara para esas membresías; las copias técnicas previas y sus partes se preservan. El ADMIN puede ver organizaciones anteriores y debe elegir la principal indicada por check. Configuración privada PRESENTATION_PASSWORD en entorno/.env.local ignorado. Cinco pruebas del plan/credenciales aprobadas; sin restablecimiento automático de contraseñas. La identidad y el formato de los casos auxiliares se actualizan también en el guion.

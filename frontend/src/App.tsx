@@ -17,6 +17,7 @@ import {
 
 import { ExpenseCalendarView } from './ExpenseCalendar';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { IndividualSummaryPanel } from './IndividualSummaryPanel';
 import { PredictionPanel } from './PredictionPanel';
 import { ExpenseHistory } from './ExpenseHistory';
 import { buenosAiresToday } from './calendarModel';
@@ -24,7 +25,7 @@ import { createOrganizationLoader } from './organizationLoader';
 import { createReceiptLoader } from './receiptLoader';
 
 type AuthMode = 'login' | 'register';
-type OrgTab = 'expenses' | 'members' | 'categories' | 'analytics' | 'predictions';
+type OrgTab = 'expenses' | 'members' | 'categories' | 'analytics' | 'predictions' | 'individual';
 type ExpenseViewMode = 'history' | 'calendar';
 
 const organizationTypeLabels: Record<OrganizationType, string> = {
@@ -631,6 +632,8 @@ export default function App() {
                 </p>
               </div>
               <nav className="tab-nav" aria-label="Secciones de la organización">
+                <button className={`tab-btn${activeTab === 'individual' ? ' active' : ''}`} type="button"
+                  onClick={() => { setActiveTab('individual'); setError(''); }}>Mi resumen</button>
                 <button className={`tab-btn${activeTab === 'analytics' ? ' active' : ''}`} type="button"
                   onClick={() => { setActiveTab('analytics'); setError(''); }}>Panel</button>
                 <button className={`tab-btn${activeTab === 'predictions' ? ' active' : ''}`} type="button"
@@ -663,6 +666,9 @@ export default function App() {
               <p className="muted" role="status">Cargando datos de la organización…</p>
             ) : (
               <>
+                {activeTab === 'individual' && <IndividualSummaryPanel key={`individual-${selectedOrganization.id}`}
+                  organizationId={selectedOrganization.id} refreshToken={historyRefresh} members={members}
+                  isAdmin={currentMembership?.role === 'ADMIN'} currentMembershipId={currentMembership?.id} />}
                 {activeTab === 'analytics' && <AnalyticsPanel key={`analytics-${selectedOrganization.id}`}
                   organizationId={selectedOrganization.id} categories={categories} refreshToken={historyRefresh} />}
                 {activeTab === 'predictions' && <PredictionPanel key={`predictions-${selectedOrganization.id}`}

@@ -60,6 +60,18 @@ Respuesta de membresía: id, userId, organizationId, role, joinedAt, isActive y 
 
 E2.1 utiliza POST /api/v1/expenses para alta y GET del listado, sin añadir edición en React. El cliente envía amount como cadena decimal y las validaciones monetarias finales permanecen en Java. La edición futura debe respetar la versión obligatoria de E1.3. No se incorporan CUSTOM, calendario ni analítica a esta entrega.
 
+## Resumen individual de participación (#95)
+
+`GET /api/v1/organizations/{organizationId}/expenses/my-summary?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD&membershipId=ID`. Sólo lectura para USER/ADMIN con cuenta, membresía y organización ARS activas. Java toma el solicitante de sesión. membershipId es opcional: sin parámetro devuelve la membresía propia; un ID distinto requiere ADMIN activo en esa organización. El miembro consultado debe pertenecer a la misma organización, aunque esté inactivo, para conservar su participación histórica. USER sólo puede seleccionar su propia membresía. Intentar otro miembro sin permisos, inexistente o de otro tenant devuelve 403. Omitir fechas incluye todo el historial; una sola fecha limita sólo ese extremo. Extremos inclusivos por fecha del gasto, años 0001–9999; desde posterior a hasta o fecha inválida: 400. Sin sesión: 401; organización ajena/inactiva o membresía inactiva: 403. Otros métodos no autorizados.
+
+Suma `expense_splits.amount` de la membresía autorizada y seleccionada en gastos vigentes de esa organización. No suma gastos completos, no usa autor/titular como sustituto de la participación y no filtra categorías históricas por estado. No necesita cobertura mensual ni Python. Una única agregación SQL produce el desglose; el total y cantidad se derivan de esas mismas filas. Un gasto tiene una sola parte por membresía, por lo que expenseCount cuenta gastos participantes, no el catálogo total. Cero filas produce total 0.00, cantidad 0 y categories vacío.
+
+```json
+{"organizationId":1001,"membershipId":1001,"currency":"ARS","fromDate":"2024-01-01","toDate":"2024-01-31","totalAmount":25.01,"expenseCount":2,"categories":[{"categoryId":1001,"categoryName":"Actual","categoryActive":true,"amount":5.01,"expenseCount":1},{"categoryId":1002,"categoryName":"Histórica","categoryActive":false,"amount":20.00,"expenseCount":1}]}
+```
+
+Importes decimales en ARS, como gastos/page; no son campos amount_minor del predictor. Fechas omitidas vuelven null. Desglose ordenado por nombre e ID. Respuesta aditiva, sin modificar rutas anteriores. No representa deuda, pagos ni liquidación y permite selector de otro miembro únicamente para ADMIN.
+
 ## Gastos E1.2: individual e iguales
 
 Se conservan POST /api/v1/expenses, PUT /api/v1/expenses/{id} y sus DTO. E1.2 cubre INDIVIDUAL, BETWEEN_TWO, SPECIFIC_GROUP y ALL_MEMBERS. INDIVIDUAL asigna todo al titular; BETWEEN_TWO requiere dos participantes distintos contando al titular; SPECIFIC_GROUP recibe una selección no vacía; el servidor agrega al titular si no está incluido. No se permiten IDs repetidos o nulos. ALL_MEMBERS selecciona membresías y cuentas activas de la organización.

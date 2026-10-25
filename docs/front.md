@@ -115,3 +115,15 @@ La pestaña Predicción consulta únicamente Java: forecast para previsión mult
 - **Pruebas automatizadas**: `frontend/tests/predictionModel.test.mjs` verifica validaciones de formato de mes, formateo en huso horario neutro con soporte de años 0001–0099, etiquetas de métodos y carreras del cargador reactivo mediante promesas controladas.
 
 `PredictionMessages.tsx` contiene los avisos de simulación e insuficiencia comprobados con renderizado React. Los modelos reales no muestran aviso técnico; los meses usados no se confunden con cobertura disponible. Estas pruebas no sustituyen revisión visual ni integración HTTP completa.
+
+
+## Mi resumen (#95)
+
+Pestaña de la organización activa, disponible para USER/ADMIN. Consume sólo la nueva API pública Java de participación. USER ve su propia participación; ADMIN dispone del selector Miembro con otras membresías de la organización e inactivas históricas. Muestra filtros Desde/Hasta, total de partes, cantidad de gastos y tabla por categoría con marcas de inactividad histórica. Todo el historial limpia filtros; Consultar vuelve a intentar también después de un error. La respuesta se identifica por organización, miembro, filtros y recarga; se descartan resultados anteriores con el cargador existente y al desmontar/cambiar organización. El período mostrado corresponde a la consulta aplicada, no a cambios todavía no enviados en los inputs. No depende del panel Python o de meses confirmados.
+
+Conservar distinción de participación frente a pagos/deudas. Casos de vacío, carga, error, fechas invertidas y sesión/acceso forman parte del recorrido de prueba; las pruebas de renderizado no sustituyen aceptación humana.
+
+
+### Entorno único de presentación
+
+Para el recorrido integrado se utiliza sólo localhost:5176 y la organización Demo presentación Shareverance, con las cuentas sintéticas ADMIN/USER de la [guía de presentación](demo_presentacion.md). scripts/presentation-demo.ps1 prepare carga/verifica datos por Java en el proyecto aislado ya existente; start/check/stop sirven para el día de presentación y conservan volúmenes. Incluye historial con fechas desplazadas de forma explícita, individuales/iguales, categoría histórica inactiva y comprobante sintético. No modifica el CSV, contratos o algoritmo, no crea otra base y no acredita aceptación integral. Los conjuntos técnicos anteriores se preservan para regresión.

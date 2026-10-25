@@ -501,3 +501,26 @@ export const predictionApi = {
     return request<ForecastResponse>(`/api/v1/organizations/${organizationId}/predictions/forecast?${params.toString()}`);
   },
 };
+
+
+export interface IndividualSummary {
+  organizationId: number;
+  membershipId: number;
+  currency: 'ARS';
+  fromDate: string | null;
+  toDate: string | null;
+  totalAmount: number;
+  expenseCount: number;
+  categories: { categoryId: number; categoryName: string; categoryActive: boolean;
+    amount: number; expenseCount: number }[];
+}
+
+export const individualSummaryApi = {
+  get(organizationId: number, fromDate?: string, toDate?: string, membershipId?: number): Promise<IndividualSummary> {
+    const query = new URLSearchParams();
+    if (fromDate) query.set('fromDate', fromDate);
+    if (toDate) query.set('toDate', toDate);
+    if (membershipId !== undefined) query.set('membershipId', String(membershipId));
+    return request<IndividualSummary>(`/api/v1/organizations/${organizationId}/expenses/my-summary?${query}`);
+  },
+};

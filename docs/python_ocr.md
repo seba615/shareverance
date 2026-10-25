@@ -81,3 +81,8 @@ El verificador utiliza PostgreSQL 17.11 en tmpfs, sin puertos publicados, volume
 ## Pruebas
 
 Comprobantes nítidos, girados, borrosos y con varias fechas/importes; total frente a subtotal/cambio; coma decimal y separadores de miles; descripción extensa/ausente; campos parciales; imagen corrupta, tipo falso, exceso de bytes/píxeles, traversal y organización ajena; timeout; revisión y confirmación sin duplicación; reinicio y persistencia. Medir acierto por campo sobre muestras con resultado esperado y registrar las limitaciones del motor.
+
+
+### Entorno único de presentación
+
+Para el recorrido integrado se utiliza sólo localhost:5176 y la organización Demo presentación Shareverance, con las cuentas sintéticas ADMIN/USER de la [guía de presentación](demo_presentacion.md). scripts/presentation-demo.ps1 prepare carga/verifica datos por Java en el proyecto aislado ya existente; start/check/stop sirven para el día de presentación y conservan volúmenes. Incluye historial con fechas desplazadas de forma explícita, individuales/iguales, categoría histórica inactiva y comprobante sintético. No modifica el CSV, contratos o algoritmo, no crea otra base y no acredita aceptación integral. Los conjuntos técnicos anteriores se preservan para regresión.
