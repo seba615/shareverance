@@ -18,6 +18,7 @@ Sistema de registro, distribución y análisis de gastos para hogares, consorcio
 - [Frontend](docs/front.md)
 - [Contratos API](docs/contratos_api.md)
 - [Roadmap y aceptación](docs/road_map.md)
+- [Justificación tecnológica](docs/justificacion_tecnologica.md)
 
 ## Arquitectura y estado
 
