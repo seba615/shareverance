@@ -1,0 +1,570 @@
+{
+  "report_version": 1,
+  "dataset_sha256": "99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996",
+  "code_commit": "380fd728324c42a47ac7b5f382060f84197718c2",
+  "evaluator_sha256": "f30c1aaba95ed2f1ef8bc625f3cfabcf47a1809bd4acb00541e89f4f27b6d019",
+  "predictor_source_sha256": {
+    "ses": "add35220213a46004edc093f484776db6bc2ec78d405d960406a172bd8c6db32",
+    "last_month": "dee6c0240187e3d43f854805056290de41ed9683411665233cec77b048e14299",
+    "historical_mean": "e4b8ff0c4ba2d48f6911399e1ffbb2c0788478d91edf8c71525fab3f1bc1737f",
+    "log_trend": "1144fa4f64c2cbc1567cb0a1123011ced04e371038246fa7942d18dd426bc8f4"
+  },
+  "scope": "synthetic_development_multihorizon",
+  "coverage_policy": "synthetic_declared_not_real_coverage",
+  "configuration": {
+    "from_origin": "2023-12",
+    "to_origin": "2024-06",
+    "origins_count": 7,
+    "max_horizon": 6,
+    "min_history_months": 6,
+    "alpha": 0.3,
+    "include_trend": true,
+    "trend_configuration": {
+      "transform": "ln(1 + amount_minor)",
+      "precision": 40,
+      "fit": "OLS time trend on observed history at origin",
+      "strategy": "direct horizons; no synthetic observations in fit",
+      "bias_correction": false
+    },
+    "training": "common_origin_direct_trend_and_recursive_references_without_future_data",
+    "method_versions": {
+      "ses": "1",
+      "last_month": "1",
+      "historical_mean": "1",
+      "log_trend": "1"
+    }
+  },
+  "accepted": null,
+  "model_promoted": false,
+  "reserve_evaluated": false,
+  "levels": {
+    "organization": {
+      "expected_series": 50,
+      "complete_series": 50,
+      "excluded_series": 0,
+      "horizons": {
+        "1": {
+          "ses": {
+            "equal_series_mae_ars": 232366.55,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 4066414647,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 12.95,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 104353.98,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 1826194683,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 5.82,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 512980.48,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3590863331,
+              "denominator": 70
+            },
+            "pooled_wape_percentage": 28.59,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 67000.66,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2345023089,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 3.73,
+            "series_count": 50,
+            "samples": 350
+          }
+        },
+        "2": {
+          "ses": {
+            "equal_series_mae_ars": 309780.81,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 5421164243,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 16.55,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 159459.6,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2790542914,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 8.52,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 590394.74,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 20663815847,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 31.55,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 74660.95,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 373304763,
+              "denominator": 50
+            },
+            "pooled_wape_percentage": 3.99,
+            "series_count": 50,
+            "samples": 350
+          }
+        },
+        "3": {
+          "ses": {
+            "equal_series_mae_ars": 391949.94,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 6859123988,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 20.06,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 236761.38,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 118380691,
+              "denominator": 5
+            },
+            "pooled_wape_percentage": 12.12,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 672563.87,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 23539735337,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 34.42,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 82726.51,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 1447713858,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 4.23,
+            "series_count": 50,
+            "samples": 350
+          }
+        },
+        "4": {
+          "ses": {
+            "equal_series_mae_ars": 480079.94,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 16802797941,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 23.51,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 324357.58,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 1621787899,
+              "denominator": 50
+            },
+            "pooled_wape_percentage": 15.89,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 760693.87,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 13312142651,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 37.25,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 90449.41,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3165729179,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 4.43,
+            "series_count": 50,
+            "samples": 350
+          }
+        },
+        "5": {
+          "ses": {
+            "equal_series_mae_ars": 569225.86,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 19922904929,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 26.71,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 413491.53,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2894440733,
+              "denominator": 70
+            },
+            "pooled_wape_percentage": 19.4,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 849839.78,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2974439229,
+              "denominator": 35
+            },
+            "pooled_wape_percentage": 39.88,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 98421.64,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3444757383,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 4.62,
+            "series_count": 50,
+            "samples": 350
+          }
+        },
+        "6": {
+          "ses": {
+            "equal_series_mae_ars": 669282.8,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 23424898159,
+              "denominator": 350
+            },
+            "pooled_wape_percentage": 30.0,
+            "series_count": 50,
+            "samples": 350
+          },
+          "last_month": {
+            "equal_series_mae_ars": 513548.48,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3594839379,
+              "denominator": 70
+            },
+            "pooled_wape_percentage": 23.02,
+            "series_count": 50,
+            "samples": 350
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 949896.73,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3324638552,
+              "denominator": 35
+            },
+            "pooled_wape_percentage": 42.58,
+            "series_count": 50,
+            "samples": 350
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 104148.05,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 520740247,
+              "denominator": 50
+            },
+            "pooled_wape_percentage": 4.67,
+            "series_count": 50,
+            "samples": 350
+          }
+        }
+      }
+    },
+    "category": {
+      "expected_series": 400,
+      "complete_series": 400,
+      "excluded_series": 0,
+      "horizons": {
+        "1": {
+          "ses": {
+            "equal_series_mae_ars": 32246.07,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 9028898771,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 14.38,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 24267.09,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 121335469,
+              "denominator": 50
+            },
+            "pooled_wape_percentage": 10.82,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 64338.72,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 3602968519,
+              "denominator": 560
+            },
+            "pooled_wape_percentage": 28.69,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 18753.08,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 5250863703,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 8.36,
+            "series_count": 400,
+            "samples": 2800
+          }
+        },
+        "2": {
+          "ses": {
+            "equal_series_mae_ars": 40446.47,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 11325012099,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 17.29,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 29617.46,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 518305497,
+              "denominator": 175
+            },
+            "pooled_wape_percentage": 12.66,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 73910.59,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 20694964991,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 31.59,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 20071.16,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2809963097,
+              "denominator": 1400
+            },
+            "pooled_wape_percentage": 8.58,
+            "series_count": 400,
+            "samples": 2800
+          }
+        },
+        "3": {
+          "ses": {
+            "equal_series_mae_ars": 49918.1,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 13977067351,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 20.44,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 35783.16,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2504821107,
+              "denominator": 700
+            },
+            "pooled_wape_percentage": 14.65,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 84110.52,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 23550946329,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 34.44,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 21432.04,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 6000971941,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 8.78,
+            "series_count": 400,
+            "samples": 2800
+          }
+        },
+        "4": {
+          "ses": {
+            "equal_series_mae_ars": 60570.19,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 8479827227,
+              "denominator": 1400
+            },
+            "pooled_wape_percentage": 23.73,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 44430.04,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 355440307,
+              "denominator": 80
+            },
+            "pooled_wape_percentage": 17.41,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 95103.01,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 2662884269,
+              "denominator": 280
+            },
+            "pooled_wape_percentage": 37.26,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 22746.3,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 6368964113,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 8.91,
+            "series_count": 400,
+            "samples": 2800
+          }
+        },
+        "5": {
+          "ses": {
+            "equal_series_mae_ars": 71501.03,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 10010144579,
+              "denominator": 1400
+            },
+            "pooled_wape_percentage": 26.84,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 54005.35,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 15121498317,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 20.27,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 106239.55,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 53119777,
+              "denominator": 5
+            },
+            "pooled_wape_percentage": 39.88,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 24597.86,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 1377480053,
+              "denominator": 560
+            },
+            "pooled_wape_percentage": 9.23,
+            "series_count": 400,
+            "samples": 2800
+          }
+        },
+        "6": {
+          "ses": {
+            "equal_series_mae_ars": 83824.47,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 11735425237,
+              "denominator": 1400
+            },
+            "pooled_wape_percentage": 30.06,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "last_month": {
+            "equal_series_mae_ars": 65909.27,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 18454596197,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 23.63,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "historical_mean": {
+            "equal_series_mae_ars": 118745.25,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 16624334771,
+              "denominator": 1400
+            },
+            "pooled_wape_percentage": 42.58,
+            "series_count": 400,
+            "samples": 2800
+          },
+          "log_trend": {
+            "equal_series_mae_ars": 26403.67,
+            "equal_series_mae_minor_fraction": {
+              "numerator": 7393028539,
+              "denominator": 2800
+            },
+            "pooled_wape_percentage": 9.47,
+            "series_count": 400,
+            "samples": 2800
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Generador, fórmula/semilla exactas y correspondencia original/local.",
+    "Formalizar universo sintético elegible y responsables de cobertura.",
+    "Registrar revisión de uso previo de 2025 y congelación de reserva.",
+    "Aceptación manual y congelación del protocolo P2; P2-H para 4–6 meses.",
+    "No representa precisión sobre hogares reales.",
+    "Referencias sin tendencia producen proyecciones planas; tendencia no implica inflación calibrada.",
+    "Ventanas solapadas entre orígenes no constituyen observaciones independientes."
+  ],
+  "note": "Código local sin commit: code_commit identifica la base; hashes identifican los archivos evaluados."
+}

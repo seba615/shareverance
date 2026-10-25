@@ -171,11 +171,12 @@ class PredictionService:
                 forecasts=points,
             )
 
-        # Proyección recursiva
-        current_history = list(amounts)
+        # El modelo decide su estrategia desde el mismo corte histórico.
+        estimates = self.predictor.forecast(amounts, horizon_months)
+        if len(estimates) != horizon_months:
+            raise RuntimeError("El predictor devolvió una trayectoria incompleta.")
         points = []
-        for h in range(1, horizon_months + 1):
-            estimate = self.predictor.predict(current_history)
+        for h, estimate in enumerate(estimates, 1):
             if type(estimate) is not int or not 0 <= estimate <= MAX_SAFE_INTEGER:
                 raise RuntimeError("El predictor devolvió una estimación inválida.")
             points.append(
@@ -186,7 +187,6 @@ class PredictionService:
                     quality=ForecastQuality(status="NOT_EVALUATED"),
                 )
             )
-            current_history.append(estimate)
 
         return ForecastSeriesResult(
             status="OK",

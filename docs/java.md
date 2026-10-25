@@ -139,3 +139,8 @@ Se incorporan `OcrService` y su implementación `OcrServiceImpl`:
   - Aplica timeout de lectura configurable (`python.service.ocr-read-timeout-ms`, por defecto 15.000 ms). Si Python no está disponible, agota el tiempo de espera o retorna error, Java responde HTTP 503 (`SERVICE_UNAVAILABLE`) sin comprometer el alta ni consulta de gastos.
 - Vinculación en `createExpense`:
   - Si `request.receiptUrl()` es un UUID canónico (o su último segmento es un UUID), `ExpenseServiceImpl` invoca `receiptService.linkReceiptToExpense` dentro de la transacción de gasto y partes. Referencias anteriores sin UUID se conservan como texto sin intentar vincularlas. Un UUID inexistente, inactivo o de otra organización devuelve 404; falta de permiso devuelve 403 y una asociación previa incompatible devuelve 409. Esos errores se propagan sin capturarlos y revierten toda el alta, conservando su estado HTTP en lugar de terminar en `UnexpectedRollbackException`. Una falla SQL también revierte la operación completa.
+
+
+## Validación de la demostración multihorizonte
+
+Relacionado con #85/#81. El autorizador admite sólo GET en predictions/forecast para miembros activos, usando las mismas comprobaciones de pertenencia de monthly. No habilita POST ni analytics/forecast. La [prueba integrada sintética](evidencia/demo-sintetica/README.md) comprueba horizontes 4/5/6, equivalencia mensual, insuficiencia y 400/403/503; no equivale a validación exhaustiva de respuestas internas malformadas ni aceptación integral. Sin nuevas rutas, DTO o migraciones en esta corrección.

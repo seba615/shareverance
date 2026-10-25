@@ -29,17 +29,13 @@ test('resultado OK muestra meses efectivamente utilizados, sin confundirlos con 
   assert.match(render(PredictionHistory, { result: { status: 'OK', months_used: 12, required_months: 6 } }), /12 meses utilizados \(mínimo 6\)/);
 });
 
-test('aviso mock describe el método sobre historial consultado, sin afirmar datos sintéticos', () => {
-  const markup = render(PredictionModelNotice, { simulated: true, method: 'mock', version: '1' });
+test('simulación se identifica sin mostrar versión ni detalles de aceptación', () => {
+  const markup = render(PredictionModelNotice, { simulated: true });
+  assert.match(markup, /Simulación/);
   assert.match(markup, /último importe del historial consultado/);
-  assert.match(markup, /Cálculo simulado/);
-  assert.match(markup, /versión 1/);
-  assert.doesNotMatch(markup, /sintéticos|Modelo experimental/);
+  assert.doesNotMatch(markup, /versión|experimental|calidad|aceptad/);
 });
 
-test('aviso experimental respeta método y versión y mantiene pendiente la aceptación', () => {
-  const markup = render(PredictionModelNotice, { simulated: false, method: 'simple_exponential_smoothing', version: '1' });
-  assert.match(markup, /Suavizado Exponencial Simple/);
-  assert.match(markup, /versión 1/);
-  assert.match(markup, /todavía no está aceptada/);
+test('los modelos reales no muestran avisos técnicos de calidad al usuario', () => {
+  assert.equal(render(PredictionModelNotice, { simulated: false }), '');
 });

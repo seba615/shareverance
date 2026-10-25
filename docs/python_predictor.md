@@ -7,7 +7,7 @@ Esta especificación define el comportamiento requerido del MVP 1. La sección d
 
 ## Estado
 
-FastAPI en `service-python/app/`. Existen esquemas estrictos, validación de historial, endpoints predictivos (`POST /internal/v2/predictions/monthly` y `POST /api/v1/predictions/monthly`) y predictor simulado. E5.1 implementa `POST /internal/v2/analytics/monthly` con lectura de vistas, comparación y evolución por cobertura explícita. Su verificación con PostgreSQL real se registra en el [roadmap](road_map.md). E5.2 integra su consulta pública Java y el panel React sin modificar este contrato interno; el predictor real evaluado continúa pendiente de E6.1.
+FastAPI en `service-python/app/`. Existen esquemas estrictos, validación de historial, endpoints predictivos (`POST /internal/v2/predictions/monthly` y `POST /api/v1/predictions/monthly`) y predictor simulado. E5.1 implementa `POST /internal/v2/analytics/monthly` con lectura de vistas, comparación y evolución por cobertura explícita. Su verificación con PostgreSQL real se registra en el [roadmap](road_map.md). E5.2 integra su consulta pública Java y el panel React sin modificar este contrato interno; existe ahora una tendencia log-lineal evaluada sobre datos sintéticos de desarrollo; la aceptación predictiva continúa pendiente.
 
 E3.1 incorporó en PostgreSQL las vistas y el rol `shareverance_python` ([postgre.md](postgre.md)). E3.2 implementa en Python el repositorio de vistas (`ViewsRepository` con `psycopg[binary]`), conecta a PostgreSQL como `shareverance_python`, establece `shareverance.organization_id` local a cada transacción `BEGIN READ ONLY` con el ID autorizado por Java, cierra siempre la transacción (`COMMIT`/`ROLLBACK`) antes de liberar o cerrar la conexión, construye el tramo continuo de hasta 60 meses confirmados anteriores a `target_month` (completando con `0` los meses confirmados sin gasto desde el primer mes con gasto de cada categoría), protege `POST /internal/v2/predictions/monthly` con Bearer token compartido (`PYTHON_CLIENT_SECRET` y `PYTHON_CLIENT_SECRET_PREVIOUS` opcional para rotación) y retira el callback `GET /api/v1/predictions/organization/{id}/monthly` (`java_client.py`).
 
@@ -31,7 +31,7 @@ Comparación: diferencia = actual − anterior. Porcentaje = diferencia / anteri
 
 ## Predicción real
 
-E6.1 incorpora un candidato SES (`alpha=0.3`, seis meses mínimos, versión 1) y herramientas offline de evaluación. El modo operativo predeterminado continúa siendo `mock`; `PREDICTOR_MODE=ses` es una opción explícita experimental, transmitida por Compose desde `.env`, para comprobar el candidato. En este modo `simulated:false` identifica el cálculo SES, sin certificar calidad predictiva ni aceptación de E6.1. No se activa automáticamente por obtener métricas ni por pasar pruebas. Dataset temporal de aceptación, métrica de decisión, umbral y regla de selección siguen abiertos y deben definirse antes de evaluar para aceptación. La UI predictiva E6.2 está implementada: consulta Java, muestra método/versión, insuficiencia y distinción mock/SES experimental. La aceptación integral de la vista y la ampliación multimes permanecen pendientes.
+E6.1 incorpora un candidato SES (`alpha=0.3`, seis meses mínimos, versión 1) y herramientas offline de evaluación. El modo operativo predeterminado actual es log_trend experimental (actualización #85 al final); históricamente se utilizó mock; `PREDICTOR_MODE=ses` es una opción explícita experimental, transmitida por Compose desde `.env`, para comprobar el candidato. En este modo `simulated:false` identifica el cálculo SES, sin certificar calidad predictiva ni aceptación de E6.1. No se activa automáticamente por obtener métricas ni por pasar pruebas. Dataset temporal de aceptación, métrica de decisión, umbral y regla de selección siguen abiertos y deben definirse antes de evaluar para aceptación. La UI predictiva E6.2 está implementada: consulta Java, muestra método/versión, insuficiencia y distinción mock/SES experimental. La aceptación integral de la vista y la ampliación multimes permanecen pendientes.
 
 Desde `service-python`, el informe reproducible de regresión sintética se obtiene con:
 
@@ -297,6 +297,10 @@ Las comparaciones son offline. Probarlas en la pestaña Predicción requiere P5 
 
 <a id="protocolo-multihorizonte"></a>
 
+### Presentación sintética y comprobación integrada
+
+Relacionado con [#85](https://github.com/seba615/shareverance/issues/85). La entrega demostrativa utiliza V1 sintético; conseguir datos reales no es requisito para esa presentación y no se acredita precisión sobre hogares reales. Tras `scripts/predictor-demo.ps1 start` y `load`, ejecutar `check-forecast`: valida mediante Java los horizontes 4/5/6, corte común, calidad no evaluada, insuficiencia, permisos y ausencia de escrituras de gastos/cobertura. Mantener mock predeterminado; no se activa SES automáticamente. [Guía, resultados y capturas](evidencia/demo-sintetica/README.md). Detener con `scripts/predictor-demo.ps1 stop`, conservando volúmenes. El gráfico combinado y aceptación humana siguen pendientes; no se declara aceptación predictiva por el funcionamiento del circuito.
+
 ### P5-H: integración de previsiones multihorizonte (4 a 6 meses)
 
 Relacionado con [#81](https://github.com/seba615/shareverance/issues/81). Extensión operativa del predictor para admitir previsiones a mediano plazo (horizontes de 4, 5 o 6 meses) proyectadas desde un mes base de origen con cobertura histórica confirmada.
@@ -312,7 +316,7 @@ Relacionado con [#81](https://github.com/seba615/shareverance/issues/81). Extens
 
 Relacionado con [#79](https://github.com/seba615/shareverance/issues/79). `scripts/compare_forecast_csv.py` reutiliza P3-H con seis horizontes y una cohorte completa común para todas las ventanas 4/5/6, métodos y orígenes. Informa MAE exacto con igual peso por serie, WAPE agrupado, muestras, exclusiones y deterioro de SES contra la mejor de ambas referencias por serie. La selección de referencia es descriptiva, no una política de producción.
 
-Desde la raíz con PowerShell y Docker Desktop Linux: `scripts/predictor-demo.ps1 compare` y `test`, sin iniciar servicios ni reevaluar 2025. [Evidencia, resultados, formato y comandos completos](evidencia/p4h/README.md). Se registran configuración y hashes; no son congelación previa para evaluación final. Datos sintéticos, umbrales multihorizonte pendientes, sin aceptación o promoción automática. La aplicación continúa en monthly/mock; su ejecución start/load/check/stop permanece en la [guía P1-D](#entorno-demo-predictor).
+Desde la raíz con PowerShell y Docker Desktop Linux: `scripts/predictor-demo.ps1 compare` y `test`, sin iniciar servicios ni reevaluar 2025. [Evidencia, resultados, formato y comandos completos](evidencia/p4h/README.md). Se registran configuración y hashes; no son congelación previa para evaluación final. Datos sintéticos, umbrales multihorizonte pendientes, sin aceptación o promoción automática. La aplicación conserva mock y añade forecast a monthly; su ejecución start/load/check/stop permanece en la [guía P1-D](#entorno-demo-predictor).
 
 ### P5: decisión conservadora de no promoción
 
@@ -357,3 +361,30 @@ El rango propuesto de orígenes aún no tiene comando ejecutable; no interpretar
 Conservar pruebas del contrato actual mientras se migra. Cubrir tipos estrictos, campos desconocidos, meses duplicados/discontinuos, recorte, categorías nuevas/inactivas, cero frente a falta de datos, seis meses, límites de enteros y totales. Integración real de vistas y permisos con dos organizaciones; caída SQL, pool y limpieza de contexto entre conexiones. Evaluación reproducible del modelo y circuito Java→Python→PostgreSQL. Logs sin datos de comprobantes ni credenciales.
 
 El POST histórico con historial puede servir para pruebas durante transición; no debe confundirse con el contrato operativo nuevo ni quedar expuesto sin autenticación. Retirar la dependencia inversa Python→Java al completar migración.
+
+
+## Tendencia log-lineal experimental (#85)
+
+PREDICTOR_MODE=log_trend es el valor por defecto en Settings, Compose y ejemplos. En un .env existente, cambiar esa variable explícitamente y recrear Python; el wrapper demo usa su propio demo/predictor.env.example. Mock y SES se conservan como opciones explícitas, sin fallback automático. Método HTTP log_linear_trend, versión 1, simulated false; mismo DTO y rutas mensual/forecast.
+
+Con al menos seis meses consecutivos confirmados (hasta 60), ajusta por mínimos cuadrados log(1 + importe en centavos) contra índice temporal. Decimal con precisión 40; invierte con exp(ajuste)-1, piso cero y redondeo HALF_UP al centavo. Ajusta una sola vez al origen y extrapola directamente cada horizonte; no reentrena con predicciones ni incorpora valores futuros. Un historial constante puede producir una trayectoria constante legítima. Valores fuera del rango monetario seguro producen error, nunca sustitución por mock. Organización y categorías se ajustan independientemente, sin prometer suma de pronósticos conciliada.
+
+Es una extrapolación de tendencia, sin estacionalidad, calibración oficial de inflación, corrección de sesgo al invertir logaritmos ni intervalos calibrados. La inversión no estima automáticamente la media condicional. Es sensible a ceros, atípicos y cambios de régimen. No se impone el 4,5 % usado en la generación sintética. Referencia conceptual: [regresión con transformación logarítmica, FPP3](https://otexts.com/fpp3/nonlinear-regression.html).
+
+Reproducción desde raíz, PowerShell y Docker Desktop Linux:
+
+```powershell
+./scripts/predictor-demo.ps1 evaluate-trend > backend-java/target/evaluacion-tendencia.json
+./scripts/predictor-demo.ps1 start
+./scripts/predictor-demo.ps1 load
+./scripts/predictor-demo.ps1 check-forecast
+# Abrir http://localhost:5176 y consultar Predicción, 6 meses.
+./scripts/predictor-demo.ps1 stop
+```
+
+El evaluador no requiere levantar la aplicación. Agrega tendencia a las referencias existentes sobre los mismos cortes de desarrollo; el JSON incluye hashes del CSV, evaluador y modelos. Calidad HTTP permanece NOT_EVALUATED con métricas null: un resultado agregado offline no es confianza individual. [Resultados y límites](evidencia/tendencia/README.md), [credenciales sintéticas y recorrido](evidencia/demo-sintetica/README.md). No se evalúa 2025 ni se acepta precisión real.
+
+
+### Presentación del predictor en el MVP (#85)
+
+La pantalla usa «Proyección de gastos» y «Estimación basada en tus gastos anteriores. Los importes pueden variar». No muestra etiquetas de experimental, aceptación/calidad, versión, método ni métricas técnicas. La API conserva method, model_version, simulated y quality sin cambios: la información técnica y sus límites quedan en documentación. Si simulated es true, se identifica «Simulación»; no se presenta mock como cálculo real. Se conservan errores operativos, historial insuficiente y período/origen de la proyección. El conjunto sintético se identifica mediante la organización de demostración y su guía. Esta presentación sustituye los avisos técnicos de la vista descritos en secciones históricas; no implica aceptación de precisión.

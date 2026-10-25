@@ -37,3 +37,14 @@ class Predictor(ABC):
         monetario del contrato.
         """
         pass
+
+    def forecast(self, amounts: Sequence[int], horizon: int) -> list[int]:
+        """Compatibilidad de los modelos existentes; nunca agrega observaciones futuras."""
+        if type(horizon) is not int or not 1 <= horizon <= 6:
+            raise ValueError("El horizonte debe estar entre 1 y 6.")
+        history = list(amounts)
+        estimates = []
+        for _ in range(horizon):
+            estimates.append(self.predict(history))
+            history.append(estimates[-1])
+        return estimates

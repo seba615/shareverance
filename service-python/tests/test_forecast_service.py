@@ -2,11 +2,20 @@ import unittest
 from uuid import uuid4
 from app.predictors.mock import MockPredictor
 from app.predictors.ses import SimpleExponentialSmoothingPredictor
+from app.predictors.log_trend import LogTrendPredictor
 from app.services.predictions import PredictionService
 from app.schemas.requests import ForecastRequest, CategoryCoverage, MonthlyHistory, CategoryTotal
 
 
 class ForecastServiceTests(unittest.TestCase):
+    def test_trend_uses_direct_common_origin_and_reports_real_model(self):
+        model = LogTrendPredictor()
+        req = self._make_request(num_months=12, horizon_months=6)
+        result = PredictionService(model).predict_forecast(req)
+        self.assertFalse(result.simulated)
+        self.assertEqual(result.organization.method, model.method)
+        amounts = [sum(total.amount_minor for total in month.category_totals) for month in req.history]
+        self.assertEqual([p.estimated_amount_minor for p in result.organization.forecasts], model.forecast(amounts, 6))
     def setUp(self):
         self.mock_service = PredictionService(MockPredictor())
         self.ses_service = PredictionService(SimpleExponentialSmoothingPredictor(alpha=0.3))

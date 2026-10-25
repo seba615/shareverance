@@ -73,8 +73,19 @@ def test_health_remains_available(client):
     }
 
 
-def test_default_predictor_remains_mock(monkeypatch, payload):
+def test_default_predictor_uses_observed_trend(monkeypatch, payload):
     monkeypatch.delenv("PREDICTOR_MODE", raising=False)
+    with TestClient(app) as test_client:
+        body = test_client.post(URL, json=payload).json()
+    from app.predictors.log_trend import LogTrendPredictor
+    assert body["simulated"] is False
+    assert body["organization"]["method"] == "log_linear_trend"
+    assert body["organization"]["estimated_amount_minor"] == LogTrendPredictor().predict(
+        [month * 10000 for month in range(1, 7)])
+
+
+def test_mock_remains_available_only_when_explicit(monkeypatch, payload):
+    monkeypatch.setenv("PREDICTOR_MODE", "mock")
     with TestClient(app) as test_client:
         body = test_client.post(URL, json=payload).json()
     assert body["simulated"] is True

@@ -1,0 +1,44 @@
+{
+  "scope": "synthetic_demo_mock",
+  "csv_sha256": "99f1edca57202fc182dd74b469a832607a15c9e1d3a83f4ece3b6f6a69001996",
+  "organization_id": 2,
+  "cutoff": "2024-12",
+  "expense_count": 192,
+  "horizons_checked": [
+    {
+      "horizon": 4,
+      "points": 4,
+      "last_target": "2025-04"
+    },
+    {
+      "horizon": 5,
+      "points": 5,
+      "last_target": "2025-05"
+    },
+    {
+      "horizon": 6,
+      "points": 6,
+      "last_target": "2025-06"
+    }
+  ],
+  "default_horizon": 4,
+  "monthly_equivalence": true,
+  "insufficient_origins": [
+    "2023-03",
+    "2022-12"
+  ],
+  "outsider_http_status": 403,
+  "invalid_parameters_http_status": 400,
+  "expenses_and_coverage_unchanged": true,
+  "quality": "NOT_EVALUATED",
+  "base_commit": "380fd72",
+  "code_state": "cambios locales de validación; no commit de entrega todavía",
+  "failure_check": {
+    "python_stopped": true,
+    "forecast_http_status": 503,
+    "expenses_available": 192,
+    "python_restarted": true
+  },
+  "recovery_check_passed": true,
+  "demo_stopped_preserving_volumes": true
+}

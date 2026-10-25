@@ -124,26 +124,26 @@ Las rutas siguientes requieren sesión, usuario, organización ARS y membresía 
 
 <a id="propuesta-multihorizonte"></a>
 
-### Propuesta P2-H: previsión desde un origen común
+### Previsión desde un origen común: implementación P5-H y parámetros abiertos
 
-Seguimiento [#73](https://github.com/seba615/shareverance/issues/73). **Diseño pendiente de revisión coordinada e implementación**, no rutas disponibles ni contrato aceptado. Consumidores revisados: PredictionPanel/predictionApi.monthly, PredictionController/PredictionService, routers/esquemas Python y ViewsRepository. Se conservan `/predictions/monthly`, DTO v2 y comportamiento de un mes para consumidores existentes. Las operaciones propuestas son aditivas; no introducir una ruta `/v3` ni reemplazar respuestas mensuales como sustituto de coordinar consumidores.
+Seguimiento [#73](https://github.com/seba615/shareverance/issues/73) y [#81](https://github.com/seba615/shareverance/issues/81). P5-H implementa las operaciones aditivas forecast en Python/Java y su consumidor React. #85 corrige compilación/consumo de campos, horizonte enviado y autorización GET; [comprobaciones integradas](evidencia/demo-sintetica/README.md). Se conservan monthly y sus DTO. La disponibilidad de las rutas no acredita aceptación de calidad ni resuelve parámetros abiertos de evaluación. No se cambia el formato HTTP en esta corrección.
 
-| Operación propuesta | Solicitud | Autorización |
+| Operación implementada | Solicitud | Autorización |
 | --- | --- | --- |
 | Java pública | `GET /api/v1/organizations/{id}/predictions/forecast?originMonth=2024-12&horizonMonths=6` | Sesión, cuenta/organización ARS/membresía activas, igual que monthly |
 | Python interna | `POST /internal/v2/predictions/forecast` | Bearer técnico, organización autorizada por Java y vistas SQL de lectura |
 
-Propuesta de parámetros: `horizonMonths` sólo 4, 5 o 6 (default propuesto 4, por confirmar); `originMonth` es **último mes histórico incluido**, no primer objetivo. Origin omitido: Java usa el último mes cerrado confirmado de esa organización; si no hay cobertura, usa el mes cerrado anterior al actual de Buenos Aires y devuelve insuficiencia. Origen explícito debe ser YYYY-MM válido y anterior al mes actual; la existencia de un gasto no confirma cobertura. Si falta cobertura en el origen, devuelve historial insuficiente, sin desplazar automáticamente el corte. Rechazar cualquier rango cuyos meses proyectados excedan el límite de año 9999. Puede proyectar meses futuros; no aplica la prohibición de fecha futura del alta de gastos.
+Propuesta de parámetros: `horizonMonths` sólo 4, 5 o 6 (default implementado 4); `originMonth` es **último mes histórico incluido**, no primer objetivo. Origin omitido: Java usa el último mes cerrado confirmado de esa organización; si no hay cobertura, usa el mes cerrado anterior al actual de Buenos Aires y devuelve insuficiencia. Origen explícito debe ser YYYY-MM válido y anterior al mes actual; la existencia de un gasto no confirma cobertura. Si falta cobertura en el origen, devuelve historial insuficiente, sin desplazar automáticamente el corte. Rechazar cualquier rango cuyos meses proyectados excedan el límite de año 9999. Puede proyectar meses futuros; no aplica la prohibición de fecha futura del alta de gastos.
 
 Java resuelve/valida origen y horizonte antes de llamar Python. Python consulta una sola ventana histórica continua, terminada en el origen, de hasta 60 meses confirmados; mínimo seis por serie. El adaptador puede reutilizar la lectura equivalente a target_month=origin+1, pero nunca leer reales posteriores al corte. Una misma solicitud produce objetivos origin+1…origin+H. No invocar monthly H veces desplazando targetMonth: exigiría cobertura de meses futuros y cambiaría el origen de información.
 
-Ejemplo interno **propuesto**, sin historial enviado por React ni callback:
+Formato interno implementado, sin historial enviado por React ni callback:
 
 ```json
 {"contract_version":"2","request_id":"cbad14ba-cbe2-47ca-bdf6-b9266054ef0b","organization_id":2,"origin_month":"2024-12","horizon_months":4}
 ```
 
-Respuesta propuesta: metadatos comunes contract_version/request_id/organization_id/currency/status/simulated; `origin_month`, `horizon_months`; una serie `organization` y hasta 100 series `categories`, con category_id único. Cada serie incluye status, method, model_version, months_used, required_months y `forecasts` de longitud H. Cada punto incluye `horizon` (1…H), `target_month`, `estimated_amount_minor` entero seguro no negativo o null, y `quality`. Los objetivos son únicos, consecutivos y ordenados; Java debe validar pertenencia, origen, longitud, horizonte, importes y calidad antes de exponer la respuesta.
+Respuesta implementada: metadatos comunes contract_version/request_id/organization_id/currency/status/simulated; `origin_month`, `horizon_months`; una serie `organization` y hasta 100 series `categories`, con category_id único. Cada serie incluye status, method, model_version, months_used, required_months y `forecasts` de longitud H. Cada punto incluye `horizon` (1…H), `target_month`, `estimated_amount_minor` entero seguro no negativo o null, y `quality`. Los objetivos son únicos, consecutivos y ordenados; Java debe validar pertenencia, origen, longitud, horizonte, importes y calidad antes de exponer la respuesta.
 
 Ejemplo de **estructura de serie**, con importes únicamente ilustrativos y sin calidad evaluada:
 
@@ -165,11 +165,11 @@ Una serie insuficiente mantiene H puntos con importe null, months_used=0 y quali
 
 Errores propuestos coherentes con el circuito vigente: Java 400 por parámetros/rango inválidos, 401/403 por acceso, 503 por indisponibilidad/timeout/respuesta interna inválida; Python 422 por contrato inválido y 401/403 por Bearer. Mantener correlación y no exponer SQL/rutas/secretos. Presupuesto de timeout para seis horizontes queda pendiente de medición y acuerdo, sin cambiar el de monthly incidentalmente. No escribir predicciones como gastos o cobertura ni abrir PostgreSQL/Python al navegador.
 
-Transición propuesta: P3-H implementa/evalúa cálculo offline; luego Python y Java incorporan operación nueva y tests de contrato antes de habilitar frontend P5-H. La UI sigue usando monthly hasta que ambos servidores soporten forecast. Comparar h=1 de forecast con monthly para el mismo corte/método, probar clientes antiguos y casos de insuficiencia/aislamiento. No activar modelo automáticamente. Revisión previa necesaria entre Python/Java/front/QA: DTO, default, calidad y presupuesto; parámetros de aceptación por horizonte siguen abiertos.
+Estado de transición: monthly y forecast están implementados de forma aditiva. La demo #85 verifica h=1 equivalente a monthly para el mismo corte en mock y posteriormente log_trend, junto con insuficiencia, permisos y errores 400/403/503; no sustituye pruebas exhaustivas de todos los consumidores y DTO malformados. El gráfico combinado sigue pendiente. Mantener calidad NOT_EVALUATED y métricas null; la activación experimental de log_trend no implica aceptación ni traslado de métricas sintéticas al contrato como confianza. Aceptación, evaluación por horizonte y presupuesto de timeout permanecen sujetos a revisión, sin cambiar monthly incidentalmente.
 
 ### Contrato mensual vigente
 
-Planificación pendiente: el [plan complementario del predictor](road_map.md#predictor-multihorizonte) contempla horizontes de 4/5/6 meses. Las rutas y DTO documentados aquí mantienen el comportamiento vigente de un mes. P2-H debe coordinar Python, Java y frontend y definir compatibilidad/transición antes de implementar campos o rutas; esta nota no introduce un nuevo contrato ni autoriza interpretar varios `targetMonth` como una previsión multihorizonte desde el mismo origen.
+El contrato monthly conserva un mes por solicitud. Forecast se implementa como operación aditiva desde origen común según la sección anterior; no interpretar varias llamadas monthly con targetMonth desplazado como una previsión multihorizonte.
 
 En E3.2 se implementa el flujo unidireccional `React → Java → Python → PostgreSQL (vistas)` y se retira el callback `Python → Java` (`/api/v1/auth/token`, `/api/v1/expenses/organization/{id}/history` y `GET /api/v1/predictions/organization/{id}/monthly`).
 
@@ -524,7 +524,7 @@ Ejemplo de estructura, con importes ilustrativos que no son resultados de un mod
 
 El modelo candidato inicial es el suavizado exponencial simple. Su configuración y evaluación se documentan en el módulo predictivo; este contrato no fija el algoritmo ni sus parámetros. Un cambio de método compatible con los mismos campos no exige cambiar la versión del contrato, pero sí identificar la nueva versión del modelo.
 
-E6.1 mantiene `PREDICTOR_MODE=mock` por defecto y permite `ses` únicamente mediante configuración explícita experimental. Mock devuelve `simulated:true`/`method:"mock"`; SES devuelve `simulated:false`/`method:"simple_exponential_smoothing"`/`model_version:"1"`, sin que esa marca certifique aceptación predictiva. Dataset, umbral y selección operativa siguen pendientes según [python_predictor.md](python_predictor.md). No cambian rutas, autenticación ni DTO; las métricas y referencias de evaluación son offline y no se agregan a respuestas HTTP.
+La configuración actual #85 usa PREDICTOR_MODE=log_trend por defecto: method log_linear_trend, versión 1, simulated false. Se extrapola cada horizonte desde el mismo origen y puede variar por mes; no cambia ningún campo ni ruta. Mock y SES son opciones explícitas experimentales. Mock devuelve `simulated:true`/`method:"mock"`; SES devuelve `simulated:false`/`method:"simple_exponential_smoothing"`/`model_version:"1"`, sin que esa marca certifique aceptación predictiva. Dataset, umbral y selección operativa siguen pendientes según [python_predictor.md](python_predictor.md). No cambian rutas, autenticación ni DTO; las métricas y referencias de evaluación son offline y no se agregan a respuestas HTTP.
 
 No se devuelven intervalos ni porcentajes de confianza hasta implementar y evaluar un procedimiento que los sustente. Los resultados expresan ARS nominales; no se ajustan por inflación. El incremento de gasto no identifica por sí solo mayor consumo ni su causa.
 
@@ -673,3 +673,8 @@ Referencia mantenida dentro de `docs/contratos_api.md`. Entregables complementar
 - Pruebas de contrato ejecutables por ambos servicios.
 
 El contrato se considera integrado cuando ambos servicios procesan los mismos ejemplos, reproducen los estados especificados y manejan errores de comunicación sin alterar su significado.
+
+
+### Presentación del predictor en el MVP (#85)
+
+La pantalla usa «Proyección de gastos» y «Estimación basada en tus gastos anteriores. Los importes pueden variar». No muestra etiquetas de experimental, aceptación/calidad, versión, método ni métricas técnicas. La API conserva method, model_version, simulated y quality sin cambios: la información técnica y sus límites quedan en documentación. Si simulated es true, se identifica «Simulación»; no se presenta mock como cálculo real. Se conservan errores operativos, historial insuficiente y período/origen de la proyección. El conjunto sintético se identifica mediante la organización de demostración y su guía. Esta presentación sustituye los avisos técnicos de la vista descritos en secciones históricas; no implica aceptación de precisión.
