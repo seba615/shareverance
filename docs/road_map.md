@@ -652,3 +652,8 @@ Ajuste de presentación MVP de #85: retirados avisos técnicos de experimental/c
 
 
 Corrección de entrada #85 / PR #87: la vista inicial conservaba monthly y mostraba un solo mes. Ahora inicia forecast con cuatro meses; cinco/seis siguen seleccionables y monthly permanece disponible. Sin cambios de API, modelo o datos. Compilación y pruebas frontend registradas con esta corrección; aceptación manual pendiente.
+
+
+### Gráfico combinado histórico + previsión #88 (P5-H), 25/10/2026
+
+Sobre 9f40768, se incorpora en rontend/src/PredictionPanel.tsx el componente SVG accesible PredictionCombinedChart.tsx, que consulta el historial reciente de hasta seis meses confirmados previos al corte y los conecta en una escala continua con las proyecciones multimes (4 a 6 meses). Se diferencian visualmente las barras históricas (azul continuo) de las proyecciones estimadas (verde/turquesa con trazo punteado e indicador de horizonte h). Incluye roles accesibles, etiquetas descriptivas y navegación. Pruebas de servicio Python (3 aprobadas) y de evaluación multihorizonte (7 aprobadas) verificadas. Sin alteraciones a contratos ni bases de datos. Aceptación y cierre manuales.

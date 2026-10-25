@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ApiError, Category, predictionApi, PredictionResponse, ForecastResponse } from './api/java';
+import { ApiError, Category, predictionApi, PredictionResponse, ForecastResponse, analyticsApi, AnalyticsResponse } from './api/java';
 import { PredictionHistory, PredictionInsufficiencyNotice, PredictionModelNotice } from './PredictionMessages';
 import {
   createPredictionLoader,
@@ -8,6 +8,8 @@ import {
   validatePredictionTargetMonth,
   validatePredictionOriginMonth,
 } from './predictionModel';
+import { PredictionCombinedChart, CombinedChartPoint } from './PredictionCombinedChart';
+import { shiftMonth } from './calendarModel';
 
 interface Props {
   organizationId: number;
@@ -40,6 +42,12 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
     key: string;
     data: ForecastResponse | null;
     error: string;
+  } | null>(null);
+
+  // Historial reciente para el gráfico combinado
+  const [historyResult, setHistoryResult] = useState<{
+    key: string;
+    data: AnalyticsResponse | null;
   } | null>(null);
 
   const [monthlyLoader] = useState(() =>
@@ -77,6 +85,15 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
     )
   );
 
+  const [historyLoader] = useState(() =>
+    createPredictionLoader(
+      analyticsApi.monthly,
+      (key, data) => {
+        setHistoryResult({ key, data });
+      }
+    )
+  );
+
   const monthlyKey = JSON.stringify([organizationId, appliedTargetMonth, refreshToken, monthlyRefresh]);
   const activeMonthly = monthlyResult?.key === monthlyKey ? monthlyResult : null;
   const monthlyData = activeMonthly?.data;
@@ -98,6 +115,17 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
     }
     return () => forecastLoader.invalidate();
   }, [mode, forecastKey, forecastLoader, organizationId, appliedOriginMonth, appliedHorizon]);
+
+  // Cargar historial previo (hasta 6 meses anteriores) para el gráfico combinado cuando la previsión está disponible
+  useEffect(() => {
+    if (forecastData && forecastData.organization.status === 'OK' && forecastData.origin_month) {
+      const toMonth = forecastData.origin_month;
+      const fromMonth = shiftMonth(toMonth, -5);
+      const hKey = JSON.stringify([organizationId, fromMonth, toMonth, refreshToken]);
+      void historyLoader.load(hKey, organizationId, fromMonth, toMonth);
+    }
+    return () => historyLoader.invalidate();
+  }, [forecastData, historyLoader, organizationId, refreshToken]);
 
   function handleMonthlySubmit(event: FormEvent) {
     event.preventDefault();
@@ -142,6 +170,30 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
   const isMonthlyInsufficient = monthlyData?.organization.status === 'INSUFFICIENT_HISTORY';
   const isForecastInsufficient = forecastData?.organization.status === 'INSUFFICIENT_HISTORY';
 
+  // Construir puntos del gráfico combinado (historia + previsión)
+  const combinedPoints: CombinedChartPoint[] = [];
+  if (forecastData && forecastData.organization.status === 'OK') {
+    if (historyResult?.data?.evolution) {
+      for (const ev of historyResult.data.evolution) {
+        if (ev.month <= forecastData.origin_month) {
+          combinedPoints.push({
+            month: ev.month,
+            amountMinor: ev.covered ? ev.total_amount_minor : null,
+            type: 'history',
+          });
+        }
+      }
+    }
+    for (const fc of forecastData.organization.forecasts) {
+      combinedPoints.push({
+        month: fc.target_month,
+        amountMinor: fc.estimated_amount_minor,
+        type: 'forecast',
+        horizon: fc.horizon,
+      });
+    }
+  }
+
   return (
     <section className="prediction-panel" aria-label="Sección de predicciones">
       <h3>Proyección de gastos</h3>
@@ -168,12 +220,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
       {mode === 'monthly' && (
         <>
-          {monthlyData && (
-            <PredictionModelNotice
-              simulated={monthlyData.simulated}
-            />
-          )}
-
           <form className="prediction-filters" onSubmit={handleMonthlySubmit}>
             <label>
               Mes objetivo (opcional)
@@ -387,6 +433,17 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                   <div className="prediction-amount-block">
                     <span className="amount-label">Proyección organizacional ({forecastData.horizon_months} meses):</span>
                   </div>
+
+                  {/* Gráfico combinado accesible: historia + proyección */}
+                  {combinedPoints.length > 0 && (
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <PredictionCombinedChart
+                        points={combinedPoints}
+                        caption={`Evolución histórica y proyección a ${forecastData.horizon_months} meses desde ${forecastData.origin_month}`}
+                      />
+                    </div>
+                  )}
+
                   <div className="prediction-table-scroll" style={{ marginTop: '0.75rem' }}>
                     <table>
                       <caption>Proyección multimes organizacional desde {forecastData.origin_month}</caption>
