@@ -1,18 +1,12 @@
 import type { PredictionResult } from './api/java';
-import { formatPredictionMethod, formatPredictionMonth } from './predictionModel';
+import { formatPredictionMonth } from './predictionModel';
 
-export function PredictionModelNotice({ simulated, method, version }: {
-  simulated: boolean; method: string; version: string;
-}) {
+export function PredictionModelNotice({ simulated }: { simulated: boolean }) {
   return simulated ? (
     <div className="prediction-badge simulated" role="note">
-      <strong>Cálculo simulado (mock), versión {version}:</strong> el método de prueba reutiliza el último importe del historial consultado cuando hay historial suficiente. No constituye una predicción validada.
+      <strong>Simulación:</strong> se reutiliza el último importe del historial consultado. Estos valores son de prueba.
     </div>
-  ) : (
-    <div className="prediction-badge experimental" role="note">
-      <strong>Modelo experimental:</strong> {formatPredictionMethod(method, false)}, versión {version}. Su calidad predictiva todavía no está aceptada.
-    </div>
-  );
+  ) : null;
 }
 
 export function PredictionInsufficiencyNotice({ requiredMonths, targetMonth }: {

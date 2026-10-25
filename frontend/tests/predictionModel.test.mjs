@@ -98,3 +98,26 @@ test('cargador predictivo publica error vigente y permite reintentar tras fallo'
   await loader.load('2', 1, '2026-11');
   assert.deepEqual(results[1], ['2', 'recuperado', null]);
 });
+
+test('previsión envía el horizonte de cada consulta y descarta respuestas de otro horizonte', async () => {
+  const calls = [];
+  const published = [];
+  const loader = createPredictionLoader((org, origin, horizon) => {
+    const pending = deferred();
+    calls.push({ org, origin, horizon, pending });
+    return pending.promise;
+  }, (...args) => published.push(args));
+  const four = loader.load('org1-4', 1, '2024-12', 4);
+  const six = loader.load('org1-6', 1, '2024-12', 6);
+  calls[1].pending.resolve({ horizon_months: 6 });
+  await six;
+  calls[0].pending.resolve({ horizon_months: 4 });
+  await four;
+  const five = loader.load('org2-auto-5', 2, undefined, 5);
+  calls[2].pending.resolve({ horizon_months: 5 });
+  await five;
+  assert.deepEqual(calls.map(({ org, origin, horizon }) => [org, origin, horizon]),
+    [[1, '2024-12', 4], [1, '2024-12', 6], [2, undefined, 5]]);
+  assert.deepEqual(published, [['org1-6', { horizon_months: 6 }, null],
+    ['org2-auto-5', { horizon_months: 5 }, null]]);
+});

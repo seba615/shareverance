@@ -262,6 +262,14 @@ class AuthServiceTest {
 
         assertTrue(authService.isAuthorizedForRequest(
                 session.token(), "GET", "/api/v1/organizations/10/predictions/monthly"));
+        assertTrue(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/10/predictions/forecast"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "POST", "/api/v1/organizations/10/predictions/forecast"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/20/predictions/forecast"));
+        assertFalse(authService.isAuthorizedForRequest(
+                session.token(), "GET", "/api/v1/organizations/10/analytics/forecast"));
         assertFalse(authService.isAuthorizedForRequest(
                 session.token(), "POST", "/api/v1/organizations/10/predictions/monthly"));
         assertFalse(authService.isAuthorizedForRequest(

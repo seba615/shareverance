@@ -40,14 +40,17 @@ export function formatPredictionMethod(method: string, simulated: boolean): stri
   if (method === 'simple_exponential_smoothing') {
     return 'Suavizado Exponencial Simple (SES)';
   }
+  if (method === 'log_linear_trend') {
+    return 'Tendencia log-lineal';
+  }
   if (method === 'mock') {
     return 'Simulado (mock)';
   }
   return method;
 }
 
-export function createPredictionLoader<T>(
-  fetchData: (organizationId: number, targetMonth?: string) => Promise<T>,
+export function createPredictionLoader<T, Parameters extends unknown[]>(
+  fetchData: (...parameters: Parameters) => Promise<T>,
   publish: (key: string, data: T | null, error: unknown | null) => void,
 ) {
   let generation = 0;
@@ -55,10 +58,10 @@ export function createPredictionLoader<T>(
     invalidate() {
       generation++;
     },
-    async load(key: string, organizationId: number, targetMonth?: string) {
+    async load(key: string, ...parameters: Parameters) {
       const request = ++generation;
       try {
-        const data = await fetchData(organizationId, targetMonth);
+        const data = await fetchData(...parameters);
         if (generation === request) {
           publish(key, data, null);
         }

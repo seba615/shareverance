@@ -4,7 +4,6 @@ import { PredictionHistory, PredictionInsufficiencyNotice, PredictionModelNotice
 import {
   createPredictionLoader,
   formatMinor,
-  formatPredictionMethod,
   formatPredictionMonth,
   validatePredictionTargetMonth,
   validatePredictionOriginMonth,
@@ -17,7 +16,7 @@ interface Props {
 }
 
 export function PredictionPanel({ organizationId, categories, refreshToken }: Props) {
-  const [mode, setMode] = useState<'monthly' | 'forecast'>('monthly');
+  const [mode, setMode] = useState<'monthly' | 'forecast'>('forecast');
 
   // Modo mensual
   const [targetMonthInput, setTargetMonthInput] = useState('');
@@ -61,7 +60,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
   const [forecastLoader] = useState(() =>
     createPredictionLoader(
-      (orgId: number, originMonth?: string) => predictionApi.forecast(orgId, originMonth, appliedHorizon),
+      predictionApi.forecast,
       (key, data, error) => {
         const message =
           error instanceof ApiError && error.status === 401
@@ -95,7 +94,7 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
   useEffect(() => {
     if (mode === 'forecast') {
-      void forecastLoader.load(forecastKey, organizationId, appliedOriginMonth || undefined);
+      void forecastLoader.load(forecastKey, organizationId, appliedOriginMonth || undefined, appliedHorizon);
     }
     return () => forecastLoader.invalidate();
   }, [mode, forecastKey, forecastLoader, organizationId, appliedOriginMonth, appliedHorizon]);
@@ -145,9 +144,9 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
   return (
     <section className="prediction-panel" aria-label="Sección de predicciones">
-      <h3>Predicción de gastos de la organización</h3>
+      <h3>Proyección de gastos</h3>
       <p className="muted">
-        Estimación mensual proyectada en ARS calculada a partir del historial continuo de meses con cobertura confirmada.
+        Estimación basada en tus gastos anteriores. Los importes pueden variar. Valores en ARS.
       </p>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
@@ -172,8 +171,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
           {monthlyData && (
             <PredictionModelNotice
               simulated={monthlyData.simulated}
-              method={monthlyData.organization.method}
-              version={monthlyData.organization.model_version}
             />
           )}
 
@@ -252,16 +249,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                       </strong>
                     </div>
                     <div>
-                      <span className="meta-label">Método aplicado</span>
-                      <strong>
-                        {formatPredictionMethod(monthlyData.organization.method, monthlyData.simulated)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="meta-label">Versión del modelo</span>
-                      <strong>v{monthlyData.organization.model_version}</strong>
-                    </div>
-                    <div>
                       <span className="meta-label">Estado</span>
                       <span className="badge badge-success">Disponible</span>
                     </div>
@@ -283,7 +270,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                           <th scope="col">Estado</th>
                           <th scope="col">Estimación proyectada</th>
                           <th scope="col">Historial</th>
-                          <th scope="col">Método</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -309,7 +295,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                               <td>
                                 <PredictionHistory result={cat} />
                               </td>
-                              <td>{formatPredictionMethod(cat.method, monthlyData.simulated)}</td>
                             </tr>
                           );
                         })}
@@ -325,11 +310,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
 
       {mode === 'forecast' && (
         <>
-          <div className="prediction-badge experimental" role="note">
-            <strong>Previsión multihorizonte (experimental):</strong> Proyecciones recursivas a mediano plazo (4 a 6 meses).
-            La incertidumbre aumenta a mayor horizonte y la calidad predictiva formal se encuentra en estado <em>no evaluada</em> (NOT_EVALUATED).
-          </div>
-
           <form className="prediction-filters" onSubmit={handleForecastSubmit}>
             <label>
               Mes base / origen (opcional)
@@ -393,6 +373,8 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                 </h4>
               </div>
 
+              <PredictionModelNotice simulated={forecastData.simulated} />
+
               {isForecastInsufficient ? (
                 <div className="prediction-card insufficient" role="alert">
                   <h5>Historial insuficiente para calcular la previsión multihorizonte</h5>
@@ -410,19 +392,15 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                       <caption>Proyección multimes organizacional desde {forecastData.origin_month}</caption>
                       <thead>
                         <tr>
-                          <th scope="col">Paso (h)</th>
                           <th scope="col">Mes proyectado</th>
                           <th scope="col">Gasto proyectado</th>
-                          <th scope="col">Evaluación de calidad</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {forecastData.organization.points.map(pt => (
-                          <tr key={pt.horizon_step}>
-                            <td>h = {pt.horizon_step}</td>
+                        {forecastData.organization.forecasts.map(pt => (
+                          <tr key={pt.horizon}>
                             <td><strong>{formatPredictionMonth(pt.target_month)}</strong> ({pt.target_month})</td>
                             <td>{formatMinor(pt.estimated_amount_minor)}</td>
-                            <td><span className="badge badge-warning">NOT_EVALUATED</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -432,14 +410,6 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                     <div>
                       <span className="meta-label">Historial utilizado</span>
                       <strong>{forecastData.organization.months_used} meses</strong>
-                    </div>
-                    <div>
-                      <span className="meta-label">Método aplicado</span>
-                      <strong>{formatPredictionMethod(forecastData.organization.method, forecastData.simulated)}</strong>
-                    </div>
-                    <div>
-                      <span className="meta-label">Versión del modelo</span>
-                      <strong>v{forecastData.organization.model_version}</strong>
                     </div>
                     <div>
                       <span className="meta-label">Estado</span>
@@ -462,9 +432,9 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                           <th scope="col">Categoría</th>
                           <th scope="col">Estado</th>
                           <th scope="col">Historial</th>
-                          {forecastData.organization.points.map(p => (
-                            <th key={p.horizon_step} scope="col">
-                              h={p.horizon_step} ({p.target_month})
+                          {forecastData.organization.forecasts.map(p => (
+                            <th key={p.horizon} scope="col">
+                              {formatPredictionMonth(p.target_month)}
                             </th>
                           ))}
                         </tr>
@@ -492,8 +462,8 @@ export function PredictionPanel({ organizationId, categories, refreshToken }: Pr
                                   No disponible por historial insuficiente
                                 </td>
                               ) : (
-                                cat.points.map(pt => (
-                                  <td key={pt.horizon_step}>
+                                cat.forecasts.map(pt => (
+                                  <td key={pt.horizon}>
                                     {formatMinor(pt.estimated_amount_minor)}
                                   </td>
                                 ))

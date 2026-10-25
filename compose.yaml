@@ -29,7 +29,7 @@ services:
   python-service:
     build: ./service-python
     environment:
-      PREDICTOR_MODE: ${PREDICTOR_MODE:-mock}
+      PREDICTOR_MODE: ${PREDICTOR_MODE:-log_trend}
       PYTHON_DB_HOST: postgres
       PYTHON_DB_PORT: 5432
       PYTHON_DB_NAME: ${POSTGRES_DB:-shareverance}

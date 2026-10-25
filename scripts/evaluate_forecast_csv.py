@@ -7,6 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from fractions import Fraction
 import hashlib
 import io
+import inspect
 import json
 from pathlib import Path
 
@@ -24,7 +25,7 @@ def money(value):
     return float((value / 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
 
-def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horizon=6, commit=''):
+def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horizon=6, commit='', include_trend=False):
     development = EXPECTED[:24]
     if max_horizon not in (4, 5, 6):
         raise ValueError('max_horizon debe ser 4, 5 o 6.')
@@ -58,6 +59,9 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
         'last_month': MockPredictor(),
         'historical_mean': HistoricalMeanReference()
     }
+    if include_trend:
+        from app.predictors.log_trend import LogTrendPredictor
+        models['log_trend'] = LogTrendPredictor()
 
     origins = [m for m in development if from_origin <= m <= to_origin]
     details = []
@@ -81,6 +85,8 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
 
             # Insuficiencia si el origen tiene menos de 6 meses de historia continua
             status_origin = 'INSUFFICIENT_HISTORY' if len(history) < 6 else 'OK'
+            trajectories = ({name: model.forecast(history, max_horizon) for name, model in models.items()}
+                            if include_trend and status_origin == 'OK' else {})
 
             for h in range(1, max_horizon + 1):
                 target_month = development[origin_idx + h]
@@ -105,7 +111,7 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
                     for name, model in models.items():
                         # Para los modelos actuales univariados (last_month, SES, mean),
                         # la proyección recursiva produce un valor constante para h=1..max_horizon
-                        prediction = model.predict(history)
+                        prediction = trajectories[name][h - 1] if include_trend else model.predict(history)
                         signed_err = prediction - actual
                         abs_err = abs(signed_err)
                         point['predictions'][name] = {
@@ -182,6 +188,8 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
         'dataset_sha256': manifest['dataset_sha256'],
         'code_commit': commit,
         'evaluator_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'predictor_source_sha256': {name: hashlib.sha256(Path(inspect.getfile(type(model))).read_bytes()).hexdigest()
+                                    for name, model in models.items()},
         'scope': 'synthetic_development_multihorizon',
         'coverage_policy': 'synthetic_declared_not_real_coverage',
         'configuration': {
@@ -191,7 +199,13 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
             'max_horizon': max_horizon,
             'min_history_months': 6,
             'alpha': 0.3,
-            'training': 'common_origin_recursive_forecast_without_future_data',
+            'include_trend': include_trend,
+            'trend_configuration': ({'transform': 'ln(1 + amount_minor)', 'precision': 40,
+                                     'fit': 'OLS time trend on observed history at origin',
+                                     'strategy': 'direct horizons; no synthetic observations in fit',
+                                     'bias_correction': False} if include_trend else None),
+            'training': ('common_origin_direct_trend_and_recursive_references_without_future_data'
+                         if include_trend else 'common_origin_recursive_forecast_without_future_data'),
             'method_versions': {name: model.model_version for name, model in models.items()}
         },
         'accepted': None,
@@ -202,7 +216,7 @@ def evaluate_forecast(raw, from_origin='2023-12', to_origin='2024-06', max_horiz
         'points': details,
         'limitations': manifest['pending_evidence'] + [
             'No representa precisión sobre hogares reales.',
-            'Horizontes 4 a 6 meses con modelos sin tendencia producen proyecciones planas.',
+            'Referencias sin tendencia producen proyecciones planas; tendencia no implica inflación calibrada.',
             'Ventanas solapadas entre orígenes no constituyen observaciones independientes.'
         ]
     }
@@ -215,6 +229,7 @@ if __name__ == '__main__':
     parser.add_argument('--to-origin', default='2024-06')
     parser.add_argument('--max-horizon', type=int, default=6)
     parser.add_argument('--commit', required=True)
+    parser.add_argument('--include-trend', action='store_true')
     args = parser.parse_args()
     try:
         print(json.dumps(evaluate_forecast(
@@ -222,7 +237,8 @@ if __name__ == '__main__':
             from_origin=args.from_origin,
             to_origin=args.to_origin,
             max_horizon=args.max_horizon,
-            commit=args.commit
+            commit=args.commit,
+            include_trend=args.include_trend
         ), indent=2, ensure_ascii=False, allow_nan=False))
     except (ValueError, OSError) as error:
         raise SystemExit(f'Evaluación multihorizonte fallida: {error}') from None

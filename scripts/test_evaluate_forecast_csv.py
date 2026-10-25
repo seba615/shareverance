@@ -4,6 +4,14 @@ from test_audit_predictor_dataset import fixture
 
 
 class ForecastEvaluationTests(unittest.TestCase):
+    def test_trend_no_future_leakage_and_matches_common_origin(self):
+        original = evaluate_forecast(fixture(), from_origin='2023-12', to_origin='2023-12', include_trend=True)
+        changed = fixture(lambda rows: [row.__setitem__(4, '999999') for row in rows if row[1] >= '2024-01'])
+        altered = evaluate_forecast(changed, from_origin='2023-12', to_origin='2023-12', include_trend=True)
+        first = [p['predictions']['log_trend']['estimated_minor'] for p in original['points']]
+        second = [p['predictions']['log_trend']['estimated_minor'] for p in altered['points']]
+        self.assertEqual(first, second)
+        self.assertTrue(any(first[i] != first[i + 1] for i in range(5)))
     def test_invalid_horizon_rejected(self):
         with self.assertRaisesRegex(ValueError, 'max_horizon'):
             evaluate_forecast(fixture(), from_origin='2023-12', to_origin='2024-06', max_horizon=3, commit='test')

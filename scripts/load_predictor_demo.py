@@ -189,9 +189,15 @@ def run(path, check=False):
         raise ValueError('El ADMIN habitual no tiene membresía ADMIN activa; no se altera automáticamente.')
     prediction = client.call('GET', f'/organizations/{org_id}/predictions/monthly')
     last_total = sum(row['amount'] for row in rows if row['month'] == '2024-12')
+    from app.predictors.factory import create_predictor
+    from app.config import load_settings
+    model = create_predictor(load_settings())
+    monthly_history = [sum(row['amount'] for row in rows if row['month'] == month) for month in MONTHS]
     if (prediction['status'] != 'OK' or prediction['target_month'] != '2025-01'
-            or prediction['simulated'] is not True or prediction['organization']['estimated_amount_minor'] != last_total):
-        raise ValueError('Predicción mock no concilia con el último mes cargado.')
+            or prediction['simulated'] != model.simulated
+            or prediction['organization']['method'] != model.method
+            or prediction['organization']['estimated_amount_minor'] != model.predict(monthly_history)):
+        raise ValueError('Predicción no concilia con el modelo configurado y el historial cargado.')
     outsider = Client()
     outsider.account(OUTSIDER, check)
     try:
@@ -205,7 +211,10 @@ def run(path, check=False):
             'organization_name': NAME, 'category_ids': mapping, 'expense_count': len(final),
             'created_this_run': created, 'covered_months': len(MONTHS), 'cutoff': '2024-12',
             'total_minor': sum(row['amount'] for row in rows), 'prediction_month': prediction['target_month'],
-            'prediction_minor': last_total, 'analytics_months_verified': len(evolution), 'outsider_http_status': 403}
+            'prediction_minor': prediction['organization']['estimated_amount_minor'],
+            'prediction_method': model.method, 'simulated': model.simulated,
+            'last_observed_minor': last_total,
+            'analytics_months_verified': len(evolution), 'outsider_http_status': 403}
 
 
 if __name__ == '__main__':
