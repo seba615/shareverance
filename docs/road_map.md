@@ -708,6 +708,11 @@ Ajuste de presentación MVP de #85: retirados avisos técnicos de experimental/c
 Corrección de entrada #85 / PR #87: la vista inicial conservaba monthly y mostraba un solo mes. Ahora inicia forecast con cuatro meses; cinco/seis siguen seleccionables y monthly permanece disponible. Sin cambios de API, modelo o datos. Compilación y pruebas frontend registradas con esta corrección; aceptación manual pendiente.
 
 
+### Edición de categorías en Frontend #93 (E2.1), 25/10/2026
+
+Sobre 365cdcb, se completa en rontend/src/App.tsx la funcionalidad pendiente de edición de categorías para usuarios con rol ADMIN. Se incorpora en la tabla de categorías la acción 'Editar', abriendo el formulario de modificación en línea con precarga de nombre (máximo 100 caracteres) y descripción opcional (máximo 500 caracteres), consumiendo el endpoint PUT /api/v1/categories/{id} vía categoryApi.update. El estado de edición se descarta y reinicia limpiamente ante cambios de organización, cancelación o finalización exitosa. Verificadas suites unitarias en Python (3 pruebas de servicio y 7 de evaluador multihorizonte aprobadas). Sin cambios en contratos ni en el modelo de base de datos. Aceptación y cierre manuales.
+
+
 ### Gráfico combinado histórico + previsión #88 (P5-H), 25/10/2026
 
 Sobre 9f40768, se incorpora en rontend/src/PredictionPanel.tsx el componente SVG accesible PredictionCombinedChart.tsx, que consulta el historial reciente de hasta seis meses confirmados previos al corte y los conecta en una escala continua con las proyecciones multimes (4 a 6 meses). Se diferencian visualmente las barras históricas (azul continuo) de las proyecciones estimadas (verde/turquesa con trazo punteado e indicador de horizonte h). Incluye roles accesibles, etiquetas descriptivas y navegación. Pruebas de servicio Python (3 aprobadas) y de evaluación multihorizonte (7 aprobadas) verificadas. Sin alteraciones a contratos ni bases de datos. Aceptación y cierre manuales.

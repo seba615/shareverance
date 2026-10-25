@@ -69,6 +69,7 @@ export default function App() {
   // Estados de formularios secundarios
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Estados para carga de comprobante y OCR
@@ -150,6 +151,7 @@ export default function App() {
     setError('');
     setShowAddMember(false);
     setShowAddCategory(false);
+    setEditingCategory(null);
     setShowAddExpense(false);
     resetExpenseForm();
     setActiveTab('expenses');
@@ -244,6 +246,28 @@ export default function App() {
       await categoryApi.create(selectedOrganizationId, { name, description });
       if (!isCurrentOrganization()) return;
       setShowAddCategory(false);
+    setEditingCategory(null);
+      await loadOrganizationData(selectedOrganizationId);
+    } catch (cause) {
+      if (isCurrentOrganization()) setError(messageFrom(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdateCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedOrganizationId || !editingCategory) return;
+    const isCurrentOrganization = organizationLoader.scope(selectedOrganizationId);
+    setBusy(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get('name') ?? '').trim();
+    const description = String(form.get('description') ?? '').trim() || undefined;
+    try {
+      await categoryApi.update(editingCategory.id, { name, description });
+      if (!isCurrentOrganization()) return;
+      setEditingCategory(null);
       await loadOrganizationData(selectedOrganizationId);
     } catch (cause) {
       if (isCurrentOrganization()) setError(messageFrom(cause));
@@ -962,7 +986,7 @@ export default function App() {
                       )}
                     </div>
 
-                    {showAddCategory && isAdmin && (
+                    {showAddCategory && isAdmin && !editingCategory && (
                       <form className="subform panel" onSubmit={handleCreateCategory}>
                         <h4>Crear categoría</h4>
                         <div className="form-grid">
@@ -978,6 +1002,48 @@ export default function App() {
                         <button className="primary-button" type="submit" disabled={busy}>
                           {busy ? 'Creando…' : 'Crear categoría'}
                         </button>
+                      </form>
+                    )}
+
+                    {editingCategory && isAdmin && (
+                      <form className="subform panel" onSubmit={handleUpdateCategory}>
+                        <h4>Editar categoría</h4>
+                        <div className="form-grid">
+                          <label>
+                            Nombre
+                            <input
+                              name="name"
+                              type="text"
+                              maxLength={100}
+                              required
+                              defaultValue={editingCategory.name}
+                              placeholder="Ej. Servicios, Alquiler"
+                            />
+                          </label>
+                          <label>
+                            Descripción
+                            <input
+                              name="description"
+                              type="text"
+                              maxLength={500}
+                              defaultValue={editingCategory.description ?? ''}
+                              placeholder="Opcional"
+                            />
+                          </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="primary-button" type="submit" disabled={busy}>
+                            {busy ? 'Guardando…' : 'Guardar cambios'}
+                          </button>
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setEditingCategory(null)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </form>
                     )}
 
@@ -1000,14 +1066,28 @@ export default function App() {
                               {isAdmin && (
                                 <td>
                                   {c.isActive ? (
-                                    <button
-                                      className="text-button danger"
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={() => handleDeactivateCategory(c.id)}
-                                    >
-                                      Desactivar
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <button
+                                        className="text-button"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => {
+                                          setShowAddCategory(false);
+                                          setEditingCategory(c);
+                                          setError('');
+                                        }}
+                                      >
+                                        Editar
+                                      </button>
+                                      <button
+                                        className="text-button danger"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => handleDeactivateCategory(c.id)}
+                                      >
+                                        Desactivar
+                                      </button>
+                                    </div>
                                   ) : (
                                     <span className="muted">—</span>
                                   )}

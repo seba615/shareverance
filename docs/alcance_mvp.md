@@ -19,7 +19,7 @@ Shareverance registra y distribuye gastos de hogares, consorcios y universidades
 | --- | --- | --- |
 | Registro, login, restauración y cierre de sesión | Acceso | Código existente |
 | Crear, listar y seleccionar organizaciones | Mis organizaciones | Java acepta solo ARS y lista organizaciones activas de membresías activas; aceptación integral pendiente |
-| Administrar miembros y categorías | Miembros / Categorías | E2.1 incorpora vistas de miembros y alta/desactivación de categorías; edición de categorías y aceptación integral pendientes |
+| Administrar miembros y categorías | Miembros / Categorías | E2.1 incorpora administración de miembros, alta, edición y desactivación de categorías; aceptación integral pendiente |
 | Cargar, editar y anular gastos | Formulario / Detalle | E2.1 incorpora alta manual/listado y E2.2 detalle/edición/anulación; aceptación integral pendiente |
 | Consultar por período, categoría y estado | Historial paginado | E2.2 incorpora filtros y paginación servidor; aceptación integral pendiente |
 | Consultar gastos por fecha | Calendario | E2.3 incorpora calendario mensual navegable con totales diarios y detalle por fecha; aceptación integral pendiente |
