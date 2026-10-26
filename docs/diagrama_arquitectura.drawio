@@ -1,0 +1,65 @@
+<mxfile host="65bd71144e">
+    <diagram id="shareverance-components-interaction" name="Arquitectura de Componentes Shareverance">
+        <mxGraphModel dx="1478" dy="746" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="&lt;div style=&#39;font-size:18px;font-weight:bold;color:#0F172A;&#39;&gt;Diagrama de Arquitectura de Componentes — Shareverance&lt;/div&gt;&lt;div style=&#39;font-size:12px;color:#64748B;margin-top:4px;&#39;&gt;Interacción directa entre los componentes del sistema, protocolos y límites de responsabilidad.&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="50" width="800" x="50" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontFamily=Helvetica;fontColor=#1E293B;fontSize=11;" value="&lt;b&gt;Usuario / Cliente&lt;/b&gt;&lt;br/&gt;&lt;font color=&#39;#64748B&#39; style=&#39;font-size:10px;&#39;&gt;Navegador Web&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="70" width="40" x="135" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_frontend" parent="1" style="shape=display;whiteSpace=wrap;html=1;fontFamily=Helvetica;align=center;verticalAlign=middle;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;spacingLeft=16;spacingRight=6;spacingBottom=6;shadow=0;" value="&lt;b&gt;Frontend Web (SPA)&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#2563EB&quot;&gt;React 19 / TypeScript / Vite&lt;/font&gt;&lt;hr style=&quot;margin: 4px 0px; border-color: rgb(147, 197, 253);&quot;&gt;&lt;div style=&quot;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&quot;&gt;• Interfaz interactiva y accesible&lt;br&gt;• Carga de gastos y comprobantes&lt;br&gt;• Historial&lt;br&gt;• Panel analítico y predicciones&lt;br&gt;• Gráficos&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="160" width="230" x="40" y="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_java" parent="1" style="shape=module;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=2;fontColor=#14532D;fontFamily=Helvetica;fontSize=12;spacingLeft=18;spacingRight=6;shadow=0;" value="&lt;b&gt;Backend de Negocio&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#16A34A&quot;&gt;Java / Spring Boot&lt;/font&gt;&lt;div style=&quot;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&quot;&gt;&lt;br&gt;• Autenticación y roles&lt;br&gt;• Lógica de negocio&lt;/div&gt;&lt;div style=&quot;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&quot;&gt;• Control de concurrencia&lt;br&gt;• Orquestador hacia Python y PostgreSQL&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="160" width="260" x="380" y="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fontFamily=Helvetica;align=center;verticalAlign=middle;fillColor=#FEFCE8;strokeColor=#CA8A04;strokeWidth=2;fontColor=#713F12;fontSize=12;spacingTop=10;shadow=0;" value="&lt;b&gt;Base de Datos Relacional&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#CA8A04&quot;&gt;PostgreSQL 17&lt;/font&gt;&lt;hr style=&quot;margin: 4px 0px; border-color: rgb(253, 224, 71);&quot;&gt;&lt;div style=&quot;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&quot;&gt;• &lt;b&gt;Tablas:&lt;/b&gt; gastos, partes, usuarios, membresías&lt;br&gt;• &lt;b&gt;Vistas SQL:&lt;/b&gt; agregaciones mensuales de cobertura&lt;br&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="180" width="270" x="780" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_python" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;size=20;fontFamily=Helvetica;align=center;verticalAlign=middle;fillColor=#FDF4FF;strokeColor=#C026D3;strokeWidth=2;fontColor=#701A75;fontSize=12;spacingLeft=14;spacingRight=14;shadow=0;" value="&lt;b&gt;Servicio Analítico &amp;amp; OCR&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#C026D3&quot;&gt;Python / FastAPI&lt;/font&gt;&lt;hr style=&quot;margin: 4px 0px; border-color: rgb(240, 171, 252);&quot;&gt;&lt;div style=&quot;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&quot;&gt;• Extracción de texto con OCR&lt;br&gt;• Modelos predictivos&lt;br&gt;• Previsiones multihorizonte&amp;nbsp;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="140" width="270" x="780" y="390" as="geometry"/>
+                </mxCell>
+                <mxCell id="comp_storage" parent="1" style="shape=folder;whiteSpace=wrap;html=1;tabWidth=110;tabHeight=24;tabPosition=left;fontFamily=Helvetica;align=center;verticalAlign=middle;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#0F172A;fontSize=12;spacingTop=16;shadow=0;" value="&lt;b&gt;Volumen de Archivos Compartido&lt;/b&gt;&lt;br/&gt;&lt;font color=&#39;#475569&#39;&gt;Docker Volume (/receipts-data)&lt;/font&gt;&lt;hr style=&#39;margin:4px 0;border-color:#CBD5E1;&#39;/&gt;&lt;div style=&#39;font-size:10px;line-height:1.4;text-align:left;padding:0 6px;&#39;&gt;• Almacenamiento privado de comprobantes (JPEG/PNG)&lt;br/&gt;• &lt;b&gt;Backend Java:&lt;/b&gt; Escritura / Lectura (RW)&lt;br/&gt;• &lt;b&gt;Servicio Python:&lt;/b&gt; Solo Lectura (RO)&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="140" width="260" x="380" y="560" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_user_to_front" edge="1" parent="1" source="comp_user" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#94A3B8;strokeWidth=1.5;" target="comp_frontend" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_front_to_java" edge="1" parent="1" source="comp_frontend" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#2563EB;" target="comp_java" value="&lt;b&gt;HTTP&amp;nbsp; REST&lt;/b&gt;&lt;br&gt;Cookies + CRSF">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_java_to_db" edge="1" parent="1" source="comp_java" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#16A34A;" target="comp_db" value="&lt;div&gt;&lt;b&gt;Lectura y escritura&lt;/b&gt;&lt;/div&gt;">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="510" y="210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_java_to_python" edge="1" parent="1" source="comp_java" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#C026D3;" target="comp_python" value="&lt;b&gt;HTTP Interno&lt;/b&gt;">
+                    <mxGeometry relative="1" x="0.2258" y="10" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="510" y="470"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_java_to_storage" edge="1" parent="1" source="comp_java" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#64748B;" target="comp_storage" value="Guardado de comprobante">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_python_to_db" edge="1" parent="1" source="comp_python" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#9333EA;" target="comp_db" value="&lt;b&gt;Lectura&lt;/b&gt;">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_python_to_storage" edge="1" parent="1" source="comp_python" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=10;labelBackgroundColor=#FFFFFF;strokeWidth=2;fontColor=#1E293B;strokeColor=#475569;" target="comp_storage" value="Lectura de comprobante">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="915" y="630"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
